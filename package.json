@@ -12,6 +12,7 @@
     "@nx/eslint": "19.8.14",
     "@nx/eslint-plugin": "19.8.14",
     "@nx/js": "19.8.14",
+    "@nx/plugin": "19.8.14",
     "@nx/workspace": "19.8.14",
     "eslint": "8.57.1",
     "nx": "19.8.14",
