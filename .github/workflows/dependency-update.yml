@@ -91,17 +91,8 @@ jobs:
           commit-message: 'chore: update dependencies to latest compatible versions'
           labels: dependencies
 
-  post-pr:
-    needs: update-deps
-    if: ${{ needs.update-deps.outputs.pr-number != '' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      actions: write
-    steps:
       - name: Trigger CI workflow
-        if: ${{ needs.update-deps.outputs.changes == 'true' }}
+        if: ${{ steps.create-pull-request.outputs.pull-request-number != '' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -115,6 +106,7 @@ jobs:
             });
 
       - name: Enable PR automerge
+        if: ${{ steps.create-pull-request.outputs.pull-request-number != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr merge --merge --auto "${{ needs.update-deps.outputs.pr-number }}" --repo "$GITHUB_REPOSITORY"
+        run: gh pr merge --merge --auto "${{ steps.create-pull-request.outputs.pull-request-number }}" --repo "$GITHUB_REPOSITORY"
