@@ -40,6 +40,23 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
+      - name: Publish pending commit status for manual invocations
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head_sha=$(git rev-parse HEAD)
+          if [ -z "$head_sha" ]; then
+            echo "::error::Unable to determine head SHA for pending commit status" >&2
+            exit 1
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+            -f state="pending" \
+            -f context='main' \
+            -f description='ci.yml (workflow_dispatch) in progress' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
       # Cache node_modules
       - uses: actions/setup-node@v5
         with:
