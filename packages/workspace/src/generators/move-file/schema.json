@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "MoveFile",
+  "title": "Move File Generator",
+  "description": "Move a file from one Nx project to another and update import paths",
+  "type": "object",
+  "properties": {
+    "file": {
+      "type": "string",
+      "description": "Path to the file relative to source project's source root",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What file would you like to move (relative to source project's source root)?"
+    },
+    "project": {
+      "type": "string",
+      "description": "Source Nx project name",
+      "x-prompt": "What is the source project name?",
+      "x-dropdown": "projects"
+    },
+    "targetProject": {
+      "type": "string",
+      "description": "Target Nx project name",
+      "x-prompt": "What is the target project name?",
+      "x-dropdown": "projects"
+    }
+  },
+  "required": ["file", "project", "targetProject"]
+}

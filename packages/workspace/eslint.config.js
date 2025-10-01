@@ -17,8 +17,12 @@ module.exports = [
     },
   },
   {
-    files: ['**/package.json'],
-    rules: { '@nx/nx-plugin-checks': 'error' },
-    languageOptions: { parser: require('jsonc-eslint-parser') },
+    files: ['**/package.json', '**/package.json', '**/generators.json'],
+    rules: {
+      '@nx/nx-plugin-checks': 'error',
+    },
+    languageOptions: {
+      parser: require('jsonc-eslint-parser'),
+    },
   },
 ];

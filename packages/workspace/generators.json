@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "move-file": {
+      "factory": "./src/generators/move-file/generator",
+      "schema": "./src/generators/move-file/schema.json",
+      "description": "move-file generator"
+    }
+  }
+}
