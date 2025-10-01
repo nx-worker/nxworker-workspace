@@ -5,10 +5,12 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch: # Trigger on bot-created PR, for example dependency-update.yml#update-deps
 
 permissions:
   actions: read
   contents: read
+  checks: write # allow workflow_dispatch runs (e.g. dependency-update) to publish status checks back to PRs
 
 jobs:
   main:
