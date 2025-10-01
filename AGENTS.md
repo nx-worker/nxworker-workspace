@@ -120,6 +120,15 @@ Nx interprets commands in the following order (per the [Nx CLI reference](https:
   3. `npx nx affected -t lint test build e2e`
 - Reproduce step 3 locally with the exact command when debugging CI: it will determine the base via `nrwl/nx-set-shas`. On a feature branch without SHAs, fall back to `npx nx run-many -t lint test build e2e`.
 
+## Conventional Commits (PR titles & commit messages)
+
+Short rules (for agents and humans):
+
+- Use a Conventional Commits header as the PR title and squash commit: type(scope): short subject
+- Keep bodies/footers for details, e.g. BREAKING CHANGE: or Closes #123
+- Examples: `feat(workspace): add generator`, `fix(e2e): stop local registry`
+- If you squash-merge, the PR title becomes the main commit; with merge commits, include at least one proper commit.
+
 ## Architectural Notes & Key Files
 
 - `tsconfig.base.json` defines the path alias `@nxworker/move-file` → `packages/move-file/src/index.ts`.
