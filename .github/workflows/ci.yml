@@ -5,22 +5,51 @@ on:
     branches:
       - main
   pull_request:
-  workflow_dispatch: # Trigger on bot-created PR, for example dependency-update.yml#update-deps
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to run against'
+        required: false
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+      head-sha:
+        required: false
+        type: string
 
 permissions:
   actions: read
   contents: read
   checks: write # allow workflow_dispatch runs (e.g. dependency-update) to publish status checks back to PRs
+  statuses: write # allow workflow_call/workflow_dispatch runs to create commit statuses
 
 jobs:
   main:
     runs-on: ubuntu-latest
     steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${INPUT_REF}" ]; then
+            echo "ref=${INPUT_REF}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
 
       # Cache node_modules
       - uses: actions/setup-node@v5
@@ -32,8 +61,43 @@ jobs:
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v4
 
-      - name: "[PR] Check formatting"
+      - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint test build e2e
+      - name: Publish commit status for manual invocations
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          HEAD_SHA_INPUT: ${{ inputs.head-sha }}
+        run: |
+          if [ -n "$HEAD_SHA_INPUT" ]; then
+            head_sha="$HEAD_SHA_INPUT"
+          else
+            head_sha=$(git rev-parse HEAD)
+          fi
+
+          if [ -z "$head_sha" ]; then
+            echo "::error::Unable to determine head SHA for commit status" >&2
+            exit 1
+          fi
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            state="success"
+            description="ci.yml (reusable) succeeded"
+          else
+            state="failure"
+            description="ci.yml (reusable) failed"
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+            -f state="$state" \
+            -f context='main' \
+            -f description="$description" \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ "$JOB_STATUS" != "success" ]; then
+            exit 1
+          fi

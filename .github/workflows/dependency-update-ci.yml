@@ -1,0 +1,71 @@
+name: Dependency Update CI
+
+on:
+  workflow_run:
+    workflows:
+      - Weekly Dependency Update
+    types:
+      - completed
+
+permissions:
+  actions: read
+  checks: write
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  detect-pr:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      number: ${{ steps.find.outputs.number }}
+      ref: ${{ steps.find.outputs.ref }}
+      head-sha: ${{ steps.find.outputs.sha }}
+    steps:
+      - name: Locate dependency update PR
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr_json=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head chore/update-dependencies --base main --json number,headRefName,headRefOid --limit 1)
+          pr_number=$(echo "$pr_json" | jq -r '.[0].number // ""')
+          pr_ref=$(echo "$pr_json" | jq -r '.[0].headRefName // ""')
+          pr_sha=$(echo "$pr_json" | jq -r '.[0].headRefOid // ""')
+
+          if [ -z "$pr_number" ] || [ "$pr_number" = "null" ]; then
+            echo "number=" >> "$GITHUB_OUTPUT"
+            echo "ref=" >> "$GITHUB_OUTPUT"
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            echo "No dependency update pull request found; skipping." >&2
+          else
+            echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+            echo "ref=$pr_ref" >> "$GITHUB_OUTPUT"
+            echo "sha=$pr_sha" >> "$GITHUB_OUTPUT"
+            echo "Found dependency update pull request #$pr_number." >&2
+          fi
+
+  run-ci:
+    needs: detect-pr
+    if: needs.detect-pr.outputs.number != ''
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.detect-pr.outputs.ref }}
+      head-sha: ${{ needs.detect-pr.outputs.head-sha }}
+    secrets: inherit
+
+  enable-automerge:
+    needs:
+      - detect-pr
+      - run-ci
+    if: needs.detect-pr.outputs.number != '' && needs.run-ci.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable PR automerge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ needs.detect-pr.outputs.number }} --merge --auto --repo "$GITHUB_REPOSITORY"
