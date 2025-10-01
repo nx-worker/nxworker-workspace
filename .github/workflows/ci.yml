@@ -5,7 +5,16 @@ on:
     branches:
       - main
   pull_request:
-  workflow_dispatch: # Trigger on bot-created PR, for example dependency-update.yml#update-deps
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to run against'
+        required: false
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
 
 permissions:
   actions: read
@@ -16,11 +25,27 @@ jobs:
   main:
     runs-on: ubuntu-latest
     steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${INPUT_REF}" ]; then
+            echo "ref=${INPUT_REF}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
 
       # Cache node_modules
       - uses: actions/setup-node@v5
@@ -32,7 +57,7 @@ jobs:
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v4
 
-      - name: "[PR] Check formatting"
+      - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
