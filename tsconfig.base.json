@@ -15,7 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@nxworker/move-file": ["packages/move-file/src/index.ts"]
+      "@nxworker/workspace": ["packages/workspace/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
