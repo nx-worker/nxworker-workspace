@@ -16,7 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
 
       # Cache node_modules
       - uses: actions/setup-node@v5
@@ -25,7 +27,8 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-      - uses: nrwl/nx-set-shas@v4
+      - name: Derive appropriate SHAs for base and head for `nx affected` commands
+        uses: nrwl/nx-set-shas@v4
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint test build
