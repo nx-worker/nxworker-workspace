@@ -33,4 +33,4 @@ jobs:
       - name: Check formatting
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t lint test build
+      - run: npx nx affected -t lint test build e2e
