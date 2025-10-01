@@ -4,6 +4,10 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
+  "engines": {
+    "node": "^22.20.0",
+    "npm": "^10.9.3"
+  },
   "dependencies": {},
   "devDependencies": {
     "@nx/js": "19.8.14",
