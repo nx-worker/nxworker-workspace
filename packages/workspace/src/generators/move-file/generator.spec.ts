@@ -53,9 +53,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        file: 'utils/helper.ts',
-        project: 'lib1',
-        targetProject: 'lib2',
+        source: 'packages/lib1/src/utils/helper.ts',
+        target: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -86,9 +85,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        file: 'utils/helper.ts',
-        project: 'lib1',
-        targetProject: 'lib2',
+        source: 'packages/lib1/src/utils/helper.ts',
+        target: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -113,9 +111,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        file: 'utils/helper.ts',
-        project: 'lib1',
-        targetProject: 'lib2',
+        source: 'packages/lib1/src/utils/helper.ts',
+        target: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -154,9 +151,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        file: 'utils/helper.ts',
-        project: 'lib1',
-        targetProject: 'lib2',
+        source: 'packages/lib1/src/utils/helper.ts',
+        target: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -168,39 +164,47 @@ describe('move-file generator', () => {
   });
 
   describe('error handling', () => {
-    it('should throw error if source project does not exist', async () => {
-      const options: MoveFileGeneratorSchema = {
-        file: 'utils/helper.ts',
-        project: 'non-existent',
-        targetProject: 'lib2',
-      };
-
-      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Source project "non-existent" not found',
-      );
-    });
-
-    it('should throw error if target project does not exist', async () => {
-      const options: MoveFileGeneratorSchema = {
-        file: 'utils/helper.ts',
-        project: 'lib1',
-        targetProject: 'non-existent',
-      };
-
-      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Target project "non-existent" not found',
-      );
-    });
-
     it('should throw error if source file does not exist', async () => {
       const options: MoveFileGeneratorSchema = {
-        file: 'utils/non-existent.ts',
-        project: 'lib1',
-        targetProject: 'lib2',
+        source: 'packages/lib1/src/utils/non-existent.ts',
+        target: 'packages/lib2/src/utils/non-existent.ts',
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
         'Source file "packages/lib1/src/utils/non-existent.ts" not found',
+      );
+    });
+
+    it('should throw error if source project cannot be determined', async () => {
+      // Create a file that doesn't belong to any project
+      tree.write(
+        'unknown/path/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        source: 'unknown/path/helper.ts',
+        target: 'packages/lib2/src/helper.ts',
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'Could not determine source project for file',
+      );
+    });
+
+    it('should throw error if target project cannot be determined', async () => {
+      tree.write(
+        'packages/lib1/src/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        source: 'packages/lib1/src/helper.ts',
+        target: 'unknown/path/helper.ts',
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'Could not determine target project for file',
       );
     });
   });

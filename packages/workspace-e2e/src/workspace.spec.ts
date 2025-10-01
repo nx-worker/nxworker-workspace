@@ -75,7 +75,7 @@ describe('workspace', () => {
 
       // Run the move-file generator
       execSync(
-        'npx nx generate @nxworker/workspace:move-file lib/helper.ts --project=lib1 --targetProject=lib2 --no-interactive',
+        'npx nx generate @nxworker/workspace:move-file lib1/src/lib/helper.ts lib2/src/lib/helper.ts --no-interactive',
         {
           cwd: projectDirectory,
           stdio: 'inherit',

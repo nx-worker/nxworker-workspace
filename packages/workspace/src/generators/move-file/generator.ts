@@ -14,7 +14,7 @@ import { MoveFileGeneratorSchema } from './schema';
  * and update import paths throughout the workspace.
  *
  * @param tree - The virtual file system tree
- * @param options - Generator options including file path, source and target projects
+ * @param options - Generator options including source and target file paths
  * @returns A promise that resolves when the generator completes
  */
 export async function moveFileGenerator(
@@ -23,60 +23,70 @@ export async function moveFileGenerator(
 ) {
   const projects = getProjects(tree);
 
-  // Validate source and target projects exist
-  const sourceProject = projects.get(options.project);
-  const targetProject = projects.get(options.targetProject);
-
-  if (!sourceProject) {
-    throw new Error(`Source project "${options.project}" not found`);
-  }
-
-  if (!targetProject) {
-    throw new Error(`Target project "${options.targetProject}" not found`);
-  }
-
-  // Normalize file path
-  const normalizedFile = options.file.replace(/^\//, '');
-
-  // Get source and target paths
-  const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
-  const targetRoot = targetProject.sourceRoot || targetProject.root;
-
-  const sourceFilePath = path.join(sourceRoot, normalizedFile);
-  const targetFilePath = path.join(targetRoot, normalizedFile);
+  // Normalize file paths
+  const normalizedSource = options.source.replace(/^\//, '');
+  const normalizedTarget = options.target.replace(/^\//, '');
 
   // Verify source file exists
-  if (!tree.exists(sourceFilePath)) {
-    throw new Error(`Source file "${sourceFilePath}" not found`);
+  if (!tree.exists(normalizedSource)) {
+    throw new Error(`Source file "${normalizedSource}" not found`);
   }
 
-  logger.info(`Moving ${sourceFilePath} to ${targetFilePath}`);
+  // Find which project the source file belongs to
+  const sourceProjectInfo = findProjectForFile(projects, normalizedSource);
+
+  if (!sourceProjectInfo) {
+    throw new Error(
+      `Could not determine source project for file "${normalizedSource}"`,
+    );
+  }
+
+  const { project: sourceProject, name: sourceProjectName } = sourceProjectInfo;
+
+  // Find which project the target file should belong to
+  const targetProjectInfo = findProjectForFile(projects, normalizedTarget);
+
+  if (!targetProjectInfo) {
+    throw new Error(
+      `Could not determine target project for file "${normalizedTarget}"`,
+    );
+  }
+
+  const { project: targetProject, name: targetProjectName } = targetProjectInfo;
+
+  logger.info(
+    `Moving ${normalizedSource} (project: ${sourceProjectName}) to ${normalizedTarget} (project: ${targetProjectName})`,
+  );
 
   // Read the file content
-  const fileContent = tree.read(sourceFilePath, 'utf-8');
+  const fileContent = tree.read(normalizedSource, 'utf-8');
   if (!fileContent) {
-    throw new Error(`Could not read file "${sourceFilePath}"`);
+    throw new Error(`Could not read file "${normalizedSource}"`);
   }
 
   // Create target file
-  tree.write(targetFilePath, fileContent);
+  tree.write(normalizedTarget, fileContent);
+
+  // Get the relative path within the source project to check if it's exported
+  const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
+  const relativeFilePathInSource = path.relative(sourceRoot, normalizedSource);
 
   // Check if file is exported from source project entrypoint
   const isExported = isFileExported(
     tree,
     sourceProject,
-    normalizedFile,
+    relativeFilePathInSource,
   );
 
   // Get import paths for both projects
   const sourceImportPath = getProjectImportPath(
     tree,
-    options.project,
+    sourceProjectName,
     sourceProject,
   );
   const targetImportPath = getProjectImportPath(
     tree,
-    options.targetProject,
+    targetProjectName,
     targetProject,
   );
 
@@ -88,7 +98,7 @@ export async function moveFileGenerator(
     updateImportPathsInDependentProjects(
       tree,
       projects,
-      options.project,
+      sourceProjectName,
       sourceImportPath,
       targetImportPath,
     );
@@ -98,20 +108,52 @@ export async function moveFileGenerator(
     updateImportPathsInProject(
       tree,
       sourceProject,
-      sourceFilePath,
-      targetImportPath || targetFilePath,
+      normalizedSource,
+      targetImportPath || normalizedTarget,
     );
   }
 
   // Export the file from target project entrypoint if it was exported from source
   if (isExported && targetImportPath) {
-    ensureFileExported(tree, targetProject, normalizedFile);
+    const targetRoot = targetProject.sourceRoot || targetProject.root;
+    const relativeFilePathInTarget = path.relative(
+      targetRoot,
+      normalizedTarget,
+    );
+    ensureFileExported(tree, targetProject, relativeFilePathInTarget);
   }
 
   // Delete source file
-  tree.delete(sourceFilePath);
+  tree.delete(normalizedSource);
 
   await formatFiles(tree);
+}
+
+/**
+ * Finds the project that contains the given file path
+ *
+ * @param projects - Map of all projects in the workspace
+ * @param filePath - File path relative to workspace root
+ * @returns Project configuration and name, or null if not found
+ */
+function findProjectForFile(
+  projects: Map<string, ProjectConfiguration>,
+  filePath: string,
+): { project: ProjectConfiguration; name: string } | null {
+  for (const [name, project] of projects.entries()) {
+    const projectRoot = project.root;
+    const sourceRoot = project.sourceRoot || project.root;
+
+    // Check if file is within project's source root or project root
+    if (
+      filePath.startsWith(sourceRoot + '/') ||
+      filePath.startsWith(projectRoot + '/')
+    ) {
+      return { project, name };
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -213,12 +255,7 @@ function updateImportPathsInDependentProjects(
         filePath.endsWith('.js') ||
         filePath.endsWith('.jsx')
       ) {
-        updateImportsInFile(
-          tree,
-          filePath,
-          sourceImportPath,
-          targetImportPath,
-        );
+        updateImportsInFile(tree, filePath, sourceImportPath, targetImportPath);
       }
     });
   });
