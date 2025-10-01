@@ -8,10 +8,10 @@
     "node": "^22.20.0",
     "npm": "^10.9.3"
   },
-  "dependencies": {},
   "devDependencies": {
     "@nx/js": "19.8.14",
-    "nx": "19.8.14"
+    "nx": "19.8.14",
+    "prettier": "3.6.2"
   },
   "workspaces": [
     "packages/*"
