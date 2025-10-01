@@ -9,10 +9,14 @@ on:
 permissions:
   contents: write # commit npm update changes, gh pr merge command
   pull-requests: write # peter-evans/create-pull-request action, gh pr merge command
+  actions: write # dispatch CI workflow when a PR is created
 
 jobs:
   update-deps:
     runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.commit-changes.outputs.changes }}
+      pr-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
     steps:
       - uses: actions/checkout@v5
@@ -86,3 +90,31 @@ jobs:
             It updates all dependencies to their latest compatible versions.
           commit-message: 'chore: update dependencies to latest compatible versions'
           labels: dependencies
+
+  post-pr:
+    needs: update-deps
+    if: ${{ needs.update-deps.outputs.pr-number != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - name: Trigger CI workflow
+        if: ${{ needs.update-deps.outputs.changes == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: 'chore/update-dependencies',
+              inputs: { ref: 'chore/update-dependencies' }
+            });
+
+      - name: Enable PR automerge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge --merge --auto "${{ needs.update-deps.outputs.pr-number }}" --repo "$GITHUB_REPOSITORY"
