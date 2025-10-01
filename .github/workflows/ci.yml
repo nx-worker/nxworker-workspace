@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+  pull_request_target: # Trigger on bot-created PR, for example dependency-update.yml#update-deps
 
 permissions:
   actions: read
@@ -12,6 +13,11 @@ permissions:
 
 jobs:
   main:
+    # Allow `pull_request_target` runs only for the in-repo `chore/dependency-update` branch to prevent PRs from forks
+    # from running this job; all other events (`push`/`pull_request`) run normally without the guard.
+    if: |
+      github.event_name != 'pull_request_target' ||
+      (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'chore/update-dependencies')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
