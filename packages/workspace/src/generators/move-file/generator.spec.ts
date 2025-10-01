@@ -207,5 +207,32 @@ describe('move-file generator', () => {
         'Could not determine target project for file',
       );
     });
+
+    it('should throw error for path traversal in source', async () => {
+      const options: MoveFileGeneratorSchema = {
+        source: '../../../etc/passwd',
+        target: 'packages/lib2/src/helper.ts',
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'Invalid path: path traversal detected',
+      );
+    });
+
+    it('should throw error for path traversal in target', async () => {
+      tree.write(
+        'packages/lib1/src/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        source: 'packages/lib1/src/helper.ts',
+        target: '../../etc/passwd',
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'Invalid path: path traversal detected',
+      );
+    });
   });
 });

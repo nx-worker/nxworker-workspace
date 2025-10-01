@@ -99,10 +99,18 @@ The generator:
 - Automatically determines source and target projects from file paths
 - Uses the Nx devkit to read and update the virtual file system
 - Parses `tsconfig.base.json` to find TypeScript path aliases
-- Uses regular expressions to update import statements
+- Uses regular expressions to update import statements with proper escaping to prevent ReDoS attacks
+- Sanitizes file paths to prevent path traversal attacks
 - Automatically formats updated files using Prettier (if configured)
 - Validates that source file exists before making changes
 - Throws descriptive errors if projects cannot be determined from file paths
+
+### Security
+
+The generator implements several security measures:
+
+- **Path Traversal Prevention**: Input paths are normalized and validated to prevent directory traversal attacks (e.g., `../../etc/passwd`)
+- **ReDoS Prevention**: All user input used in regular expressions is properly escaped to prevent Regular Expression Denial of Service attacks
 
 ## See Also
 

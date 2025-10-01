@@ -10,6 +10,25 @@ import * as path from 'path';
 import { MoveFileGeneratorSchema } from './schema';
 
 /**
+ * Sanitizes a file path by normalizing and validating it
+ * Prevents path traversal attacks by ensuring the path doesn't escape the workspace
+ */
+function sanitizePath(filePath: string): string {
+  // Remove leading slash
+  let normalized = filePath.replace(/^\//, '');
+
+  // Normalize the path to resolve '..' and '.'
+  normalized = path.normalize(normalized);
+
+  // Ensure the path doesn't try to escape using '..'
+  if (normalized.startsWith('..') || normalized.includes(path.sep + '..')) {
+    throw new Error(`Invalid path: path traversal detected in "${filePath}"`);
+  }
+
+  return normalized;
+}
+
+/**
  * Generator to move a file from one Nx project to another
  * and update import paths throughout the workspace.
  *
@@ -23,9 +42,9 @@ export async function moveFileGenerator(
 ) {
   const projects = getProjects(tree);
 
-  // Normalize file paths
-  const normalizedSource = options.source.replace(/^\//, '');
-  const normalizedTarget = options.target.replace(/^\//, '');
+  // Sanitize and normalize file paths
+  const normalizedSource = sanitizePath(options.source);
+  const normalizedTarget = sanitizePath(options.target);
 
   // Verify source file exists
   if (!tree.exists(normalizedSource)) {
@@ -157,6 +176,13 @@ function findProjectForFile(
 }
 
 /**
+ * Escapes special regex characters in a string
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
  * Checks if a file is exported from the project's entrypoint
  */
 function isFileExported(
@@ -175,8 +201,9 @@ function isFileExported(
       if (content) {
         // Check if file is exported (with or without extension)
         const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx)$/, '');
+        const escapedFile = escapeRegex(fileWithoutExt);
         const exportPattern = new RegExp(
-          `export.*from\\s+['"]\\.?\\.?/.*${fileWithoutExt.replace(/\//g, '\\/')}['"]`,
+          `export.*from\\s+['"]\\.?\\.?/.*${escapedFile}['"]`,
         );
         if (exportPattern.test(content)) {
           return true;
@@ -281,10 +308,10 @@ function updateImportPathsInProject(
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
 
-      // Get file name without extension
-      const sourceFileName = path
-        .basename(sourceFilePath, path.extname(sourceFilePath))
-        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Get file name without extension and escape for regex
+      const sourceFileName = escapeRegex(
+        path.basename(sourceFilePath, path.extname(sourceFilePath)),
+      );
 
       // Check if this file imports the source file using relative imports
       const importPattern = new RegExp(
@@ -316,11 +343,9 @@ function updateImportsInFile(
   const content = tree.read(filePath, 'utf-8');
   if (!content) return;
 
-  // Replace imports from source path to target path
-  const importPattern = new RegExp(
-    `from\\s+['"]${sourceImportPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`,
-    'g',
-  );
+  // Replace imports from source path to target path (escape regex special chars)
+  const escapedSourcePath = escapeRegex(sourceImportPath);
+  const importPattern = new RegExp(`from\\s+['"]${escapedSourcePath}['"]`, 'g');
 
   if (importPattern.test(content)) {
     const updatedContent = content.replace(
