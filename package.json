@@ -9,12 +9,15 @@
     "npm": "^10.9.3"
   },
   "devDependencies": {
+    "@nx/eslint": "19.8.14",
     "@nx/js": "19.8.14",
     "@nx/workspace": "19.8.14",
+    "eslint": "8.57.1",
     "nx": "19.8.14",
     "prettier": "3.6.2"
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "dependencies": {}
 }
