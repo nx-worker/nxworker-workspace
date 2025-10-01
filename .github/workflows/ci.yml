@@ -40,6 +40,18 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
+      - name: '[workflow_dispatch] Publish pending check status'
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+            -f state="pending" \
+            -f context='main' \
+            -f description='ci.yml (workflow_dispatch) in progress' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
       # Cache node_modules
       - uses: actions/setup-node@v5
         with:
@@ -55,27 +67,22 @@ jobs:
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint test build e2e
-      - name: Publish commit status for manual invocations
+      - name: '[workflow_dispatch] Publish outcome check status'
         if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
         run: |
-          head_sha=$(git rev-parse HEAD)
-          if [ -z "$head_sha" ]; then
-            echo "::error::Unable to determine head SHA for commit status" >&2
-            exit 1
-          fi
-
+          sha=$(git rev-parse HEAD)
           if [ "$JOB_STATUS" = "success" ]; then
             state="success"
-            description="ci.yml (reusable) succeeded"
+            description="ci.yml (workflow_dispatch) succeeded"
           else
             state="failure"
-            description="ci.yml (reusable) failed"
+            description="ci.yml (workflow_dispatch) failed"
           fi
 
-          gh api "repos/${GITHUB_REPOSITORY}/statuses/${head_sha}" \
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
             -f state="$state" \
             -f context='main' \
             -f description="$description" \
