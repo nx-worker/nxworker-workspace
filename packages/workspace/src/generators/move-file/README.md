@@ -5,57 +5,52 @@ The `move-file` generator moves a file from one Nx project to another and automa
 ## Usage
 
 ```bash
-nx generate @nxworker/workspace:move-file <file> --project=<source-project> --targetProject=<target-project>
+nx generate @nxworker/workspace:move-file <source> <target>
 ```
 
 ## Options
 
-### file (required)
+### source (required)
 
 Type: `string`
 
-Path to the file relative to the source project's source root.
+Path to the source file relative to workspace root.
 
 **Example:**
+
 ```bash
-nx generate @nxworker/workspace:move-file utils/helper.ts --project=lib1 --targetProject=lib2
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts packages/lib2/src/utils/helper.ts
 ```
 
-### project (required)
+### target (required)
 
 Type: `string`
 
-The name of the source Nx project containing the file to move.
+Path to the target file relative to workspace root.
 
 **Example:**
+
 ```bash
---project=lib1
-```
-
-### targetProject (required)
-
-Type: `string`
-
-The name of the target Nx project where the file should be moved.
-
-**Example:**
-```bash
---targetProject=lib2
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts packages/lib2/src/utils/helper.ts
 ```
 
 ## Behavior
 
+The generator automatically determines the source and target projects from the provided file paths.
+
 ### Non-Exported Files
 
 If the file is **not** exported from the source project's entrypoint:
-1. The file is moved to the same relative path in the target project
+
+1. The file is moved to the target path
 2. The file is exported from the target project's entrypoint
 3. Import statements in the source project are updated to use the target project's TypeScript path alias
 
 ### Exported Files
 
 If the file **is** exported from the source project's entrypoint:
-1. The file is moved to the same relative path in the target project
+
+1. The file is moved to the target path
 2. The file is exported from the target project's entrypoint
 3. The Nx project graph is analyzed to find all dependent projects
 4. Import paths in all dependent projects are updated from the source project's path alias to the target project's path alias
@@ -66,14 +61,16 @@ If the file **is** exported from the source project's entrypoint:
 
 ```bash
 # File structure before:
-# lib1/src/utils/helper.ts
-# lib1/src/index.ts (does not export helper.ts)
+# packages/lib1/src/utils/helper.ts
+# packages/lib1/src/index.ts (does not export helper.ts)
 
-nx generate @nxworker/workspace:move-file utils/helper.ts --project=lib1 --targetProject=lib2
+nx generate @nxworker/workspace:move-file \
+  packages/lib1/src/utils/helper.ts \
+  packages/lib2/src/utils/helper.ts
 
 # File structure after:
-# lib2/src/utils/helper.ts
-# lib2/src/index.ts (exports helper.ts)
+# packages/lib2/src/utils/helper.ts
+# packages/lib2/src/index.ts (exports helper.ts)
 # lib1 files that imported './utils/helper' now import '@workspace/lib2'
 ```
 
@@ -81,27 +78,31 @@ nx generate @nxworker/workspace:move-file utils/helper.ts --project=lib1 --targe
 
 ```bash
 # File structure before:
-# lib1/src/utils/helper.ts
-# lib1/src/index.ts (exports helper.ts)
-# app1/src/main.ts (imports from '@workspace/lib1')
+# packages/lib1/src/utils/helper.ts
+# packages/lib1/src/index.ts (exports helper.ts)
+# packages/app1/src/main.ts (imports from '@workspace/lib1')
 
-nx generate @nxworker/workspace:move-file utils/helper.ts --project=lib1 --targetProject=lib2
+nx generate @nxworker/workspace:move-file \
+  packages/lib1/src/utils/helper.ts \
+  packages/lib2/src/utils/helper.ts
 
 # File structure after:
-# lib2/src/utils/helper.ts
-# lib2/src/index.ts (exports helper.ts)
-# app1/src/main.ts (imports from '@workspace/lib2')
+# packages/lib2/src/utils/helper.ts
+# packages/lib2/src/index.ts (exports helper.ts)
+# packages/app1/src/main.ts (imports from '@workspace/lib2')
 ```
 
 ## Technical Details
 
 The generator:
+
+- Automatically determines source and target projects from file paths
 - Uses the Nx devkit to read and update the virtual file system
 - Parses `tsconfig.base.json` to find TypeScript path aliases
 - Uses regular expressions to update import statements
 - Automatically formats updated files using Prettier (if configured)
-- Validates that source and target projects exist before making changes
-- Throws descriptive errors if the source file does not exist
+- Validates that source file exists before making changes
+- Throws descriptive errors if projects cannot be determined from file paths
 
 ## See Also
 
