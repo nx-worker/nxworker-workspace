@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { join, dirname } from 'path';
-import { mkdirSync, rmSync } from 'fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
 
 describe('workspace', () => {
   let projectDirectory: string;
@@ -30,6 +30,79 @@ describe('workspace', () => {
     execSync('npm ls @nxworker/workspace', {
       cwd: projectDirectory,
       stdio: 'inherit',
+    });
+  });
+
+  describe('move-file generator', () => {
+    it('should move a file between projects', () => {
+      // Create two library projects
+      execSync(
+        'npx nx generate @nx/js:library lib1 --unitTestRunner=none --bundler=none --no-interactive',
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      execSync(
+        'npx nx generate @nx/js:library lib2 --unitTestRunner=none --bundler=none --no-interactive',
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Create a file in lib1
+      const helperPath = join(
+        projectDirectory,
+        'lib1',
+        'src',
+        'lib',
+        'helper.ts',
+      );
+      mkdirSync(dirname(helperPath), { recursive: true });
+      writeFileSync(
+        helperPath,
+        'export function helper() { return "hello"; }\n',
+      );
+
+      // Create a file that imports the helper
+      const mainPath = join(projectDirectory, 'lib1', 'src', 'lib', 'main.ts');
+      writeFileSync(
+        mainPath,
+        "import { helper } from './helper';\n\nexport const result = helper();\n",
+      );
+
+      // Run the move-file generator
+      execSync(
+        'npx nx generate @nxworker/workspace:move-file lib/helper.ts --project=lib1 --targetProject=lib2 --no-interactive',
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Verify the file was moved
+      const movedPath = join(
+        projectDirectory,
+        'lib2',
+        'src',
+        'lib',
+        'helper.ts',
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain(
+        'export function helper()',
+      );
+
+      // Verify original file is deleted
+      const originalPath = join(
+        projectDirectory,
+        'lib1',
+        'src',
+        'lib',
+        'helper.ts',
+      );
+      expect(() => readFileSync(originalPath, 'utf-8')).toThrow();
     });
   });
 });
