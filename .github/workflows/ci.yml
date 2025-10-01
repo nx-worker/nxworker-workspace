@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
-          cache: "npm"
+          cache: npm
 
       - run: npm ci
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
