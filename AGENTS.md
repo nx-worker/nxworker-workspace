@@ -2,15 +2,15 @@
 
 ## Repository Snapshot
 
-- **Purpose:** Nx workspace hosting an Nx plugin/library (`packages/move-file`) plus an end-to-end test harness that validates publishing the plugin to a temporary Verdaccio registry and installing it into a freshly generated Nx workspace.
+- **Purpose:** Nx workspace hosting an Nx plugin/library (`packages/workspace`) plus an end-to-end test harness that validates publishing the plugin to a temporary Verdaccio registry and installing it into a freshly generated Nx workspace.
 - **Scale & Stack:** Small repo (<50 files). TypeScript/JavaScript with Nx 19, SWC for builds, Jest for unit/e2e tests, Verdaccio 5 for local package registry, Prettier/ESLint for formatting and linting. Targets Node.js LTS "Jod" (22.x) and npm 10 (see `.node-version` and `package.json#engines`).
 
 ## Workspace Layout Highlights
 
 - Root configs: `nx.json`, `package.json`, `package-lock.json`, `tsconfig.base.json`, `.eslintrc.json`, `.prettierrc`, `.node-version`, `.verdaccio/config.yml`, `jest.config.ts`, `jest.preset.js`.
 - Packages:
-  - `packages/move-file/`: Nx plugin library skeleton (`src/index.ts` currently placeholder), SWC + Jest config, package manifest, project definition (`project.json`).
-  - `packages/move-file-e2e/`: Jest-based e2e project; depends on building/publishing the plugin, runs `npx create-nx-workspace` during tests.
+  - `packages/workspace/`: Nx plugin library skeleton (`src/index.ts` currently placeholder), SWC + Jest config, package manifest, project definition (`project.json`).
+  - `packages/workspace-e2e/`: Jest-based e2e project; depends on building/publishing the plugin, runs `npx create-nx-workspace` during tests.
 - Tooling scripts: `tools/scripts/start-local-registry.ts` & `stop-local-registry.ts` manage Verdaccio for e2e runs.
 - CI: `.github/workflows/ci.yml` uses GitHub Actions to run `npm ci`, `npx nx format:check`, and `npx nx affected -t lint test build e2e` on Ubuntu.
 - Nx cache + daemon state lives in `.nx/` and `node_modules/`; Verdaccio storage and e2e temp workspaces live under `tmp/`.
@@ -41,7 +41,7 @@ npx nx format:check
 ### 3. Lint
 
 ```powershell
-npx nx lint move-file --output-style stream
+npx nx lint workspace --output-style stream
 ```
 
 - Uses ESLint via Nx-inferred target (`@nx/eslint/plugin`).
@@ -50,16 +50,16 @@ npx nx lint move-file --output-style stream
 ### 4. Build
 
 ```powershell
-npx nx build move-file --output-style stream
+npx nx build workspace --output-style stream
 ```
 
-- SWC-based build; outputs to `dist/packages/move-file`.
+- SWC-based build; outputs to `dist/packages/workspace`.
 - Expect Node deprecation warnings (`util._extend`) from dependencies; harmless but note if CI logs are noisy.
 
 ### 5. Unit Tests
 
 ```powershell
-npx nx test move-file --output-style stream
+npx nx test workspace --output-style stream
 ```
 
 - Jest with SWC transform. Currently a placeholder library so there are no real assertions; still required for CI parity.
@@ -67,10 +67,10 @@ npx nx test move-file --output-style stream
 ### 6. End-to-End Tests
 
 ```powershell
-npx nx e2e move-file-e2e --output-style stream
+npx nx e2e workspace-e2e --output-style stream
 ```
 
-- Duration ~1 minute; spins up Verdaccio on port 4873, runs `nx release` tasks to publish `@nxworker/move-file@0.0.0-e2e`, scaffolds a throwaway workspace in `tmp/test-project`, installs the plugin, and verifies installation via `npm ls`.
+- Duration ~1 minute; spins up Verdaccio on port 4873, runs `nx release` tasks to publish `@nxworker/workspace@0.0.0-e2e`, scaffolds a throwaway workspace in `tmp/test-project`, installs the plugin, and verifies installation via `npm ls`.
 - Requires outbound network access for `npx create-nx-workspace@latest` (downloads npm packages). Cleans temp directory afterward.
 - Leaves Verdaccio storage and release artifacts in `tmp/local-registry/storage` and `dist/`; safe to delete manually if disk usage matters.
 
@@ -131,18 +131,18 @@ Short rules (for agents and humans):
 
 ## Architectural Notes & Key Files
 
-- `tsconfig.base.json` defines the path alias `@nxworker/move-file` → `packages/move-file/src/index.ts`.
-- `packages/move-file/project.json` sets up SWC build and points at Jest config; assets include Markdown and generator/executor manifests (currently absent).
-- `packages/move-file/.eslintrc.json` extends the root config and enforces Nx plugin lint rules on `package.json`.
-- `packages/move-file-e2e/project.json` declares explicit dependency on `move-file` and ensures the e2e target depends on the library build.
+- `tsconfig.base.json` defines the path alias `@nxworker/workspace` → `packages/workspace/src/index.ts`.
+- `packages/workspace/project.json` sets up SWC build and points at Jest config; assets include Markdown and generator/executor manifests (currently absent).
+- `packages/workspace/eslint.config.js` extends the root config and enforces Nx plugin lint rules on `package.json`.
+- `packages/workspace-e2e/project.json` declares explicit dependency on `workspace` and ensures the e2e target depends on the library build.
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
 ## File Inventory Cheat Sheet
 
 - **Repo root:** `.editorconfig`, `.eslintrc.json`, `.eslintignore`, `.prettierrc`, `.prettierignore`, `.node-version`, `.verdaccio/`, `.github/workflows/ci.yml`, `jest.config.ts`, `jest.preset.js`, `nx.json`, `package.json`, `package-lock.json`, `project.json`, `README.md`, `tsconfig.base.json`, `tools/`, `packages/`.
-- **`packages/move-file/`:** `.eslintrc.json`, `.swcrc`, `jest.config.ts`, `package.json`, `project.json`, `README.md`, `src/index.ts`, `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`.
-- **`packages/move-file-e2e/`:** `jest.config.ts`, `project.json`, `src/move-file.spec.ts`, `tsconfig.json`, `tsconfig.spec.json`.
+- **`packages/workspace/`:** `.swcrc`, `eslint.config.js`, `jest.config.ts`, `package.json`, `project.json`, `README.md`, `src/index.ts`, `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`.
+- **`packages/workspace-e2e/`:** `eslint.config.js`, `jest.config.ts`, `project.json`, `src/workspace.spec.ts`, `tsconfig.json`, `tsconfig.spec.json`.
 - **`tools/scripts/`:** `start-local-registry.ts`, `stop-local-registry.ts`.
 
 ## Practical Tips & Gotchas

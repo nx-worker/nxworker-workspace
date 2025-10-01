@@ -19,12 +19,12 @@ if (swcJestConfig.swcrc === undefined) {
 // swcJestConfig.module.noInterop = false;
 
 export default {
-  displayName: 'move-file',
+  displayName: 'workspace',
   preset: '../../jest.preset.js',
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   testEnvironment: '',
-  coverageDirectory: '../../coverage/packages/move-file',
+  coverageDirectory: '../../coverage/packages/workspace',
 };
