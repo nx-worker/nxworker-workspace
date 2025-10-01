@@ -7,12 +7,14 @@ on:
   workflow_dispatch: # allow manual trigger
 
 permissions:
-  contents: write # commit npm update changes, gh pr merge command
-  pull-requests: write # peter-evans/create-pull-request action, gh pr merge command
-  actions: write # dispatch CI workflow when a PR is created
+  contents: read # default to least privilege for the workflow
 
 jobs:
   update-deps:
+    permissions:
+      contents: write # commit dependency updates and allow gh pr merge
+      pull-requests: write # create pull requests via peter-evans/create-pull-request
+      actions: write # dispatch ci.yml after creating the dependency PR
     runs-on: ubuntu-latest
     outputs:
       changes: ${{ steps.commit-changes.outputs.changes }}

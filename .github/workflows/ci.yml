@@ -12,13 +12,12 @@ on:
         required: false
 
 permissions:
-  actions: read
-  contents: read
-  checks: write # allow workflow_dispatch runs (e.g. dependency-update) to publish status checks back to PRs
-  statuses: write # allow workflow_call/workflow_dispatch runs to create commit statuses
+  contents: read # default to read-only access for repository contents
 
 jobs:
   main:
+    permissions:
+      statuses: write # workflow_dispatch runs post commit status updates via gh api
     runs-on: ubuntu-latest
     steps:
       - name: Determine checkout ref
