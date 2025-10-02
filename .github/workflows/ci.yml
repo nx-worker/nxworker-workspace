@@ -50,7 +50,7 @@ jobs:
       - uses: ./.github/actions/setup-node-and-install
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t build
+      - run: npx nx affected -t build --output-style=static
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -104,7 +104,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t lint
+      - run: npx nx affected -t lint --output-style=static
 
       - uses: ./.github/actions/post-status-check
         if: always()
@@ -159,7 +159,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t test
+      - run: npx nx affected -t test --output-style=static
 
       - uses: ./.github/actions/post-status-check
         if: always()
@@ -219,7 +219,7 @@ jobs:
           path: dist/
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t e2e --exclude-task-dependencies
+      - run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
 
       - uses: ./.github/actions/post-status-check
         if: always()
