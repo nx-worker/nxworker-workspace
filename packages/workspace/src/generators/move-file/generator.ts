@@ -100,7 +100,21 @@ export async function moveFileGenerator(
       sourceImportPath || normalizedSource,
     );
 
-  if (isExported && sourceImportPath && targetImportPath) {
+  // Check if moving within the same project
+  const isSameProject = sourceProjectName === targetProjectName;
+
+  if (isSameProject) {
+    // Moving within same project - update to relative imports
+    logger.info(
+      `Moving within same project, updating imports to relative paths`,
+    );
+    updateImportPathsInProject(
+      tree,
+      sourceProject,
+      normalizedSource,
+      normalizedTarget,
+    );
+  } else if (isExported && sourceImportPath && targetImportPath) {
     // File is exported, need to update all dependent projects
     logger.info(
       `File is exported from ${sourceImportPath}, updating dependent projects`,
@@ -124,7 +138,8 @@ export async function moveFileGenerator(
   }
 
   // Update imports in target project to relative imports if they exist
-  if (hasImportsInTarget && targetImportPath) {
+  // (skip if moving within same project)
+  if (!isSameProject && hasImportsInTarget && targetImportPath) {
     logger.info(`Updating imports in target project to relative imports`);
     const targetRoot = targetProject.sourceRoot || targetProject.root;
     const relativeFilePathInTarget = path.relative(
@@ -143,8 +158,12 @@ export async function moveFileGenerator(
   // - It was exported from source, OR
   // - Target project has imports to it, OR
   // - skipExport is not set
+  // (skip if moving within same project unless it was already exported)
   const shouldExport =
-    (isExported || hasImportsInTarget) && !options.skipExport;
+    (!isSameProject &&
+      (isExported || hasImportsInTarget) &&
+      !options.skipExport) ||
+    (isSameProject && isExported && !options.skipExport);
 
   if (shouldExport && targetImportPath) {
     const targetRoot = targetProject.sourceRoot || targetProject.root;
@@ -309,7 +328,8 @@ function updateImportPathsInProject(
         filePath.endsWith('.tsx') ||
         filePath.endsWith('.js') ||
         filePath.endsWith('.jsx')) &&
-      filePath !== sourceFilePath
+      filePath !== sourceFilePath &&
+      filePath !== targetReference
     ) {
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
@@ -326,10 +346,40 @@ function updateImportPathsInProject(
       );
 
       if (importPattern.test(content)) {
+        // Determine what to replace with
+        let replacementImport: string;
+
+        // If targetReference is an absolute file path (doesn't start with @ and contains extension or is a full path),
+        // calculate relative path. Otherwise it's a TypeScript alias/import path.
+        const isFilePath =
+          !targetReference.startsWith('@') &&
+          (targetReference.includes('.ts') ||
+            targetReference.includes('.tsx') ||
+            targetReference.includes('.js') ||
+            targetReference.includes('.jsx') ||
+            targetReference.startsWith('packages/'));
+
+        if (isFilePath) {
+          const fileDir = path.dirname(filePath);
+          let relativePath = path.relative(fileDir, targetReference);
+
+          // Ensure relative path starts with ./ or ../
+          if (!relativePath.startsWith('.')) {
+            relativePath = './' + relativePath;
+          }
+
+          // Remove file extension for import
+          relativePath = relativePath.replace(/\.(ts|tsx|js|jsx)$/, '');
+          replacementImport = relativePath;
+        } else {
+          // It's an import path (TypeScript alias)
+          replacementImport = targetReference;
+        }
+
         // Update to use target reference (import path or relative path)
         const updatedContent = content.replace(
           importPattern,
-          `from '${targetReference}'`,
+          `from '${replacementImport}'`,
         );
         tree.write(filePath, updatedContent);
       }
