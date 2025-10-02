@@ -14,11 +14,11 @@ describe('post-status-check action', () => {
   let mockOctokit;
   let mockCreateCommitStatus;
   let getInputValues;
-  
+
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     mockCreateCommitStatus = jest.fn().mockResolvedValue({});
     mockOctokit = {
@@ -28,7 +28,7 @@ describe('post-status-check action', () => {
         },
       },
     };
-    
+
     github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
     github.context = {
       eventName: 'workflow_dispatch',
@@ -38,47 +38,47 @@ describe('post-status-check action', () => {
       },
       runId: 123456,
     };
-    
+
     // Default inputs
     getInputValues = {
-      'state': 'pending',
-      'context': 'test-context',
+      state: 'pending',
+      context: 'test-context',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
     };
-    
+
     core.getInput = jest.fn((name) => getInputValues[name] || '');
     core.setFailed = jest.fn();
     core.info = jest.fn();
-    
+
     execSync.mockReturnValue('abc123def456\n');
     process.env.GITHUB_TOKEN = 'test-token';
   });
-  
+
   afterEach(() => {
     delete process.env.GITHUB_TOKEN;
     delete process.env.GH_TOKEN;
   });
-  
+
   const runAction = async () => {
     // Dynamically require to get fresh module
     delete require.cache[require.resolve('../main')];
     const { run } = require('../main');
     await run();
   };
-  
+
   it('should post pending status for workflow_dispatch event', async () => {
     // Arrange
     getInputValues = {
-      'state': 'pending',
-      'context': 'build',
+      state: 'pending',
+      context: 'build',
       'job-status': '',
       'workflow-file': 'ci.yml',
     };
-    
+
     // Act
     await runAction();
-    
+
     // Assert
     expect(mockCreateCommitStatus).toHaveBeenCalledWith({
       owner: 'test-owner',
@@ -90,19 +90,19 @@ describe('post-status-check action', () => {
       target_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
     });
   });
-  
+
   it('should post success status for successful job outcome', async () => {
     // Arrange
     getInputValues = {
-      'state': 'outcome',
-      'context': 'test',
+      state: 'outcome',
+      context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
     };
-    
+
     // Act
     await runAction();
-    
+
     // Assert
     expect(mockCreateCommitStatus).toHaveBeenCalledWith({
       owner: 'test-owner',
@@ -115,19 +115,19 @@ describe('post-status-check action', () => {
     });
     expect(core.setFailed).not.toHaveBeenCalled();
   });
-  
+
   it('should post failure status for failed job outcome', async () => {
     // Arrange
     getInputValues = {
-      'state': 'outcome',
-      'context': 'e2e',
+      state: 'outcome',
+      context: 'e2e',
       'job-status': 'failure',
       'workflow-file': 'ci.yml',
     };
-    
+
     // Act
     await runAction();
-    
+
     // Assert
     expect(mockCreateCommitStatus).toHaveBeenCalledWith({
       owner: 'test-owner',
@@ -140,69 +140,75 @@ describe('post-status-check action', () => {
     });
     expect(core.setFailed).toHaveBeenCalledWith('Job status is failure');
   });
-  
+
   it('should skip posting status for non-workflow_dispatch events', async () => {
     // Arrange
     github.context.eventName = 'push';
-    
+
     // Act
     await runAction();
-    
+
     // Assert
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
-    expect(core.info).toHaveBeenCalledWith('Skipping status check - not a workflow_dispatch event');
+    expect(core.info).toHaveBeenCalledWith(
+      'Skipping status check - not a workflow_dispatch event',
+    );
   });
-  
+
   it('should fail if GitHub token is not available', async () => {
     // Arrange
     delete process.env.GITHUB_TOKEN;
-    
+
     // Act
     await runAction();
-    
+
     // Assert
-    expect(core.setFailed).toHaveBeenCalledWith('GitHub token not found in environment');
+    expect(core.setFailed).toHaveBeenCalledWith(
+      'GitHub token not found in environment',
+    );
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
   });
-  
+
   it('should use GH_TOKEN if GITHUB_TOKEN is not set', async () => {
     // Arrange
     delete process.env.GITHUB_TOKEN;
     process.env.GH_TOKEN = 'gh-token';
-    
+
     // Act
     await runAction();
-    
+
     // Assert
     expect(github.getOctokit).toHaveBeenCalledWith('gh-token');
     expect(mockCreateCommitStatus).toHaveBeenCalled();
   });
-  
+
   it('should handle errors gracefully', async () => {
     // Arrange
     mockCreateCommitStatus.mockRejectedValue(new Error('API error'));
-    
+
     // Act
     await runAction();
-    
+
     // Assert
     expect(core.setFailed).toHaveBeenCalledWith('API error');
   });
-  
+
   it('should fail for invalid state input', async () => {
     // Arrange
     getInputValues = {
-      'state': 'invalid',
-      'context': 'test',
+      state: 'invalid',
+      context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
     };
-    
+
     // Act
     await runAction();
-    
+
     // Assert
-    expect(core.setFailed).toHaveBeenCalledWith("Invalid state: invalid. Must be 'pending' or 'outcome'");
+    expect(core.setFailed).toHaveBeenCalledWith(
+      "Invalid state: invalid. Must be 'pending' or 'outcome'",
+    );
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
   });
 });
