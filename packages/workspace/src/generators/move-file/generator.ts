@@ -218,13 +218,10 @@ function isFileExported(
   const indexPaths = [
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
-    path.join(project.sourceRoot || project.root, 'index.cts'),
     path.join(project.sourceRoot || project.root, 'index.mjs'),
-    path.join(project.sourceRoot || project.root, 'index.cjs'),
     path.join(project.sourceRoot || project.root, 'index.js'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
-    path.join(project.root, 'src', 'index.cts'),
   ];
 
   const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
@@ -284,7 +281,6 @@ function getProjectImportPath(
             pathStr.includes(sourceRoot) &&
             (pathStr.endsWith('index.ts') ||
               pathStr.endsWith('index.mts') ||
-              pathStr.endsWith('index.cts') ||
               pathStr.endsWith('src/index.ts'))
           ) {
             // Extract the project-specific part
@@ -297,7 +293,6 @@ function getProjectImportPath(
             pathStr.includes(sourceRoot) &&
             (pathStr.endsWith('index.ts') ||
               pathStr.endsWith('index.mts') ||
-              pathStr.endsWith('index.cts') ||
               pathStr.endsWith('src/index.ts'))
           ) {
             return alias;
@@ -341,16 +336,7 @@ async function updateImportPathsInDependentProjects(
       logger.info(`Checking project ${projectName} for imports`);
       // Visit all TypeScript/JavaScript files in the project
       visitNotIgnoredFiles(tree, project.root, (filePath) => {
-        const fileExtensions = [
-          '.ts',
-          '.tsx',
-          '.js',
-          '.jsx',
-          '.mts',
-          '.cts',
-          '.mjs',
-          '.cjs',
-        ];
+        const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
         if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
           updateImportsInFile(
             tree,
@@ -372,16 +358,7 @@ function updateImportPathsInProject(
   sourceFilePath: string,
   targetReference: string,
 ): void {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.cts',
-    '.mjs',
-    '.cjs',
-  ];
+  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (
@@ -484,16 +461,7 @@ function checkForImportsInProject(
   project: ProjectConfiguration,
   importPath: string,
 ): boolean {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.cts',
-    '.mjs',
-    '.cjs',
-  ];
+  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
   let hasImports = false;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -524,16 +492,7 @@ function updateImportsToRelative(
   sourceImportPath: string,
   targetRelativePath: string,
 ): void {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.cts',
-    '.mjs',
-    '.cjs',
-  ];
+  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
@@ -586,10 +545,8 @@ function ensureFileExported(
   const indexPaths = [
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
-    path.join(project.sourceRoot || project.root, 'index.cts'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
-    path.join(project.root, 'src', 'index.cts'),
   ];
 
   // Find the first existing index file
