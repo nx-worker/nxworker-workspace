@@ -219,7 +219,7 @@ jobs:
           path: dist/
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t e2e
+      - run: npx nx affected -t e2e --exclude-task-dependencies
 
       - uses: ./.github/actions/post-status-check
         if: always()
