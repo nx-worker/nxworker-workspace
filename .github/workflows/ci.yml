@@ -46,6 +46,7 @@ jobs:
         with:
           state: pending
           context: build
+          workflow-file: ci.yml
 
       - uses: ./.github/actions/setup-node-and-install
 
@@ -65,6 +66,7 @@ jobs:
           state: outcome
           context: build
           job-status: ${{ job.status }}
+          workflow-file: ci.yml
 
   lint:
     permissions:
@@ -97,6 +99,7 @@ jobs:
         with:
           state: pending
           context: lint
+          workflow-file: ci.yml
 
       - uses: ./.github/actions/setup-node-and-install
 
@@ -112,6 +115,7 @@ jobs:
           state: outcome
           context: lint
           job-status: ${{ job.status }}
+          workflow-file: ci.yml
 
   test:
     permissions:
@@ -153,6 +157,7 @@ jobs:
         with:
           state: pending
           context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
+          workflow-file: ci.yml
 
       - uses: ./.github/actions/setup-node-and-install
         with:
@@ -167,6 +172,7 @@ jobs:
           state: outcome
           context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           job-status: ${{ job.status }}
+          workflow-file: ci.yml
 
   e2e:
     needs: build
@@ -209,6 +215,7 @@ jobs:
         with:
           state: pending
           context: e2e (${{ matrix.os }})
+          workflow-file: ci.yml
 
       - uses: ./.github/actions/setup-node-and-install
 
@@ -227,3 +234,4 @@ jobs:
           state: outcome
           context: e2e (${{ matrix.os }})
           job-status: ${{ job.status }}
+          workflow-file: ci.yml
