@@ -266,40 +266,48 @@ function getProjectImportPath(
 
     const tsconfig = JSON.parse(tsconfigContent);
     const paths = tsconfig.compilerOptions?.paths || {};
+    const sourceRoot = project.sourceRoot || project.root;
+
+    const isIndexFile = (pathStr: string): boolean =>
+      pathStr.endsWith('index.ts') ||
+      pathStr.endsWith('index.mts') ||
+      pathStr.endsWith('src/index.ts');
 
     // Look for path alias that matches this project
-    for (const [alias, pathArray] of Object.entries(paths)) {
-      const pathStr = Array.isArray(pathArray) ? pathArray[0] : pathArray;
-      if (typeof pathStr === 'string') {
+    const matchingAlias = Object.entries(paths)
+      .map(([alias, pathArray]) => ({
+        alias,
+        pathStr: (Array.isArray(pathArray) ? pathArray[0] : pathArray) as string,
+      }))
+      .filter(({ pathStr }) => typeof pathStr === 'string')
+      .find(({ alias, pathStr }) => {
         // Check if path points to this project's index
-        const sourceRoot = project.sourceRoot || project.root;
+        if (!pathStr.includes(sourceRoot) || !isIndexFile(pathStr)) {
+          return false;
+        }
 
         // Handle wildcard aliases (e.g., "@scope/*": ["packages/*/src/index.ts"])
         if (alias.includes('*') && pathStr.includes('*')) {
-          // Check if this path pattern matches the project
-          if (
-            pathStr.includes(sourceRoot) &&
-            (pathStr.endsWith('index.ts') ||
-              pathStr.endsWith('index.mts') ||
-              pathStr.endsWith('src/index.ts'))
-          ) {
-            // Extract the project-specific part
-            const projectDirName = sourceRoot.split('/').pop();
-            return alias.replace('*', projectDirName || projectName);
-          }
-        } else {
-          // Non-wildcard alias
-          if (
-            pathStr.includes(sourceRoot) &&
-            (pathStr.endsWith('index.ts') ||
-              pathStr.endsWith('index.mts') ||
-              pathStr.endsWith('src/index.ts'))
-          ) {
-            return alias;
-          }
+          return true;
         }
-      }
+
+        // Non-wildcard alias
+        return true;
+      });
+
+    if (!matchingAlias) {
+      return null;
     }
+
+    const { alias, pathStr } = matchingAlias;
+
+    // Extract project-specific alias for wildcard patterns
+    if (alias.includes('*') && pathStr.includes('*')) {
+      const projectDirName = sourceRoot.split('/').pop();
+      return alias.replace('*', projectDirName || projectName);
+    }
+
+    return alias;
   } catch (error) {
     logger.warn(`Could not parse tsconfig.base.json: ${error}`);
   }
