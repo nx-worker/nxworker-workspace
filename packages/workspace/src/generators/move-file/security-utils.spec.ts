@@ -96,13 +96,13 @@ describe('sanitizePath', () => {
     });
 
     it('should throw error for Windows-style path traversal on Windows', () => {
-      // Mock Windows path separator using Jest module mock
-      const originalSep = path.sep;
-      // Use writable type assertion to modify readonly property for testing
-      const pathModule = path as {
-        -readonly [K in keyof typeof path]: (typeof path)[K];
-      };
-      pathModule.sep = '\\';
+      // Mock Windows path separator using Jest spyOn with property descriptor
+      const originalDescriptor = Object.getOwnPropertyDescriptor(path, 'sep');
+      Object.defineProperty(path, 'sep', {
+        value: '\\',
+        configurable: true,
+        writable: true,
+      });
 
       try {
         // This should be detected as path traversal on Windows
@@ -110,21 +110,23 @@ describe('sanitizePath', () => {
           'Invalid path: path traversal detected',
         );
       } finally {
-        // Restore original
-        pathModule.sep = originalSep;
+        // Restore original property descriptor
+        if (originalDescriptor) {
+          Object.defineProperty(path, 'sep', originalDescriptor);
+        }
       }
     });
 
     it('should detect path traversal after Windows normalization', () => {
-      // Mock Windows path separator and normalize behavior using Jest
-      const originalSep = path.sep;
-
-      // Use writable type assertion to modify readonly property for testing
-      const pathModule = path as {
-        -readonly [K in keyof typeof path]: (typeof path)[K];
-      };
-      pathModule.sep = '\\';
-      jest.spyOn(path, 'normalize').mockImplementation((p: string) => {
+      // Mock Windows path separator and normalize behavior using Jest spyOn
+      const originalDescriptor = Object.getOwnPropertyDescriptor(path, 'sep');
+      Object.defineProperty(path, 'sep', {
+        value: '\\',
+        configurable: true,
+        writable: true,
+      });
+      
+      const normalizeSpy = jest.spyOn(path, 'normalize').mockImplementation((p: string) => {
         // Simulate Windows normalization
         // Remove leading slash
         p = p.replace(/^\//, '');
@@ -153,8 +155,10 @@ describe('sanitizePath', () => {
         ).toThrow('Invalid path: path traversal detected');
       } finally {
         // Restore originals
-        pathModule.sep = originalSep;
-        jest.restoreAllMocks();
+        if (originalDescriptor) {
+          Object.defineProperty(path, 'sep', originalDescriptor);
+        }
+        normalizeSpy.mockRestore();
       }
     });
   });
