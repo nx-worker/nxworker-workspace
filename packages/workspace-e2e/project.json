@@ -11,8 +11,7 @@
       "options": {
         "jestConfig": "packages/workspace-e2e/jest.config.ts",
         "runInBand": true
-      },
-      "dependsOn": ["^build"]
+      }
     }
   }
 }
