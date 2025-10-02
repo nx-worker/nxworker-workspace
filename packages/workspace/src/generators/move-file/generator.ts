@@ -333,7 +333,7 @@ function getProjectImportPath(
     // Extract project-specific alias for wildcard patterns
     if (alias.includes('*') && pathStr.includes('*')) {
       const projectDirName = sourceRoot.split('/').pop();
-      return alias.replace('*', projectDirName || projectName);
+      return alias.replace(/\*/g, projectDirName || projectName);
     }
 
     return alias;
