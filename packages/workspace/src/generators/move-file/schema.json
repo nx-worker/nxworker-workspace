@@ -27,6 +27,11 @@
       "type": "boolean",
       "description": "Skip adding export to target project's index file",
       "default": false
+    },
+    "skipFormat": {
+      "type": "boolean",
+      "description": "Skip formatting files with Prettier",
+      "default": false
     }
   },
   "required": ["from", "to"]
