@@ -511,66 +511,6 @@ function updateImportPathsInProject(
 }
 
 /**
- * Updates imports in a single file
- */
-function updateImportsInFile(
-  tree: Tree,
-  filePath: string,
-  sourceImportPath: string,
-  targetImportPath: string,
-): void {
-  const content = tree.read(filePath, 'utf-8');
-  if (!content) return;
-
-  // Replace imports from source path to target path (escape regex special chars)
-  const escapedSourcePath = escapeRegex(sourceImportPath);
-  const staticPattern = new RegExp(
-    `(from\\s+['"])(?:${escapedSourcePath})(['"])`,
-    'g',
-  );
-  const dynamicPattern = new RegExp(
-    `(import\\s*\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
-    'g',
-  );
-  const requirePattern = new RegExp(
-    `(require\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
-    'g',
-  );
-
-  let updatedContent = content;
-  let hasChanges = false;
-
-  updatedContent = updatedContent.replace(
-    staticPattern,
-    (_match, prefix: string, suffix: string) => {
-      hasChanges = true;
-      return `${prefix}${targetImportPath}${suffix}`;
-    },
-  );
-
-  updatedContent = updatedContent.replace(
-    dynamicPattern,
-    (_match, prefix: string, suffix: string) => {
-      hasChanges = true;
-      return `${prefix}${targetImportPath}${suffix}`;
-    },
-  );
-
-  updatedContent = updatedContent.replace(
-    requirePattern,
-    (_match, prefix: string, suffix: string) => {
-      hasChanges = true;
-      return `${prefix}${targetImportPath}${suffix}`;
-    },
-  );
-
-  if (hasChanges && updatedContent !== content) {
-    tree.write(filePath, updatedContent);
-    logger.info(`Updated imports in ${filePath}`);
-  }
-}
-
-/**
  * Checks if a project has imports to a given file/path
  */
 function checkForImportsInProject(
