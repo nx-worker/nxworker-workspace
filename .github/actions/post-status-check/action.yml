@@ -1,0 +1,58 @@
+name: Post status check
+description: Post pending or outcome status check for workflow_dispatch events
+
+inputs:
+  state:
+    description: Status state (pending, success, failure)
+    required: true
+  context:
+    description: Status context name
+    required: true
+  job-status:
+    description: Job status (for outcome checks)
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Post pending status
+      if: ${{ inputs.state == 'pending' && github.event_name == 'workflow_dispatch' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        CONTEXT: ${{ inputs.context }}
+      run: |
+        sha=$(git rev-parse HEAD)
+        gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+          -f state="pending" \
+          -f context="${CONTEXT}" \
+          -f description='ci.yml (workflow_dispatch) in progress' \
+          -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+    - name: Post outcome status
+      if: ${{ inputs.state == 'outcome' && github.event_name == 'workflow_dispatch' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        JOB_STATUS: ${{ inputs.job-status }}
+        CONTEXT: ${{ inputs.context }}
+      run: |
+        sha=$(git rev-parse HEAD)
+        if [ "$JOB_STATUS" = "success" ]; then
+          state="success"
+          description="ci.yml (workflow_dispatch) succeeded"
+        else
+          state="failure"
+          description="ci.yml (workflow_dispatch) failed"
+        fi
+
+        gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+          -f state="$state" \
+          -f context="${CONTEXT}" \
+          -f description="$description" \
+          -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+        if [ "$JOB_STATUS" != "success" ]; then
+          exit 1
+        fi
