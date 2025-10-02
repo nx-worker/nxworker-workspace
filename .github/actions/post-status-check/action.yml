@@ -25,12 +25,13 @@ runs:
         GH_TOKEN: ${{ github.token }}
         CONTEXT: ${{ inputs.context }}
         WORKFLOW_FILE: ${{ inputs.workflow-file }}
+        EVENT_NAME: ${{ github.event_name }}
       run: |
         sha=$(git rev-parse HEAD)
         gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
           -f state="pending" \
           -f context="${CONTEXT}" \
-          -f description="${WORKFLOW_FILE} (workflow_dispatch) in progress" \
+          -f description="${WORKFLOW_FILE} (${EVENT_NAME}) in progress" \
           -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
     - name: Post outcome status
@@ -41,14 +42,15 @@ runs:
         JOB_STATUS: ${{ inputs.job-status }}
         CONTEXT: ${{ inputs.context }}
         WORKFLOW_FILE: ${{ inputs.workflow-file }}
+        EVENT_NAME: ${{ github.event_name }}
       run: |
         sha=$(git rev-parse HEAD)
         if [ "$JOB_STATUS" = "success" ]; then
           state="success"
-          description="${WORKFLOW_FILE} (workflow_dispatch) succeeded"
+          description="${WORKFLOW_FILE} (${EVENT_NAME}) succeeded"
         else
           state="failure"
-          description="${WORKFLOW_FILE} (workflow_dispatch) failed"
+          description="${WORKFLOW_FILE} (${EVENT_NAME}) failed"
         fi
 
         gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
