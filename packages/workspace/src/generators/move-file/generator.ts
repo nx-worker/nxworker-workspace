@@ -15,7 +15,7 @@ import { sanitizePath, escapeRegex } from './security-utils';
  * and update import paths throughout the workspace.
  *
  * @param tree - The virtual file system tree
- * @param options - Generator options including source and target file paths
+ * @param options - Generator options including from and to file paths
  * @returns A promise that resolves when the generator completes
  */
 export async function moveFileGenerator(
@@ -25,8 +25,8 @@ export async function moveFileGenerator(
   const projects = getProjects(tree);
 
   // Sanitize and normalize file paths
-  const normalizedSource = sanitizePath(options.source);
-  const normalizedTarget = sanitizePath(options.target);
+  const normalizedSource = sanitizePath(options.from);
+  const normalizedTarget = sanitizePath(options.to);
 
   // Verify source file exists
   if (!tree.exists(normalizedSource)) {
@@ -91,6 +91,15 @@ export async function moveFileGenerator(
     targetProject,
   );
 
+  // Check if target project already has imports to this file
+  const hasImportsInTarget =
+    targetImportPath &&
+    checkForImportsInProject(
+      tree,
+      targetProject,
+      sourceImportPath || normalizedSource,
+    );
+
   if (isExported && sourceImportPath && targetImportPath) {
     // File is exported, need to update all dependent projects
     logger.info(
@@ -114,8 +123,30 @@ export async function moveFileGenerator(
     );
   }
 
-  // Export the file from target project entrypoint if it was exported from source
-  if (isExported && targetImportPath) {
+  // Update imports in target project to relative imports if they exist
+  if (hasImportsInTarget && targetImportPath) {
+    logger.info(`Updating imports in target project to relative imports`);
+    const targetRoot = targetProject.sourceRoot || targetProject.root;
+    const relativeFilePathInTarget = path.relative(
+      targetRoot,
+      normalizedTarget,
+    );
+    updateImportsToRelative(
+      tree,
+      targetProject,
+      sourceImportPath || normalizedSource,
+      relativeFilePathInTarget,
+    );
+  }
+
+  // Export the file from target project entrypoint if:
+  // - It was exported from source, OR
+  // - Target project has imports to it, OR
+  // - skipExport is not set
+  const shouldExport =
+    (isExported || hasImportsInTarget) && !options.skipExport;
+
+  if (shouldExport && targetImportPath) {
     const targetRoot = targetProject.sourceRoot || targetProject.root;
     const relativeFilePathInTarget = path.relative(
       targetRoot,
@@ -330,6 +361,91 @@ function updateImportsInFile(
     tree.write(filePath, updatedContent);
     logger.info(`Updated imports in ${filePath}`);
   }
+}
+
+/**
+ * Checks if a project has imports to a given file/path
+ */
+function checkForImportsInProject(
+  tree: Tree,
+  project: ProjectConfiguration,
+  importPath: string,
+): boolean {
+  let hasImports = false;
+
+  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    if (hasImports) return; // Short-circuit if we already found imports
+
+    if (
+      filePath.endsWith('.ts') ||
+      filePath.endsWith('.tsx') ||
+      filePath.endsWith('.js') ||
+      filePath.endsWith('.jsx')
+    ) {
+      const content = tree.read(filePath, 'utf-8');
+      if (!content) return;
+
+      const escapedPath = escapeRegex(importPath);
+      const importPattern = new RegExp(`from\\s+['"]${escapedPath}['"]`);
+
+      if (importPattern.test(content)) {
+        hasImports = true;
+      }
+    }
+  });
+
+  return hasImports;
+}
+
+/**
+ * Updates imports in target project from absolute import path to relative imports
+ */
+function updateImportsToRelative(
+  tree: Tree,
+  project: ProjectConfiguration,
+  sourceImportPath: string,
+  targetRelativePath: string,
+): void {
+  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    if (
+      filePath.endsWith('.ts') ||
+      filePath.endsWith('.tsx') ||
+      filePath.endsWith('.js') ||
+      filePath.endsWith('.jsx')
+    ) {
+      const content = tree.read(filePath, 'utf-8');
+      if (!content) return;
+
+      const escapedSourcePath = escapeRegex(sourceImportPath);
+      const importPattern = new RegExp(
+        `from\\s+['"]${escapedSourcePath}['"]`,
+        'g',
+      );
+
+      if (importPattern.test(content)) {
+        // Calculate relative path from this file to the target file
+        const fileDir = path.dirname(filePath);
+        const projectRoot = project.sourceRoot || project.root;
+        const targetFilePath = path.join(projectRoot, targetRelativePath);
+        let relativePath = path.relative(fileDir, targetFilePath);
+
+        // Ensure relative path starts with ./ or ../
+        if (!relativePath.startsWith('.')) {
+          relativePath = './' + relativePath;
+        }
+
+        // Remove file extension for import
+        relativePath = relativePath.replace(/\.(ts|tsx|js|jsx)$/, '');
+
+        const updatedContent = content.replace(
+          importPattern,
+          `from '${relativePath}'`,
+        );
+        tree.write(filePath, updatedContent);
+        logger.info(`Updated imports to relative path in ${filePath}`);
+      }
+    }
+  });
 }
 
 /**
