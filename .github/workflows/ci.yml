@@ -57,7 +57,7 @@ jobs:
         with:
           name: build-artifacts
           path: dist/
-          retention-days: 1
+          retention-days: 7
 
       - uses: ./.github/actions/post-status-check
         if: always()
