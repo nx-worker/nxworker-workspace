@@ -2,6 +2,7 @@ import {
   formatFiles,
   getProjects,
   ProjectConfiguration,
+  ProjectGraph,
   Tree,
   visitNotIgnoredFiles,
   logger,
@@ -24,6 +25,7 @@ export async function moveFileGenerator(
   options: MoveFileGeneratorSchema,
 ) {
   const projects = getProjects(tree);
+  const projectGraph = await createProjectGraphAsync();
 
   // Sanitize and normalize file paths
   const normalizedSource = sanitizePath(options.from);
@@ -122,18 +124,43 @@ export async function moveFileGenerator(
     );
     await updateImportPathsInDependentProjects(
       tree,
+      projectGraph,
+      projects,
       sourceProjectName,
       sourceImportPath,
       targetImportPath,
     );
+
+    // Also update imports within the source project to use target import path
+    updateImportPathsToPackageAlias(
+      tree,
+      sourceProject,
+      normalizedSource,
+      targetImportPath,
+    );
+
+    // Remove export from source project's index
+    removeFileExport(tree, sourceProject, relativeFilePathInSource);
+  } else if (!isSameProject && targetImportPath) {
+    // File is not exported but moving to different project
+    // Update imports in source project to use target import path
+    logger.info(
+      `File is not exported, updating imports within source project to use target import path`,
+    );
+    updateImportPathsToPackageAlias(
+      tree,
+      sourceProject,
+      normalizedSource,
+      targetImportPath,
+    );
   } else {
-    // File is not exported, only update imports within source project
-    logger.info(`File is not exported, updating imports within source project`);
+    // Fallback: update to relative paths if no import path available
+    logger.info(`Updating imports within source project to relative paths`);
     updateImportPathsInProject(
       tree,
       sourceProject,
       normalizedSource,
-      targetImportPath || normalizedTarget,
+      normalizedTarget,
     );
   }
 
@@ -277,7 +304,9 @@ function getProjectImportPath(
     const matchingAlias = Object.entries(paths)
       .map(([alias, pathArray]) => ({
         alias,
-        pathStr: (Array.isArray(pathArray) ? pathArray[0] : pathArray) as string,
+        pathStr: (Array.isArray(pathArray)
+          ? pathArray[0]
+          : pathArray) as string,
       }))
       .filter(({ pathStr }) => typeof pathStr === 'string')
       .find(({ alias, pathStr }) => {
@@ -320,59 +349,56 @@ function getProjectImportPath(
  */
 async function updateImportPathsInDependentProjects(
   tree: Tree,
+  projectGraph: ProjectGraph,
+  projects: Map<string, ProjectConfiguration>,
   sourceProjectName: string,
   sourceImportPath: string,
   targetImportPath: string,
 ): Promise<void> {
-  // Get the project graph to find dependent projects
-  const projectGraph = await createProjectGraphAsync();
-  const projects = getProjects(tree);
+  const dependentProjectNames = getDependentProjectNames(
+    projectGraph,
+    sourceProjectName,
+  );
 
-  // Find all projects that have sourceProjectName as a dependency
-  Array.from(projects.entries())
-    .map(([projectName, project]) => ({
-      project,
-      projectDependencies: projectGraph.dependencies[projectName] || [],
-      projectName,
-    }))
-    .filter(({ projectDependencies }) =>
-      projectDependencies.some(
-        (dependency) => dependency.target === sourceProjectName,
-      ),
-    )
-    .forEach(({ project, projectName }) => {
-      logger.info(`Checking project ${projectName} for imports`);
-      // Visit all TypeScript/JavaScript files in the project
-      visitNotIgnoredFiles(tree, project.root, (filePath) => {
-        const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
-        if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
-          updateImportsInFile(
-            tree,
-            filePath,
-            sourceImportPath,
-            targetImportPath,
-          );
-        }
-      });
-    });
+  const candidates = dependentProjectNames.length
+    ? dependentProjectNames
+    : Array.from(projects.entries())
+        .filter(([, project]) =>
+          checkForImportsInProject(tree, project, sourceImportPath),
+        )
+        .map(([name]) => name);
+
+  candidates.forEach((dependentName) => {
+    const dependentProject = projects.get(dependentName);
+    if (!dependentProject) {
+      return;
+    }
+
+    logger.info(`Checking project ${dependentName} for imports`);
+    updateImportsByAliasInProject(
+      tree,
+      dependentProject,
+      sourceImportPath,
+      targetImportPath,
+    );
+  });
 }
 
 /**
- * Updates import paths within a single project
+ * Updates import paths within a single project to use a package alias
  */
-function updateImportPathsInProject(
+function updateImportPathsToPackageAlias(
   tree: Tree,
   project: ProjectConfiguration,
   sourceFilePath: string,
-  targetReference: string,
+  targetPackageAlias: string,
 ): void {
   const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      filePath !== sourceFilePath &&
-      filePath !== targetReference
+      filePath !== sourceFilePath
     ) {
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
@@ -388,48 +414,71 @@ function updateImportPathsInProject(
         'g',
       );
 
+      // Test if pattern exists before replacing
       if (importPattern.test(content)) {
-        // Determine what to replace with
-        let replacementImport: string;
+        // Reset regex lastIndex after test
+        importPattern.lastIndex = 0;
 
-        // Check if targetReference is a TypeScript path alias or a file path
-        // TypeScript aliases can be anything (not just starting with @)
-        // Check if it's a file path by looking for file extensions or typical directory patterns
-        const hasFileExtension = fileExtensions.some((ext) =>
-          targetReference.includes(ext),
-        );
-        const looksLikeFilePath =
-          targetReference.includes('/') &&
-          (hasFileExtension ||
-            targetReference.match(/^(packages|libs|apps|modules)\//));
-
-        // If it looks like a file path, calculate relative path
-        if (looksLikeFilePath) {
-          const fileDir = path.dirname(filePath);
-          let relativePath = path.relative(fileDir, targetReference);
-
-          // Ensure relative path starts with ./ or ../
-          if (!relativePath.startsWith('.')) {
-            relativePath = './' + relativePath;
-          }
-
-          // Remove file extension for import
-          relativePath = relativePath.replace(
-            /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-            '',
-          );
-          replacementImport = relativePath;
-        } else {
-          // It's an import path (TypeScript alias)
-          replacementImport = targetReference;
-        }
-
-        // Update to use target reference (import path or relative path)
+        // Update all occurrences to use the package alias
         const updatedContent = content.replace(
           importPattern,
-          `from '${replacementImport}'`,
+          `from '${targetPackageAlias}'`,
         );
         tree.write(filePath, updatedContent);
+        logger.info(`Updated imports to use package alias in ${filePath}`);
+      }
+    }
+  });
+}
+
+/**
+ * Updates import paths within a single project
+ */
+function updateImportPathsInProject(
+  tree: Tree,
+  project: ProjectConfiguration,
+  sourceFilePath: string,
+  targetFilePath: string,
+): void {
+  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+
+  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    if (
+      fileExtensions.some((ext) => filePath.endsWith(ext)) &&
+      filePath !== sourceFilePath &&
+      filePath !== targetFilePath
+    ) {
+      const content = tree.read(filePath, 'utf-8');
+      if (!content) return;
+
+      // Get file name without extension and escape for regex
+      const sourceFileName = escapeRegex(
+        path.basename(sourceFilePath, path.extname(sourceFilePath)),
+      );
+
+      // Check if this file imports the source file using relative imports
+      const importPattern = new RegExp(
+        `from\\s+['"](\\.{1,2}/[^'"]*${sourceFileName})['"]`,
+        'g',
+      );
+
+      // Test if pattern exists before replacing
+      if (importPattern.test(content)) {
+        // Reset regex lastIndex after test
+        importPattern.lastIndex = 0;
+
+        const relativeSpecifier = getRelativeImportSpecifier(
+          filePath,
+          targetFilePath,
+        );
+
+        // Update all occurrences
+        const updatedContent = content.replace(
+          importPattern,
+          `from '${relativeSpecifier}'`,
+        );
+        tree.write(filePath, updatedContent);
+        logger.info(`Updated relative imports in ${filePath}`);
       }
     }
   });
@@ -514,32 +563,155 @@ function updateImportsToRelative(
       );
 
       if (importPattern.test(content)) {
-        // Calculate relative path from this file to the target file
-        const fileDir = path.dirname(filePath);
         const projectRoot = project.sourceRoot || project.root;
         const targetFilePath = path.join(projectRoot, targetRelativePath);
-        let relativePath = path.relative(fileDir, targetFilePath);
-
-        // Ensure relative path starts with ./ or ../
-        if (!relativePath.startsWith('.')) {
-          relativePath = './' + relativePath;
-        }
-
-        // Remove file extension for import
-        relativePath = relativePath.replace(
-          /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-          '',
+        const relativeSpecifier = getRelativeImportSpecifier(
+          filePath,
+          targetFilePath,
         );
 
         const updatedContent = content.replace(
           importPattern,
-          `from '${relativePath}'`,
+          `from '${relativeSpecifier}'`,
         );
         tree.write(filePath, updatedContent);
         logger.info(`Updated imports to relative path in ${filePath}`);
       }
     }
   });
+}
+
+function updateImportsByAliasInProject(
+  tree: Tree,
+  project: ProjectConfiguration,
+  sourceImportPath: string,
+  targetImportPath: string,
+): void {
+  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const escapedSourcePath = escapeRegex(sourceImportPath);
+  const replacementPatterns: Array<{ pattern: RegExp; replacement: string }> = [
+    {
+      pattern: new RegExp(`from\\s+['"]${escapedSourcePath}['"]`, 'g'),
+      replacement: `from '${targetImportPath}'`,
+    },
+    {
+      pattern: new RegExp(
+        `import\\s*\\(\\s*['"]${escapedSourcePath}['"]\\s*\\)`,
+        'g',
+      ),
+      replacement: `import('${targetImportPath}')`,
+    },
+    {
+      pattern: new RegExp(
+        `require\\(\\s*['"]${escapedSourcePath}['"]\\s*\\)`,
+        'g',
+      ),
+      replacement: `require('${targetImportPath}')`,
+    },
+  ];
+
+  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
+      const originalContent = tree.read(filePath, 'utf-8');
+      if (!originalContent) {
+        return;
+      }
+
+      let updatedContent = originalContent;
+      let hasChanges = false;
+
+      replacementPatterns.forEach(({ pattern, replacement }) => {
+        const replacedContent = updatedContent.replace(pattern, replacement);
+        if (replacedContent !== updatedContent) {
+          updatedContent = replacedContent;
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges && updatedContent !== originalContent) {
+        tree.write(filePath, updatedContent);
+        logger.info(`Updated imports in ${filePath}`);
+      }
+    }
+  });
+}
+
+function buildReverseDependencyMap(
+  projectGraph: ProjectGraph,
+): Map<string, Set<string>> {
+  const reverse = new Map<string, Set<string>>();
+
+  Object.entries(projectGraph.dependencies || {}).forEach(
+    ([source, dependencies]) => {
+      dependencies.forEach((dependency) => {
+        const dependents = reverse.get(dependency.target);
+        if (dependents) {
+          dependents.add(source);
+        } else {
+          reverse.set(dependency.target, new Set([source]));
+        }
+      });
+    },
+  );
+
+  return reverse;
+}
+
+function getDependentProjectNames(
+  projectGraph: ProjectGraph,
+  projectName: string,
+): string[] {
+  const reverseMap = buildReverseDependencyMap(projectGraph);
+  const dependents = new Set<string>();
+  const queue: string[] = [projectName];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+    const directDependents = reverseMap.get(current);
+    if (!directDependents) {
+      continue;
+    }
+
+    directDependents.forEach((dependent) => {
+      if (!dependents.has(dependent)) {
+        dependents.add(dependent);
+        queue.push(dependent);
+      }
+    });
+  }
+
+  dependents.delete(projectName);
+  return Array.from(dependents);
+}
+
+function toAbsoluteWorkspacePath(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  return path.join('/', normalized);
+}
+
+function stripFileExtension(importPath: string): string {
+  return importPath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
+}
+
+function getRelativeImportSpecifier(
+  fromFilePath: string,
+  toFilePath: string,
+): string {
+  const normalizedFrom = fromFilePath.replace(/\\/g, '/');
+  const normalizedTo = toFilePath.replace(/\\/g, '/');
+  const absoluteFromDir = path.dirname(toAbsoluteWorkspacePath(normalizedFrom));
+  const absoluteTarget = toAbsoluteWorkspacePath(normalizedTo);
+  let relativePath = path.relative(absoluteFromDir, absoluteTarget);
+
+  if (!relativePath.startsWith('.')) {
+    relativePath = `./${relativePath}`;
+  }
+
+  relativePath = relativePath.replace(/\\/g, '/');
+  return stripFileExtension(relativePath);
 }
 
 /**
@@ -575,6 +747,63 @@ function ensureFileExported(
     tree.write(indexPath, content);
     logger.info(`Added export to ${indexPath}`);
   }
+}
+
+/**
+ * Removes the export for a file from the project's entrypoint
+ */
+function removeFileExport(
+  tree: Tree,
+  project: ProjectConfiguration,
+  file: string,
+): void {
+  const indexPaths = [
+    path.join(project.sourceRoot || project.root, 'index.ts'),
+    path.join(project.sourceRoot || project.root, 'index.mts'),
+    path.join(project.root, 'src', 'index.ts'),
+    path.join(project.root, 'src', 'index.mts'),
+  ];
+
+  // Find existing index files
+  indexPaths.forEach((indexPath) => {
+    if (!tree.exists(indexPath)) {
+      return;
+    }
+
+    const content = tree.read(indexPath, 'utf-8');
+    if (!content) {
+      return;
+    }
+
+    // Remove export for the file
+    const fileWithoutExt = file.replace(
+      /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
+      '',
+    );
+    const escapedFile = escapeRegex(fileWithoutExt);
+
+    // Match various export patterns
+    const exportPatterns = [
+      new RegExp(
+        `export\\s+\\*\\s+from\\s+['"]\\.\\.?/${escapedFile}['"];?\\s*\\n?`,
+        'g',
+      ),
+      new RegExp(
+        `export\\s+\\{[^}]+\\}\\s+from\\s+['"]\\.\\.?/${escapedFile}['"];?\\s*\\n?`,
+        'g',
+      ),
+    ];
+
+    let updatedContent = content;
+    exportPatterns.forEach((pattern) => {
+      updatedContent = updatedContent.replace(pattern, '');
+    });
+
+    if (updatedContent !== content) {
+      tree.write(indexPath, updatedContent);
+      logger.info(`Removed export from ${indexPath}`);
+    }
+  });
 }
 
 export default moveFileGenerator;
