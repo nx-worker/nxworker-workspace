@@ -20,9 +20,27 @@ jobs:
       statuses: write # workflow_dispatch runs post commit status updates via gh api
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/actions/checkout-and-set-nx-shas
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref }}
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/post-status-check
         with:
@@ -46,9 +64,27 @@ jobs:
       statuses: write # workflow_dispatch runs post commit status updates via gh api
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/actions/checkout-and-set-nx-shas
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref }}
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/post-status-check
         with:
@@ -84,9 +120,27 @@ jobs:
             node-version: 22
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: ./.github/actions/checkout-and-set-nx-shas
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref }}
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/post-status-check
         with:
@@ -121,9 +175,27 @@ jobs:
           - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: ./.github/actions/checkout-and-set-nx-shas
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref }}
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/post-status-check
         with:
