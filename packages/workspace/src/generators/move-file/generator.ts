@@ -177,7 +177,9 @@ export async function moveFileGenerator(
   // Delete source file
   tree.delete(normalizedSource);
 
-  await formatFiles(tree);
+  if (!options.skipFormat) {
+    await formatFiles(tree);
+  }
 }
 
 /**

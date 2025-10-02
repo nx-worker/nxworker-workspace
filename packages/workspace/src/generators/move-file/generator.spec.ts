@@ -4,12 +4,6 @@ import { Tree, addProjectConfiguration, updateJson } from '@nx/devkit';
 import { moveFileGenerator } from './generator';
 import { MoveFileGeneratorSchema } from './schema';
 
-// Mock formatFiles to avoid dynamic import warnings in Jest
-jest.mock('@nx/devkit', () => ({
-  ...jest.requireActual('@nx/devkit'),
-  formatFiles: jest.fn().mockResolvedValue(undefined),
-}));
-
 describe('move-file generator', () => {
   let tree: Tree;
 
@@ -61,6 +55,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/utils/helper.ts',
         to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
@@ -93,6 +88,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/utils/helper.ts',
         to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
@@ -119,6 +115,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/utils/helper.ts',
         to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
@@ -159,6 +156,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/utils/helper.ts',
         to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
@@ -174,6 +172,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/utils/non-existent.ts',
         to: 'packages/lib2/src/utils/non-existent.ts',
+        skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -191,6 +190,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'unknown/path/helper.ts',
         to: 'packages/lib2/src/helper.ts',
+        skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -207,6 +207,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/helper.ts',
         to: 'unknown/path/helper.ts',
+        skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -218,6 +219,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: '../../../etc/passwd',
         to: 'packages/lib2/src/helper.ts',
+        skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -234,6 +236,7 @@ describe('move-file generator', () => {
       const options: MoveFileGeneratorSchema = {
         from: 'packages/lib1/src/helper.ts',
         to: '../../etc/passwd',
+        skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(

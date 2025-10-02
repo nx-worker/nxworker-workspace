@@ -34,6 +34,38 @@ Path to the target file relative to workspace root.
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts packages/lib2/src/utils/helper.ts
 ```
 
+### skipExport (optional)
+
+Type: `boolean`  
+Default: `false`
+
+Skip adding the export to the target project's index file.
+
+**Example:**
+
+```bash
+nx generate @nxworker/workspace:move-file \
+  packages/lib1/src/utils/helper.ts \
+  packages/lib2/src/utils/helper.ts \
+  --skipExport
+```
+
+### skipFormat (optional)
+
+Type: `boolean`  
+Default: `false`
+
+Skip formatting files with Prettier after moving.
+
+**Example:**
+
+```bash
+nx generate @nxworker/workspace:move-file \
+  packages/lib1/src/utils/helper.ts \
+  packages/lib2/src/utils/helper.ts \
+  --skipFormat
+```
+
 ## Behavior
 
 The generator automatically determines the source and target projects from the provided file paths.
