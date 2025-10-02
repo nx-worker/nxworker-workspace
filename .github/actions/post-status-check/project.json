@@ -6,34 +6,19 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/esbuild:esbuild",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/.github/actions/post-status-check"],
       "defaultConfiguration": "production",
       "options": {
-        "platform": "node",
-        "outputPath": "dist/.github/actions/post-status-check",
-        "format": ["cjs"],
-        "bundle": false,
-        "main": ".github/actions/post-status-check/src/main.js",
-        "tsConfig": ".github/actions/post-status-check/tsconfig.app.json",
-        "assets": [".github/actions/post-status-check/src/assets"],
-        "generatePackageJson": true,
-        "esbuildOptions": {
-          "sourcemap": true,
-          "outExtension": {
-            ".js": ".js"
-          }
-        }
+        "command": "node .github/actions/post-status-check/build.js",
+        "cwd": "{workspaceRoot}"
       },
       "configurations": {
-        "development": {},
+        "development": {
+          "command": "NODE_ENV=development node .github/actions/post-status-check/build.js"
+        },
         "production": {
-          "esbuildOptions": {
-            "sourcemap": false,
-            "outExtension": {
-              ".js": ".js"
-            }
-          }
+          "command": "NODE_ENV=production node .github/actions/post-status-check/build.js"
         }
       }
     },
