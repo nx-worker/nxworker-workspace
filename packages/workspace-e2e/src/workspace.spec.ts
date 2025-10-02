@@ -183,7 +183,7 @@ describe('workspace', () => {
       );
       writeFileSync(indexPath, "export * from './lib/util';\n");
 
-      // Create a consuming file in another lib
+      // Create consuming files in another lib
       const consumerPath = join(
         projectDirectory,
         libNames.lib1,
@@ -194,6 +194,18 @@ describe('workspace', () => {
       writeFileSync(
         consumerPath,
         `import { util } from '${sourceAlias}';\nexport const value = util();\n`,
+      );
+
+      const lazyConsumerPath = join(
+        projectDirectory,
+        libNames.lib1,
+        'src',
+        'lib',
+        'lazy-consumer.ts',
+      );
+      writeFileSync(
+        lazyConsumerPath,
+        `export const loadUtil = () => import('${sourceAlias}').then((m) => m.util);\n`,
       );
 
       // Run the move-file generator
@@ -217,9 +229,18 @@ describe('workspace', () => {
         'export function util()',
       );
 
-      // Verify imports were updated in consuming file
+      // Verify imports were updated in consuming files
       const consumerContent = readFileSync(consumerPath, 'utf-8');
       expect(consumerContent).toContain(targetAlias);
+
+      const lazyConsumerContent = readFileSync(lazyConsumerPath, 'utf-8');
+      const normalizedLazyConsumerContent = lazyConsumerContent.replace(
+        /\s+/g,
+        '',
+      );
+      expect(normalizedLazyConsumerContent).toContain(
+        `import('${targetAlias}').then((m)=>m.util);`,
+      );
     });
 
     it('should handle relative imports within same project', () => {
@@ -232,7 +253,6 @@ describe('workspace', () => {
         },
       );
 
-      // Create nested files with relative imports
       const featurePath = join(
         projectDirectory,
         libNames.lib5,
@@ -255,6 +275,18 @@ describe('workspace', () => {
       writeFileSync(
         servicePath,
         "import { feature } from './feature';\nexport function service() { return feature(); }\n",
+      );
+
+      const lazyPath = join(
+        projectDirectory,
+        libNames.lib5,
+        'src',
+        'lib',
+        'lazy.ts',
+      );
+      writeFileSync(
+        lazyPath,
+        "export const loadFeature = () => import('./feature').then((m) => m.feature);\n",
       );
 
       // Move to subdirectory within same project
@@ -282,6 +314,11 @@ describe('workspace', () => {
       // Verify imports were updated
       const serviceContent = readFileSync(servicePath, 'utf-8');
       expect(serviceContent).toMatch(/from ['"]\.\/features\/feature['"]/);
+
+      const lazyContent = readFileSync(lazyPath, 'utf-8');
+      expect(lazyContent).toContain(
+        "import('./features/feature').then((m) => m.feature)",
+      );
     });
   });
 });

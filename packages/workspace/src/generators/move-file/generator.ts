@@ -408,22 +408,35 @@ function updateImportPathsToPackageAlias(
         path.basename(sourceFilePath, path.extname(sourceFilePath)),
       );
 
-      // Check if this file imports the source file using relative imports
-      const importPattern = new RegExp(
-        `from\\s+['"](\\.{1,2}/[^'"]*${sourceFileName})['"]`,
+      const staticPattern = new RegExp(
+        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"])`,
+        'g',
+      );
+      const dynamicPattern = new RegExp(
+        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"]\\s*\\))`,
         'g',
       );
 
-      // Test if pattern exists before replacing
-      if (importPattern.test(content)) {
-        // Reset regex lastIndex after test
-        importPattern.lastIndex = 0;
+      let updatedContent = content;
+      let hasChanges = false;
 
-        // Update all occurrences to use the package alias
-        const updatedContent = content.replace(
-          importPattern,
-          `from '${targetPackageAlias}'`,
-        );
+      updatedContent = updatedContent.replace(
+        staticPattern,
+        (_match, prefix: string, _pathMatch: string, suffix: string) => {
+          hasChanges = true;
+          return `${prefix}${targetPackageAlias}${suffix}`;
+        },
+      );
+
+      updatedContent = updatedContent.replace(
+        dynamicPattern,
+        (_match, prefix: string, _pathMatch: string, suffix: string) => {
+          hasChanges = true;
+          return `${prefix}${targetPackageAlias}${suffix}`;
+        },
+      );
+
+      if (hasChanges) {
         tree.write(filePath, updatedContent);
         logger.info(`Updated imports to use package alias in ${filePath}`);
       }
@@ -456,27 +469,40 @@ function updateImportPathsInProject(
         path.basename(sourceFilePath, path.extname(sourceFilePath)),
       );
 
-      // Check if this file imports the source file using relative imports
-      const importPattern = new RegExp(
-        `from\\s+['"](\\.{1,2}/[^'"]*${sourceFileName})['"]`,
+      const staticPattern = new RegExp(
+        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"])`,
+        'g',
+      );
+      const dynamicPattern = new RegExp(
+        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"]\\s*\\))`,
         'g',
       );
 
-      // Test if pattern exists before replacing
-      if (importPattern.test(content)) {
-        // Reset regex lastIndex after test
-        importPattern.lastIndex = 0;
+      const relativeSpecifier = getRelativeImportSpecifier(
+        filePath,
+        targetFilePath,
+      );
 
-        const relativeSpecifier = getRelativeImportSpecifier(
-          filePath,
-          targetFilePath,
-        );
+      let updatedContent = content;
+      let hasChanges = false;
 
-        // Update all occurrences
-        const updatedContent = content.replace(
-          importPattern,
-          `from '${relativeSpecifier}'`,
-        );
+      updatedContent = updatedContent.replace(
+        staticPattern,
+        (_match, prefix: string, _pathMatch: string, suffix: string) => {
+          hasChanges = true;
+          return `${prefix}${relativeSpecifier}${suffix}`;
+        },
+      );
+
+      updatedContent = updatedContent.replace(
+        dynamicPattern,
+        (_match, prefix: string, _pathMatch: string, suffix: string) => {
+          hasChanges = true;
+          return `${prefix}${relativeSpecifier}${suffix}`;
+        },
+      );
+
+      if (hasChanges) {
         tree.write(filePath, updatedContent);
         logger.info(`Updated relative imports in ${filePath}`);
       }
@@ -498,13 +524,47 @@ function updateImportsInFile(
 
   // Replace imports from source path to target path (escape regex special chars)
   const escapedSourcePath = escapeRegex(sourceImportPath);
-  const importPattern = new RegExp(`from\\s+['"]${escapedSourcePath}['"]`, 'g');
+  const staticPattern = new RegExp(
+    `(from\\s+['"])(?:${escapedSourcePath})(['"])`,
+    'g',
+  );
+  const dynamicPattern = new RegExp(
+    `(import\\s*\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
+    'g',
+  );
+  const requirePattern = new RegExp(
+    `(require\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
+    'g',
+  );
 
-  if (importPattern.test(content)) {
-    const updatedContent = content.replace(
-      importPattern,
-      `from '${targetImportPath}'`,
-    );
+  let updatedContent = content;
+  let hasChanges = false;
+
+  updatedContent = updatedContent.replace(
+    staticPattern,
+    (_match, prefix: string, suffix: string) => {
+      hasChanges = true;
+      return `${prefix}${targetImportPath}${suffix}`;
+    },
+  );
+
+  updatedContent = updatedContent.replace(
+    dynamicPattern,
+    (_match, prefix: string, suffix: string) => {
+      hasChanges = true;
+      return `${prefix}${targetImportPath}${suffix}`;
+    },
+  );
+
+  updatedContent = updatedContent.replace(
+    requirePattern,
+    (_match, prefix: string, suffix: string) => {
+      hasChanges = true;
+      return `${prefix}${targetImportPath}${suffix}`;
+    },
+  );
+
+  if (hasChanges && updatedContent !== content) {
     tree.write(filePath, updatedContent);
     logger.info(`Updated imports in ${filePath}`);
   }
@@ -522,16 +582,24 @@ function checkForImportsInProject(
   let hasImports = false;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
-    if (hasImports) return; // Short-circuit if we already found imports
+    if (hasImports) {
+      return; // Short-circuit if we already found imports
+    }
 
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
       const content = tree.read(filePath, 'utf-8');
-      if (!content) return;
+      if (!content) {
+        return;
+      }
 
       const escapedPath = escapeRegex(importPath);
-      const importPattern = new RegExp(`from\\s+['"]${escapedPath}['"]`);
+      const patterns = [
+        new RegExp(`from\\s+['"]${escapedPath}['"]`),
+        new RegExp(`import\\s*\\(\\s*['"]${escapedPath}['"]\\s*\\)`),
+        new RegExp(`require\\(\\s*['"]${escapedPath}['"]\\s*\\)`),
+      ];
 
-      if (importPattern.test(content)) {
+      if (patterns.some((pattern) => pattern.test(content))) {
         hasImports = true;
       }
     }
@@ -557,23 +625,42 @@ function updateImportsToRelative(
       if (!content) return;
 
       const escapedSourcePath = escapeRegex(sourceImportPath);
-      const importPattern = new RegExp(
-        `from\\s+['"]${escapedSourcePath}['"]`,
+      const staticPattern = new RegExp(
+        `(from\\s+['"])(?:${escapedSourcePath})(['"])`,
+        'g',
+      );
+      const dynamicPattern = new RegExp(
+        `(import\\s*\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
         'g',
       );
 
-      if (importPattern.test(content)) {
-        const projectRoot = project.sourceRoot || project.root;
-        const targetFilePath = path.join(projectRoot, targetRelativePath);
-        const relativeSpecifier = getRelativeImportSpecifier(
-          filePath,
-          targetFilePath,
-        );
+      const projectRoot = project.sourceRoot || project.root;
+      const targetFilePath = path.join(projectRoot, targetRelativePath);
+      const relativeSpecifier = getRelativeImportSpecifier(
+        filePath,
+        targetFilePath,
+      );
 
-        const updatedContent = content.replace(
-          importPattern,
-          `from '${relativeSpecifier}'`,
-        );
+      let updatedContent = content;
+      let hasChanges = false;
+
+      updatedContent = updatedContent.replace(
+        staticPattern,
+        (_match, prefix: string, suffix: string) => {
+          hasChanges = true;
+          return `${prefix}${relativeSpecifier}${suffix}`;
+        },
+      );
+
+      updatedContent = updatedContent.replace(
+        dynamicPattern,
+        (_match, prefix: string, suffix: string) => {
+          hasChanges = true;
+          return `${prefix}${relativeSpecifier}${suffix}`;
+        },
+      );
+
+      if (hasChanges) {
         tree.write(filePath, updatedContent);
         logger.info(`Updated imports to relative path in ${filePath}`);
       }
