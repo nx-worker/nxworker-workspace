@@ -4,12 +4,6 @@ const nPlugin = require('eslint-plugin-n');
 const globals = require('globals');
 
 module.exports = [
-  {
-    files: ['**/*.json'],
-    // Override or add rules here
-    rules: {},
-    languageOptions: { parser: require('jsonc-eslint-parser') },
-  },
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
@@ -84,5 +78,11 @@ module.exports = [
         ...globals.jest,
       },
     },
+  },
+  {
+    files: ['**/*.json'],
+    // Override or add rules here
+    rules: {},
+    languageOptions: { parser: require('jsonc-eslint-parser') },
   },
 ];
