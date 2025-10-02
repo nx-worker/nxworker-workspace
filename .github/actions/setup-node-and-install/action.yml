@@ -10,17 +10,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Set up Node.js with node-version
-      if: ${{ inputs.node-version != '' }}
+    - name: Set up Node.js
       uses: actions/setup-node@v5
       with:
+        # If node-version and node-version-file are both provided the action will use version from node-version.
         node-version: ${{ inputs.node-version }}
-        cache: npm
-
-    - name: Set up Node.js with node-version-file
-      if: ${{ inputs.node-version == '' }}
-      uses: actions/setup-node@v5
-      with:
         node-version-file: .node-version
         cache: npm
 
