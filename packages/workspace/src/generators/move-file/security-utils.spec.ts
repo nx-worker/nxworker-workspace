@@ -98,8 +98,11 @@ describe('sanitizePath', () => {
     it('should throw error for Windows-style path traversal on Windows', () => {
       // Mock Windows path separator using Jest module mock
       const originalSep = path.sep;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (path as any).sep = '\\';
+      // Use writable type assertion to modify readonly property for testing
+      const pathModule = path as {
+        -readonly [K in keyof typeof path]: (typeof path)[K];
+      };
+      pathModule.sep = '\\';
 
       try {
         // This should be detected as path traversal on Windows
@@ -108,8 +111,7 @@ describe('sanitizePath', () => {
         );
       } finally {
         // Restore original
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (path as any).sep = originalSep;
+        pathModule.sep = originalSep;
       }
     });
 
@@ -117,8 +119,11 @@ describe('sanitizePath', () => {
       // Mock Windows path separator and normalize behavior using Jest
       const originalSep = path.sep;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (path as any).sep = '\\';
+      // Use writable type assertion to modify readonly property for testing
+      const pathModule = path as {
+        -readonly [K in keyof typeof path]: (typeof path)[K];
+      };
+      pathModule.sep = '\\';
       jest.spyOn(path, 'normalize').mockImplementation((p: string) => {
         // Simulate Windows normalization
         // Remove leading slash
@@ -148,8 +153,7 @@ describe('sanitizePath', () => {
         ).toThrow('Invalid path: path traversal detected');
       } finally {
         // Restore originals
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (path as any).sep = originalSep;
+        pathModule.sep = originalSep;
         jest.restoreAllMocks();
       }
     });
