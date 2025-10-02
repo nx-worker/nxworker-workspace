@@ -322,36 +322,45 @@ async function updateImportPathsInDependentProjects(
   targetImportPath: string,
 ): Promise<void> {
   // Get the project graph to find dependent projects
-  const graph = await createProjectGraphAsync();
+  const projectGraph = await createProjectGraphAsync();
   const projects = getProjects(tree);
 
   // Find all projects that have sourceProjectName as a dependency
-  const projectsWithDependency = Array.from(projects.entries())
-    .filter(([projectName]) => {
-      const deps = graph.dependencies[projectName] || [];
-      return deps.some((dep) => dep.target === sourceProjectName);
-    })
-    .map(([projectName, project]) => ({ projectName, project }));
-
-  projectsWithDependency.forEach(({ projectName, project }) => {
-    logger.info(`Checking project ${projectName} for imports`);
-    // Visit all TypeScript/JavaScript files in the project
-    visitNotIgnoredFiles(tree, project.root, (filePath) => {
-      const fileExtensions = [
-        '.ts',
-        '.tsx',
-        '.js',
-        '.jsx',
-        '.mts',
-        '.cts',
-        '.mjs',
-        '.cjs',
-      ];
-      if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
-        updateImportsInFile(tree, filePath, sourceImportPath, targetImportPath);
-      }
+  Array.from(projects.entries())
+    .map(([projectName, project]) => ({
+      project,
+      projectDependencies: projectGraph.dependencies[projectName] || [],
+      projectName,
+    }))
+    .filter(({ projectDependencies }) =>
+      projectDependencies.some(
+        (dependency) => dependency.target === sourceProjectName,
+      ),
+    )
+    .forEach(({ project, projectName }) => {
+      logger.info(`Checking project ${projectName} for imports`);
+      // Visit all TypeScript/JavaScript files in the project
+      visitNotIgnoredFiles(tree, project.root, (filePath) => {
+        const fileExtensions = [
+          '.ts',
+          '.tsx',
+          '.js',
+          '.jsx',
+          '.mts',
+          '.cts',
+          '.mjs',
+          '.cjs',
+        ];
+        if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
+          updateImportsInFile(
+            tree,
+            filePath,
+            sourceImportPath,
+            targetImportPath,
+          );
+        }
+      });
     });
-  });
 }
 
 /**
