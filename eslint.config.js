@@ -1,5 +1,4 @@
 const nx = require('@nx/eslint-plugin');
-const jsoncParser = require('jsonc-eslint-parser');
 
 module.exports = [
   {
@@ -35,13 +34,6 @@ module.exports = [
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     // Override or add rules here
-    rules: {},
-  },
-  {
-    files: ['**/*.json'],
-    languageOptions: {
-      parser: jsoncParser,
-    },
     rules: {},
   },
 ];
