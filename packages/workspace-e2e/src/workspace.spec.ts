@@ -92,7 +92,13 @@ describe('workspace', () => {
       );
 
       // Create a file that imports the helper
-      const mainPath = join(projectDirectory, libNames.lib1, 'src', 'lib', 'main.ts');
+      const mainPath = join(
+        projectDirectory,
+        libNames.lib1,
+        'src',
+        'lib',
+        'main.ts',
+      );
       writeFileSync(
         mainPath,
         "import { helper } from './helper';\n\nexport const result = helper();\n",
@@ -148,13 +154,33 @@ describe('workspace', () => {
         },
       );
 
+      const sourceAlias = getProjectImportAlias(
+        projectDirectory,
+        libNames.lib3,
+      );
+      const targetAlias = getProjectImportAlias(
+        projectDirectory,
+        libNames.lib4,
+      );
+
       // Create and export a file in lib3
-      const utilPath = join(projectDirectory, libNames.lib3, 'src', 'lib', 'util.ts');
+      const utilPath = join(
+        projectDirectory,
+        libNames.lib3,
+        'src',
+        'lib',
+        'util.ts',
+      );
       mkdirSync(dirname(utilPath), { recursive: true });
       writeFileSync(utilPath, 'export function util() { return "utility"; }\n');
 
       // Export from index
-      const indexPath = join(projectDirectory, libNames.lib3, 'src', 'index.ts');
+      const indexPath = join(
+        projectDirectory,
+        libNames.lib3,
+        'src',
+        'index.ts',
+      );
       writeFileSync(indexPath, "export * from './lib/util';\n");
 
       // Create a consuming file in another lib
@@ -167,7 +193,7 @@ describe('workspace', () => {
       );
       writeFileSync(
         consumerPath,
-        `import { util } from '@test-project/${libNames.lib3}';\nexport const value = util();\n`,
+        `import { util } from '${sourceAlias}';\nexport const value = util();\n`,
       );
 
       // Run the move-file generator
@@ -193,7 +219,7 @@ describe('workspace', () => {
 
       // Verify imports were updated in consuming file
       const consumerContent = readFileSync(consumerPath, 'utf-8');
-      expect(consumerContent).toContain(`@test-project/${libNames.lib4}`);
+      expect(consumerContent).toContain(targetAlias);
     });
 
     it('should handle relative imports within same project', () => {
@@ -259,6 +285,30 @@ describe('workspace', () => {
     });
   });
 });
+
+function getProjectImportAlias(
+  projectDir: string,
+  projectName: string,
+): string {
+  const tsconfigPath = join(projectDir, 'tsconfig.base.json');
+  const tsconfig = JSON.parse(readFileSync(tsconfigPath, 'utf-8'));
+  const paths = tsconfig?.compilerOptions?.paths ?? {};
+
+  for (const [alias, value] of Object.entries(paths)) {
+    const pathEntries = Array.isArray(value) ? value : [value];
+    if (
+      pathEntries.some((entry) =>
+        entry.replace(/\\/g, '/').includes(`${projectName}/src/index`),
+      )
+    ) {
+      return alias;
+    }
+  }
+
+  throw new Error(
+    `Could not determine import alias for project "${projectName}"`,
+  );
+}
 
 /**
  * Creates a test project with create-nx-workspace and installs the plugin
