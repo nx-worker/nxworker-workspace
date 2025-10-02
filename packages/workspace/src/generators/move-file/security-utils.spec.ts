@@ -96,9 +96,10 @@ describe('sanitizePath', () => {
     });
 
     it('should throw error for Windows-style path traversal on Windows', () => {
-      // Mock Windows path separator
+      // Mock Windows path separator using Jest module mock
       const originalSep = path.sep;
-      Object.defineProperty(path, 'sep', { value: '\\', writable: true });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (path as any).sep = '\\';
 
       try {
         // This should be detected as path traversal on Windows
@@ -106,21 +107,19 @@ describe('sanitizePath', () => {
           'Invalid path: path traversal detected',
         );
       } finally {
-        // Restore original separator
-        Object.defineProperty(path, 'sep', {
-          value: originalSep,
-          writable: true,
-        });
+        // Restore original
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (path as any).sep = originalSep;
       }
     });
 
     it('should detect path traversal after Windows normalization', () => {
-      // Mock Windows path separator and normalize behavior
+      // Mock Windows path separator and normalize behavior using Jest
       const originalSep = path.sep;
-      const originalNormalize = path.normalize;
 
-      Object.defineProperty(path, 'sep', { value: '\\', writable: true });
-      path.normalize = jest.fn((p: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (path as any).sep = '\\';
+      jest.spyOn(path, 'normalize').mockImplementation((p: string) => {
         // Simulate Windows normalization
         // Remove leading slash
         p = p.replace(/^\//, '');
@@ -149,11 +148,9 @@ describe('sanitizePath', () => {
         ).toThrow('Invalid path: path traversal detected');
       } finally {
         // Restore originals
-        Object.defineProperty(path, 'sep', {
-          value: originalSep,
-          writable: true,
-        });
-        path.normalize = originalNormalize;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (path as any).sep = originalSep;
+        jest.restoreAllMocks();
       }
     });
   });
