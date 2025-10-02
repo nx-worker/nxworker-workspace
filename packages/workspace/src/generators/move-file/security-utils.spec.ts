@@ -83,12 +83,15 @@ describe('sanitizePath', () => {
     });
 
     it('should handle Windows-style paths within workspace', () => {
-      // On Windows, path.normalize will convert backslashes
-      // This test verifies normal Windows paths work
+      // Test that path normalization works correctly across platforms
       const testPath = 'packages\\lib1\\src\\file.ts';
       const result = sanitizePath(testPath);
-      // Result depends on platform - just verify it doesn't throw
+
+      // On POSIX systems, backslashes are treated as part of the filename
+      // On Windows, they're treated as path separators
+      // In both cases, the path should normalize to a valid workspace path
       expect(result).toBeTruthy();
+      expect(result).not.toMatch(/\.\./); // Should not contain parent directory references
     });
   });
 

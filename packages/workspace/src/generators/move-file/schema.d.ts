@@ -1,4 +1,5 @@
 export interface MoveFileGeneratorSchema {
-  source: string;
-  target: string;
+  from: string;
+  to: string;
+  skipExport?: boolean;
 }

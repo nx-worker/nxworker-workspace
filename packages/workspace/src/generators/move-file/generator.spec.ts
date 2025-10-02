@@ -53,8 +53,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/utils/helper.ts',
-        target: 'packages/lib2/src/utils/helper.ts',
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -85,8 +85,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/utils/helper.ts',
-        target: 'packages/lib2/src/utils/helper.ts',
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -111,8 +111,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/utils/helper.ts',
-        target: 'packages/lib2/src/utils/helper.ts',
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -151,8 +151,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/utils/helper.ts',
-        target: 'packages/lib2/src/utils/helper.ts',
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
       };
 
       await moveFileGenerator(tree, options);
@@ -166,8 +166,8 @@ describe('move-file generator', () => {
   describe('error handling', () => {
     it('should throw error if source file does not exist', async () => {
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/utils/non-existent.ts',
-        target: 'packages/lib2/src/utils/non-existent.ts',
+        from: 'packages/lib1/src/utils/non-existent.ts',
+        to: 'packages/lib2/src/utils/non-existent.ts',
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -183,8 +183,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'unknown/path/helper.ts',
-        target: 'packages/lib2/src/helper.ts',
+        from: 'unknown/path/helper.ts',
+        to: 'packages/lib2/src/helper.ts',
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -199,8 +199,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/helper.ts',
-        target: 'unknown/path/helper.ts',
+        from: 'packages/lib1/src/helper.ts',
+        to: 'unknown/path/helper.ts',
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -210,8 +210,8 @@ describe('move-file generator', () => {
 
     it('should throw error for path traversal in source', async () => {
       const options: MoveFileGeneratorSchema = {
-        source: '../../../etc/passwd',
-        target: 'packages/lib2/src/helper.ts',
+        from: '../../../etc/passwd',
+        to: 'packages/lib2/src/helper.ts',
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
@@ -226,8 +226,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        source: 'packages/lib1/src/helper.ts',
-        target: '../../etc/passwd',
+        from: 'packages/lib1/src/helper.ts',
+        to: '../../etc/passwd',
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
