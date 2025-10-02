@@ -65,6 +65,56 @@ describe('move-file generator', () => {
     tree.write('packages/lib2/src/index.ts', '');
   });
 
+  describe('moving within the same project', () => {
+    it('should update dynamic imports to new relative paths', async () => {
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/lazy.ts',
+        "export async function load() { return import('./utils/helper'); }\n",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib1/src/features/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      const lazyContent = tree.read('packages/lib1/src/lazy.ts', 'utf-8');
+      expect(lazyContent).toContain("import('./features/helper')");
+    });
+
+    it('should update chained dynamic imports to new relative paths', async () => {
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export const HelperModule = {};',
+      );
+
+      tree.write(
+        'packages/lib1/src/lazy-route.ts',
+        "export const loadModule = () => import('./utils/helper').then(m => m.HelperModule);\n",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib1/src/features/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      const lazyContent = tree.read('packages/lib1/src/lazy-route.ts', 'utf-8');
+      expect(lazyContent).toContain(
+        "import('./features/helper').then(m => m.HelperModule)",
+      );
+    });
+  });
+
   describe('moving a file that is not exported', () => {
     it('should move the file and update relative imports', async () => {
       // Setup: Create a file in lib1
@@ -124,6 +174,29 @@ describe('move-file generator', () => {
       const mainContent = tree.read('packages/lib1/src/main.ts', 'utf-8');
       expect(mainContent).toContain("from '@test/lib2'");
     });
+
+    it('should update dynamic imports in source project to use target import path', async () => {
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/lazy.ts',
+        "export const load = () => import('./utils/helper').then(m => m.helper);\n",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      const lazyContent = tree.read('packages/lib1/src/lazy.ts', 'utf-8');
+      expect(lazyContent).toContain("import('@test/lib2').then(m => m.helper)");
+    });
   });
 
   describe('moving a file that is exported', () => {
@@ -177,7 +250,7 @@ describe('move-file generator', () => {
 
       tree.write(
         'packages/app1/src/main.ts',
-        "import { helper } from '@test/lib1';\n\nconsole.log(helper());",
+        "import { helper } from '@test/lib1';\nexport const load = () => import('@test/lib1').then(m => m.helper);\nconsole.log(helper());",
       );
 
       const options: MoveFileGeneratorSchema = {
@@ -191,6 +264,7 @@ describe('move-file generator', () => {
       // App should now import from lib2
       const appContent = tree.read('packages/app1/src/main.ts', 'utf-8');
       expect(appContent).toContain("from '@test/lib2'");
+      expect(appContent).toContain("import('@test/lib2').then(m => m.helper)");
     });
 
     it('should handle export { Named } from pattern', async () => {
