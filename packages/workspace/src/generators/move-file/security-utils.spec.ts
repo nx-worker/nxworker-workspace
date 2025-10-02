@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { sanitizePath, escapeRegex } from './security-utils';
 
 describe('sanitizePath', () => {
@@ -92,6 +93,68 @@ describe('sanitizePath', () => {
       // In both cases, the path should normalize to a valid workspace path
       expect(result).toBeTruthy();
       expect(result).not.toMatch(/\.\./); // Should not contain parent directory references
+    });
+
+    it('should throw error for Windows-style path traversal on Windows', () => {
+      // Mock Windows path separator
+      const originalSep = path.sep;
+      Object.defineProperty(path, 'sep', { value: '\\', writable: true });
+
+      try {
+        // This should be detected as path traversal on Windows
+        expect(() => sanitizePath('packages\\..\\..\\..\\etc\\passwd')).toThrow(
+          'Invalid path: path traversal detected',
+        );
+      } finally {
+        // Restore original separator
+        Object.defineProperty(path, 'sep', {
+          value: originalSep,
+          writable: true,
+        });
+      }
+    });
+
+    it('should detect path traversal after Windows normalization', () => {
+      // Mock Windows path separator and normalize behavior
+      const originalSep = path.sep;
+      const originalNormalize = path.normalize;
+
+      Object.defineProperty(path, 'sep', { value: '\\', writable: true });
+      path.normalize = jest.fn((p: string) => {
+        // Simulate Windows normalization
+        // Remove leading slash
+        p = p.replace(/^\//, '');
+        // On Windows, resolve .. properly
+        const parts = p.split(/[/\\]/);
+        const result: string[] = [];
+        for (const part of parts) {
+          if (part === '..') {
+            if (result.length > 0) {
+              result.pop();
+            } else {
+              // Can't go higher, keep the ..
+              result.push(part);
+            }
+          } else if (part !== '.' && part !== '') {
+            result.push(part);
+          }
+        }
+        return result.join('\\');
+      });
+
+      try {
+        // Path that would escape after normalization
+        expect(() =>
+          sanitizePath('packages\\lib1\\..\\..\\..\\etc\\passwd'),
+        ).toThrow('Invalid path: path traversal detected');
+      } finally {
+        // Restore originals
+        Object.defineProperty(path, 'sep', {
+          value: originalSep,
+          writable: true,
+        });
+        path.normalize = originalNormalize;
+      }
     });
   });
 
