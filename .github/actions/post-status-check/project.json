@@ -1,0 +1,65 @@
+{
+  "name": "github-actions-post-status-check",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": ".github/actions/post-status-check/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/.github/actions/post-status-check",
+        "format": ["cjs"],
+        "bundle": false,
+        "main": ".github/actions/post-status-check/src/main.js",
+        "tsConfig": ".github/actions/post-status-check/tsconfig.app.json",
+        "assets": [".github/actions/post-status-check/src/assets"],
+        "generatePackageJson": true,
+        "esbuildOptions": {
+          "sourcemap": true,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      },
+      "configurations": {
+        "development": {},
+        "production": {
+          "esbuildOptions": {
+            "sourcemap": false,
+            "outExtension": {
+              ".js": ".js"
+            }
+          }
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "github-actions-post-status-check:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "github-actions-post-status-check:build:development"
+        },
+        "production": {
+          "buildTarget": "github-actions-post-status-check:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": ".github/actions/post-status-check/jest.config.js"
+      }
+    }
+  }
+}
