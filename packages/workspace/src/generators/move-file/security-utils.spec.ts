@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import * as path from 'path';
 import { sanitizePath, escapeRegex } from './security-utils';
 
@@ -96,13 +97,8 @@ describe('sanitizePath', () => {
     });
 
     it('should throw error for Windows-style path traversal on Windows', () => {
-      // Mock Windows path separator using Jest spyOn with property descriptor
-      const originalDescriptor = Object.getOwnPropertyDescriptor(path, 'sep');
-      Object.defineProperty(path, 'sep', {
-        value: '\\',
-        configurable: true,
-        writable: true,
-      });
+      // Mock Windows path separator using jest.replaceProperty
+      const restore = jest.replaceProperty(path, 'sep', '\\');
 
       try {
         // This should be detected as path traversal on Windows
@@ -110,21 +106,13 @@ describe('sanitizePath', () => {
           'Invalid path: path traversal detected',
         );
       } finally {
-        // Restore original property descriptor
-        if (originalDescriptor) {
-          Object.defineProperty(path, 'sep', originalDescriptor);
-        }
+        restore.restore();
       }
     });
 
     it('should detect path traversal after Windows normalization', () => {
-      // Mock Windows path separator and normalize behavior using Jest spyOn
-      const originalDescriptor = Object.getOwnPropertyDescriptor(path, 'sep');
-      Object.defineProperty(path, 'sep', {
-        value: '\\',
-        configurable: true,
-        writable: true,
-      });
+      // Mock Windows path separator and normalize behavior
+      const restoreSep = jest.replaceProperty(path, 'sep', '\\');
       
       const normalizeSpy = jest.spyOn(path, 'normalize').mockImplementation((p: string) => {
         // Simulate Windows normalization
@@ -154,10 +142,7 @@ describe('sanitizePath', () => {
           sanitizePath('packages\\lib1\\..\\..\\..\\etc\\passwd'),
         ).toThrow('Invalid path: path traversal detected');
       } finally {
-        // Restore originals
-        if (originalDescriptor) {
-          Object.defineProperty(path, 'sep', originalDescriptor);
-        }
+        restoreSep.restore();
         normalizeSpy.mockRestore();
       }
     });
