@@ -4,6 +4,12 @@ import { Tree, addProjectConfiguration, updateJson } from '@nx/devkit';
 import { moveFileGenerator } from './generator';
 import { MoveFileGeneratorSchema } from './schema';
 
+// Mock formatFiles to avoid dynamic import warnings in Jest
+jest.mock('@nx/devkit', () => ({
+  ...jest.requireActual('@nx/devkit'),
+  formatFiles: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe('move-file generator', () => {
   let tree: Tree;
 
