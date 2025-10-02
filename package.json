@@ -38,6 +38,7 @@
     "verdaccio": "^5.33.0"
   },
   "workspaces": [
+    ".github/actions/*",
     "packages/*"
   ],
   "dependencies": {
