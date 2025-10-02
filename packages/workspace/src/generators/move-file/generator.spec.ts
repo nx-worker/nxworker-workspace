@@ -4,6 +4,33 @@ import { Tree, addProjectConfiguration, updateJson } from '@nx/devkit';
 import { moveFileGenerator } from './generator';
 import { MoveFileGeneratorSchema } from './schema';
 
+// Mock createProjectGraphAsync to return a simple dependency graph
+jest.mock('@nx/devkit', () => ({
+  ...jest.requireActual('@nx/devkit'),
+  createProjectGraphAsync: jest.fn(async () => ({
+    nodes: {},
+    dependencies: {
+      app1: [{ source: 'app1', target: 'lib1', type: 'static' }],
+      lib1: [],
+      lib2: [],
+    },
+  })),
+}));
+
+// Mock formatFiles
+jest.mock('@nx/devkit', () => ({
+  ...jest.requireActual('@nx/devkit'),
+  formatFiles: jest.fn(async () => Promise.resolve()),
+  createProjectGraphAsync: jest.fn(async () => ({
+    nodes: {},
+    dependencies: {
+      app1: [{ source: 'app1', target: 'lib1', type: 'static' }],
+      lib1: [],
+      lib2: [],
+    },
+  })),
+}));
+
 describe('move-file generator', () => {
   let tree: Tree;
 
@@ -164,6 +191,46 @@ describe('move-file generator', () => {
       // App should now import from lib2
       const appContent = tree.read('packages/app1/src/main.ts', 'utf-8');
       expect(appContent).toContain("from '@test/lib2'");
+    });
+
+    it('should handle export { Named } from pattern', async () => {
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export { helper } from './utils/helper';",
+      );
+
+      // Create a third project that depends on lib1
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/app1/src/main.ts',
+        "import { helper } from '@test/lib1';\n\nconsole.log(helper());",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // App should now import from lib2
+      const appContent = tree.read('packages/app1/src/main.ts', 'utf-8');
+      expect(appContent).toContain("from '@test/lib2'");
+
+      // Check that lib1's index was updated or file removed (depending on implementation)
+      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
     });
   });
 

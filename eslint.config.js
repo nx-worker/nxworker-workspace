@@ -1,5 +1,4 @@
 const nx = require('@nx/eslint-plugin');
-const jsoncParser = require('jsonc-eslint-parser');
 const esxPlugin = require('eslint-plugin-es-x');
 const nPlugin = require('eslint-plugin-n');
 const globals = require('globals');
@@ -85,12 +84,5 @@ module.exports = [
         ...globals.jest,
       },
     },
-  },
-  {
-    files: ['**/*.json'],
-    languageOptions: {
-      parser: jsoncParser,
-    },
-    rules: {},
   },
 ];

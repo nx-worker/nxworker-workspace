@@ -29,9 +29,10 @@
       "default": false
     },
     "skipFormat": {
+      "description": "Skip formatting files.",
       "type": "boolean",
-      "description": "Skip formatting files with Prettier",
-      "default": false
+      "default": false,
+      "x-priority": "internal"
     }
   },
   "required": ["from", "to"]
