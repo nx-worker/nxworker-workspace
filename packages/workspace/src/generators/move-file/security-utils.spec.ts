@@ -113,28 +113,30 @@ describe('sanitizePath', () => {
     it('should detect path traversal after Windows normalization', () => {
       // Mock Windows path separator and normalize behavior
       const restoreSep = jest.replaceProperty(path, 'sep', '\\');
-      
-      const normalizeSpy = jest.spyOn(path, 'normalize').mockImplementation((p: string) => {
-        // Simulate Windows normalization
-        // Remove leading slash
-        p = p.replace(/^\//, '');
-        // On Windows, resolve .. properly
-        const parts = p.split(/[/\\]/);
-        const result: string[] = [];
-        for (const part of parts) {
-          if (part === '..') {
-            if (result.length > 0) {
-              result.pop();
-            } else {
-              // Can't go higher, keep the ..
+
+      const normalizeSpy = jest
+        .spyOn(path, 'normalize')
+        .mockImplementation((p: string) => {
+          // Simulate Windows normalization
+          // Remove leading slash
+          p = p.replace(/^\//, '');
+          // On Windows, resolve .. properly
+          const parts = p.split(/[/\\]/);
+          const result: string[] = [];
+          for (const part of parts) {
+            if (part === '..') {
+              if (result.length > 0) {
+                result.pop();
+              } else {
+                // Can't go higher, keep the ..
+                result.push(part);
+              }
+            } else if (part !== '.' && part !== '') {
               result.push(part);
             }
-          } else if (part !== '.' && part !== '') {
-            result.push(part);
           }
-        }
-        return result.join('\\');
-      });
+          return result.join('\\');
+        });
 
       try {
         // Path that would escape after normalization
