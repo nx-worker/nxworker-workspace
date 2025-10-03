@@ -221,6 +221,7 @@ jobs:
           workflow-file: ci.yml
 
       - name: Download build artifacts
+        id: download-artifacts
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
@@ -228,7 +229,16 @@ jobs:
           path: dist/
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t e2e --output-style=static
+      - name: Run e2e tests
+        shell: bash
+        env:
+          ARTIFACTS_DOWNLOADED: ${{ steps.download-artifacts.outcome == 'success' }}
+        run: |
+          if [ "$ARTIFACTS_DOWNLOADED" == "true" ]; then
+            npx nx affected -t e2e --exclude-task-dependencies --output-style=static
+          else
+            npx nx affected -t e2e --output-style=static
+          fi
 
       - uses: ./.github/actions/post-status-check
         if: always()
