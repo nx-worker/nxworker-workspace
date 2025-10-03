@@ -14,6 +14,9 @@ inputs:
   workflow-file:
     description: Workflow file name to use in the status description (e.g. ci.yml)
     required: true
+  token:
+    description: GitHub token for posting status checks
+    required: false
 
 runs:
   using: node24

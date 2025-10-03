@@ -49,6 +49,7 @@ jobs:
           state: pending
           context: build
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t build --output-style=static
@@ -67,6 +68,7 @@ jobs:
           context: build
           job-status: ${{ job.status }}
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   lint:
     permissions:
@@ -102,6 +104,7 @@ jobs:
           state: pending
           context: lint
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
@@ -116,6 +119,7 @@ jobs:
           context: lint
           job-status: ${{ job.status }}
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   test:
     permissions:
@@ -162,6 +166,7 @@ jobs:
           state: pending
           context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t test --output-style=static
@@ -173,6 +178,7 @@ jobs:
           context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           job-status: ${{ job.status }}
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   e2e:
     needs: build
@@ -218,6 +224,7 @@ jobs:
           state: pending
           context: e2e (${{ matrix.os }})
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -235,3 +242,4 @@ jobs:
           context: e2e (${{ matrix.os }})
           job-status: ${{ job.status }}
           workflow-file: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}

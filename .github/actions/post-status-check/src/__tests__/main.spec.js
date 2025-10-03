@@ -164,7 +164,7 @@ describe('post-status-check action', () => {
 
     // Assert
     expect(core.setFailed).toHaveBeenCalledWith(
-      'GitHub token not found in environment',
+      'GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.',
     );
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
   });
@@ -179,6 +179,25 @@ describe('post-status-check action', () => {
 
     // Assert
     expect(github.getOctokit).toHaveBeenCalledWith('gh-token');
+    expect(mockCreateCommitStatus).toHaveBeenCalled();
+  });
+
+  it('should use token from input if provided', async () => {
+    // Arrange
+    getInputValues = {
+      state: 'pending',
+      context: 'test-context',
+      'job-status': 'success',
+      'workflow-file': 'ci.yml',
+      token: 'input-token',
+    };
+    delete process.env.GITHUB_TOKEN;
+
+    // Act
+    await runAction();
+
+    // Assert
+    expect(github.getOctokit).toHaveBeenCalledWith('input-token');
     expect(mockCreateCommitStatus).toHaveBeenCalled();
   });
 

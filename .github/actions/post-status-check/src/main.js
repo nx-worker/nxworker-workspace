@@ -28,7 +28,9 @@ async function run() {
       token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
     }
     if (!token) {
-      core.setFailed('GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.');
+      core.setFailed(
+        'GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.',
+      );
       return;
     }
 
