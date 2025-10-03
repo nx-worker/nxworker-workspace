@@ -1,6 +1,6 @@
-import { execSync } from 'child_process';
-import { join, dirname } from 'path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
+import { execSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 
 describe('workspace', () => {
   let projectDirectory: string;
