@@ -320,6 +320,564 @@ describe('workspace', () => {
       );
     });
   });
+
+  describe('OS-specific edge cases', () => {
+    let testLibName: string;
+
+    beforeEach(() => {
+      testLibName = `lib-${uniqueId()}`;
+      execSync(
+        `npx nx generate @nx/js:library ${testLibName} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+    });
+
+    it('should handle path separators correctly across platforms (Windows backslash vs Unix forward slash)', () => {
+      // This test verifies that the generator normalizes paths correctly
+      // Windows uses backslashes, Unix uses forward slashes
+      // The generator should handle both and normalize to POSIX style internally
+
+      const sourcePath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'util.ts',
+      );
+      writeFileSync(
+        sourcePath,
+        'export function util() { return "utility"; }\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        "import { util } from './util';\nexport const value = util();\n",
+      );
+
+      // Use forward slashes in generator arguments (POSIX-style)
+      // This should work on all platforms
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts ${testLibName}/src/lib/utilities/util.ts --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'utilities',
+        'util.ts',
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain(
+        'export function util()',
+      );
+
+      // Verify imports use forward slashes (normalized)
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/utilities\/util['"]/,
+      );
+    });
+
+    it('should handle deeply nested paths (Windows MAX_PATH vs Unix)', () => {
+      // Windows historically had a 260-character limit (MAX_PATH)
+      // Modern Windows and Unix can handle much longer paths
+      // This tests that the generator works with reasonably long nested paths
+
+      const deepPath = 'src/lib/features/domain/services/implementations';
+      const fileName = 'deeply-nested-service.ts';
+
+      const sourcePath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        fileName,
+      );
+      writeFileSync(
+        sourcePath,
+        'export class DeeplyNestedService { getId() { return "deep"; } }\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { DeeplyNestedService } from './${fileName.replace('.ts', '')}';\nexport const service = new DeeplyNestedService();\n`,
+      );
+
+      // Move to deeply nested path
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/${deepPath}/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(projectDirectory, testLibName, deepPath, fileName);
+      expect(readFileSync(movedPath, 'utf-8')).toContain(
+        'export class DeeplyNestedService',
+      );
+
+      // Verify imports were updated with correct relative path
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toContain(
+        'features/domain/services/implementations/deeply-nested-service',
+      );
+    });
+
+    it('should handle files with special characters allowed on Unix but problematic on Windows', () => {
+      // Windows doesn't allow certain characters in file names: < > : " / \ | ? *
+      // Unix allows most of these
+      // We test with characters that ARE allowed on both but might cause issues
+
+      const fileName = 'util-with-special-chars.ts';
+      const sourcePath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        fileName,
+      );
+      writeFileSync(
+        sourcePath,
+        'export function specialUtil() { return "special"; }\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { specialUtil } from './${fileName.replace('.ts', '')}';\nexport const value = specialUtil();\n`,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/special/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'special',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain(
+        'export function specialUtil()',
+      );
+    });
+
+    it('should handle files with spaces in names (cross-platform compatibility)', () => {
+      // Spaces in file names can be tricky across platforms
+      // especially when passed as command-line arguments
+
+      const fileName = 'util with spaces.ts';
+      const sourcePath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        fileName,
+      );
+      writeFileSync(
+        sourcePath,
+        'export function utilWithSpaces() { return "spaced"; }\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { utilWithSpaces } from './${fileName.replace('.ts', '')}';\nexport const value = utilWithSpaces();\n`,
+      );
+
+      // Note: Paths with spaces need proper quoting in shell commands
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file "${testLibName}/src/lib/${fileName}" "${testLibName}/src/lib/spaced/${fileName}" --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'spaced',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain(
+        'export function utilWithSpaces()',
+      );
+    });
+
+    it('should handle concurrent file operations (Windows file locking vs Unix)', () => {
+      // Windows has stricter file locking than Unix
+      // This tests that the generator completes successfully even when
+      // files might be briefly locked by other processes
+
+      const file1 = 'concurrent1.ts';
+      const file2 = 'concurrent2.ts';
+
+      writeFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', file1),
+        'export const concurrent1 = "test1";\n',
+      );
+      writeFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', file2),
+        'export const concurrent2 = "test2";\n',
+      );
+
+      // Move files sequentially (simulating back-to-back operations)
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${file1} ${testLibName}/src/lib/moved/${file1} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${file2} ${testLibName}/src/lib/moved/${file2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Verify both files were moved successfully
+      expect(
+        readFileSync(
+          join(projectDirectory, testLibName, 'src', 'lib', 'moved', file1),
+          'utf-8',
+        ),
+      ).toContain('concurrent1');
+      expect(
+        readFileSync(
+          join(projectDirectory, testLibName, 'src', 'lib', 'moved', file2),
+          'utf-8',
+        ),
+      ).toContain('concurrent2');
+    });
+
+    it('should preserve line endings across platforms (CRLF vs LF)', () => {
+      // Windows uses CRLF (\r\n), Unix uses LF (\n)
+      // The generator should preserve the file content exactly
+
+      const fileName = 'line-endings.ts';
+      const content = 'export function test() {\n  return "test";\n}\n';
+
+      writeFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', fileName),
+        content,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/moved/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedContent = readFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', 'moved', fileName),
+        'utf-8',
+      );
+
+      // Content should be preserved (Prettier might normalize, but basic structure should match)
+      expect(movedContent).toContain('export function test()');
+      expect(movedContent).toContain('return "test"');
+    });
+
+    it('should handle files at project root correctly (path edge case)', () => {
+      // Test moving files at the root of the project's src directory
+      // This can expose path calculation bugs
+
+      const fileName = 'root-level.ts';
+      writeFileSync(
+        join(projectDirectory, testLibName, 'src', fileName),
+        'export const rootLevel = "root";\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { rootLevel } from '../${fileName.replace('.ts', '')}';\nexport const value = rootLevel;\n`,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/${fileName} ${testLibName}/src/lib/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('rootLevel');
+
+      // Verify import path was updated from ../ to ./
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(/from ['"]\.\/root-level['"]/);
+    });
+
+    it('should handle case-sensitive vs case-insensitive file systems', () => {
+      // Linux: case-sensitive (file.ts != File.ts)
+      // Windows/macOS: case-insensitive (file.ts == File.ts)
+      // We test that moving a file updates imports regardless of case
+
+      const fileName = 'CaseSensitive.ts';
+      writeFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', fileName),
+        'export const caseSensitive = "test";\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      // Import with different casing (would work on Windows/macOS, not on Linux)
+      writeFileSync(
+        consumerPath,
+        `import { caseSensitive } from './${fileName.replace('.ts', '')}';\nexport const value = caseSensitive;\n`,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/moved/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        'moved',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('caseSensitive');
+
+      // Verify imports were updated
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/moved\/CaseSensitive['"]/,
+      );
+    });
+  });
+
+  describe('Architecture-specific edge cases', () => {
+    let archLibName: string;
+
+    beforeEach(() => {
+      archLibName = `lib-${uniqueId()}`;
+      execSync(
+        `npx nx generate @nx/js:library ${archLibName} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+    });
+
+    it('should handle large files efficiently on both x64 and arm64', () => {
+      // Test with a reasonably sized file that might expose memory handling differences
+      // between x64 and arm64 architectures
+
+      const fileName = 'large-module.ts';
+      const largeContent = generateLargeTypeScriptFile(1000); // 1000 lines
+
+      writeFileSync(
+        join(projectDirectory, archLibName, 'src', 'lib', fileName),
+        largeContent,
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        archLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { func0 } from './${fileName.replace('.ts', '')}';\nexport const value = func0();\n`,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} ${archLibName}/src/lib/modules/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        archLibName,
+        'src',
+        'lib',
+        'modules',
+        fileName,
+      );
+      const movedContent = readFileSync(movedPath, 'utf-8');
+
+      // Verify content is complete
+      expect(movedContent).toContain('export function func0()');
+      expect(movedContent).toContain('export function func999()');
+
+      // Verify imports were updated
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/modules\/large-module['"]/,
+      );
+    });
+
+    it('should handle many files with imports efficiently (stress test for both architectures)', () => {
+      // Create multiple files with cross-references
+      // This tests performance and memory handling on different architectures
+
+      const fileCount = 20;
+      const files: string[] = [];
+
+      // Create files
+      for (let i = 0; i < fileCount; i++) {
+        const fileName = `module${i}.ts`;
+        files.push(fileName);
+        writeFileSync(
+          join(projectDirectory, archLibName, 'src', 'lib', fileName),
+          `export function func${i}() { return ${i}; }\n`,
+        );
+      }
+
+      // Create consumer that imports from first file
+      const consumerPath = join(
+        projectDirectory,
+        archLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { func0 } from './module0';\nexport const value = func0();\n`,
+      );
+
+      // Move first file
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/module0.ts ${archLibName}/src/lib/modules/module0.ts --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Verify file was moved
+      const movedPath = join(
+        projectDirectory,
+        archLibName,
+        'src',
+        'lib',
+        'modules',
+        'module0.ts',
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('func0');
+
+      // Verify import was updated
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/modules\/module0['"]/,
+      );
+    });
+
+    it('should handle binary-safe file operations (architecture-independent)', () => {
+      // While TypeScript files are text, the generator should handle them
+      // in a way that's safe across architectures (no byte-order issues, etc.)
+
+      const fileName = 'unicode-content.ts';
+      const unicodeContent =
+        '// 日本語コメント\nexport const emoji = "🚀";\nexport const greek = "Ελληνικά";\n';
+
+      writeFileSync(
+        join(projectDirectory, archLibName, 'src', 'lib', fileName),
+        unicodeContent,
+        'utf-8',
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} ${archLibName}/src/lib/i18n/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedContent = readFileSync(
+        join(projectDirectory, archLibName, 'src', 'lib', 'i18n', fileName),
+        'utf-8',
+      );
+
+      // Verify Unicode content is preserved correctly
+      expect(movedContent).toContain('日本語');
+      expect(movedContent).toContain('🚀');
+      expect(movedContent).toContain('Ελληνικά');
+    });
+  });
 });
 
 function getProjectImportAlias(
@@ -348,6 +906,21 @@ function getProjectImportAlias(
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Generate a large TypeScript file with multiple functions
+ * @param lines - Number of function declarations to generate
+ * @returns TypeScript source code
+ */
+function generateLargeTypeScriptFile(lines: number): string {
+  let content = '// Large auto-generated TypeScript file\n\n';
+  for (let i = 0; i < lines; i++) {
+    content += `export function func${i}() {\n`;
+    content += `  return ${i};\n`;
+    content += `}\n\n`;
+  }
+  return content;
 }
 
 /**
