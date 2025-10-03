@@ -66,6 +66,21 @@ nx generate @nxworker/workspace:move-file \
   --skipFormat
 ```
 
+### allowUnicode (optional)
+
+Type: `boolean` Default: `false`
+
+When set, the generator will accept Unicode characters in the `from` and `to` paths (for example, file names in Cyrillic, Chinese, etc.). This is less restrictive and may accept characters that could be interpreted as patterns in some contexts — use with caution.
+
+**Example:**
+
+```bash
+nx generate @nxworker/workspace:move-file \
+  packages/lib1/src/файл.ts \
+  packages/lib2/src/файл.ts \
+  --allowUnicode
+```
+
 ## Behavior
 
 The generator automatically determines the source and target projects from the provided file paths.

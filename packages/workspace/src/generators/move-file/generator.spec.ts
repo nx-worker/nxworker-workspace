@@ -384,5 +384,50 @@ describe('move-file generator', () => {
         'Invalid path: path traversal detected',
       );
     });
+
+    it('should reject source containing disallowed characters', async () => {
+      // user attempts to pass a regex-like string
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/[evil*].ts',
+        to: 'packages/lib2/src/helper.ts',
+        skipFormat: true,
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        /Invalid path input for 'from': contains disallowed characters/,
+      );
+    });
+
+    it('should reject target containing disallowed characters', async () => {
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/helper.ts',
+        to: 'packages/lib2/src/(bad).ts',
+        skipFormat: true,
+      };
+
+      // Ensure source exists to reach the validation of target
+      tree.write('packages/lib1/src/helper.ts', 'export const a = 1;');
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        /Invalid path input for 'to': contains disallowed characters/,
+      );
+    });
+
+    it('should allow unicode when allowUnicode option is true', async () => {
+      // Setup: Create a file with unicode name in lib1
+      tree.write('packages/lib1/src/файл.ts', 'export const a = 1;');
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/файл.ts',
+        to: 'packages/lib2/src/файл.ts',
+        skipFormat: true,
+        allowUnicode: true,
+      } as MoveFileGeneratorSchema;
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib2/src/файл.ts')).toBe(true);
+      expect(tree.exists('packages/lib1/src/файл.ts')).toBe(false);
+    });
   });
 });

@@ -10,7 +10,7 @@ import {
 } from '@nx/devkit';
 import { posix as path } from 'path';
 import { MoveFileGeneratorSchema } from './schema';
-import { sanitizePath, escapeRegex } from './security-utils';
+import { sanitizePath, escapeRegex, isValidPathInput } from './security-utils';
 
 /**
  * Generator to move a file from one Nx project to another
@@ -27,7 +27,45 @@ export async function moveFileGenerator(
   const projects = getProjects(tree);
   const projectGraph = await createProjectGraphAsync();
 
-  // Sanitize and normalize file paths
+  const ctx = resolveAndValidate(tree, options, projects);
+
+  await executeMove(tree, options, projects, projectGraph, ctx);
+}
+
+/**
+ * Normalizes, validates, and gathers metadata about the source and target files.
+ *
+ * @param tree - The virtual file system tree.
+ * @param options - Raw options supplied to the generator.
+ * @param projects - Map of all projects in the workspace.
+ * @returns Resolved context data describing the move operation.
+ */
+function resolveAndValidate(
+  tree: Tree,
+  options: MoveFileGeneratorSchema,
+  projects: Map<string, ProjectConfiguration>,
+) {
+  // Validate user input to avoid accepting regex-like patterns or dangerous characters
+  if (
+    !isValidPathInput(options.from, {
+      allowUnicode: !!options.allowUnicode,
+    })
+  ) {
+    throw new Error(
+      `Invalid path input for 'from': contains disallowed characters: "${options.from}"`,
+    );
+  }
+
+  if (
+    !isValidPathInput(options.to, {
+      allowUnicode: !!options.allowUnicode,
+    })
+  ) {
+    throw new Error(
+      `Invalid path input for 'to': contains disallowed characters: "${options.to}"`,
+    );
+  }
+
   const normalizedSource = sanitizePath(options.from);
   const normalizedTarget = sanitizePath(options.to);
 
@@ -58,18 +96,11 @@ export async function moveFileGenerator(
 
   const { project: targetProject, name: targetProjectName } = targetProjectInfo;
 
-  logger.info(
-    `Moving ${normalizedSource} (project: ${sourceProjectName}) to ${normalizedTarget} (project: ${targetProjectName})`,
-  );
-
   // Read the file content
   const fileContent = tree.read(normalizedSource, 'utf-8');
   if (!fileContent) {
     throw new Error(`Could not read file "${normalizedSource}"`);
   }
-
-  // Create target file
-  tree.write(normalizedTarget, fileContent);
 
   // Get the relative path within the source project to check if it's exported
   const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
@@ -106,102 +137,323 @@ export async function moveFileGenerator(
   // Check if moving within the same project
   const isSameProject = sourceProjectName === targetProjectName;
 
+  return {
+    normalizedSource,
+    normalizedTarget,
+    sourceProject,
+    sourceProjectName,
+    targetProject,
+    targetProjectName,
+    fileContent,
+    sourceRoot,
+    relativeFilePathInSource,
+    isExported,
+    sourceImportPath,
+    targetImportPath,
+    hasImportsInTarget,
+    isSameProject,
+  };
+}
+
+type MoveContext = ReturnType<typeof resolveAndValidate>;
+
+/**
+ * Coordinates the move workflow by executing the individual move steps in order.
+ *
+ * @param tree - The virtual file system tree.
+ * @param options - Generator options controlling the move.
+ * @param projects - Map of all projects in the workspace.
+ * @param projectGraph - Dependency graph for the workspace.
+ * @param ctx - Precomputed move context produced by {@link resolveAndValidate}.
+ */
+async function executeMove(
+  tree: Tree,
+  options: MoveFileGeneratorSchema,
+  projects: Map<string, ProjectConfiguration>,
+  projectGraph: ProjectGraph,
+  ctx: MoveContext,
+) {
+  const {
+    normalizedSource,
+    normalizedTarget,
+    sourceProjectName,
+    targetProjectName,
+    fileContent,
+    sourceImportPath,
+  } = ctx;
+
+  logger.info(
+    `Moving ${normalizedSource} (project: ${sourceProjectName}) to ${normalizedTarget} (project: ${targetProjectName})`,
+  );
+
+  createTargetFile(tree, normalizedTarget, fileContent);
+
+  await handleMoveStrategy(tree, projectGraph, projects, ctx);
+
+  const sourceIdentifier = sourceImportPath || normalizedSource;
+  updateTargetProjectImportsIfNeeded(tree, ctx, sourceIdentifier);
+
+  ensureExportIfNeeded(tree, ctx, options);
+
+  await finalizeMove(tree, normalizedSource, options);
+}
+
+function createTargetFile(
+  tree: Tree,
+  normalizedTarget: string,
+  fileContent: string,
+): void {
+  tree.write(normalizedTarget, fileContent);
+}
+
+/**
+ * Decides which move strategy to execute based on the context.
+ *
+ * @param tree - The virtual file system tree.
+ * @param projectGraph - Dependency graph for the workspace.
+ * @param projects - Map of all projects in the workspace.
+ * @param ctx - Resolved move context.
+ */
+async function handleMoveStrategy(
+  tree: Tree,
+  projectGraph: ProjectGraph,
+  projects: Map<string, ProjectConfiguration>,
+  ctx: MoveContext,
+): Promise<void> {
+  const { isSameProject, isExported, sourceImportPath, targetImportPath } = ctx;
+
   if (isSameProject) {
-    // Moving within same project - update to relative imports
-    logger.info(
-      `Moving within same project, updating imports to relative paths`,
-    );
-    updateImportPathsInProject(
-      tree,
-      sourceProject,
-      normalizedSource,
-      normalizedTarget,
-    );
-  } else if (isExported && sourceImportPath && targetImportPath) {
-    // File is exported, need to update all dependent projects
-    logger.info(
-      `File is exported from ${sourceImportPath}, updating dependent projects`,
-    );
-    await updateImportPathsInDependentProjects(
-      tree,
-      projectGraph,
-      projects,
-      sourceProjectName,
-      sourceImportPath,
-      targetImportPath,
-    );
-
-    // Also update imports within the source project to use target import path
-    updateImportPathsToPackageAlias(
-      tree,
-      sourceProject,
-      normalizedSource,
-      targetImportPath,
-    );
-
-    // Remove export from source project's index
-    removeFileExport(tree, sourceProject, relativeFilePathInSource);
-  } else if (!isSameProject && targetImportPath) {
-    // File is not exported but moving to different project
-    // Update imports in source project to use target import path
-    logger.info(
-      `File is not exported, updating imports within source project to use target import path`,
-    );
-    updateImportPathsToPackageAlias(
-      tree,
-      sourceProject,
-      normalizedSource,
-      targetImportPath,
-    );
-  } else {
-    // Fallback: update to relative paths if no import path available
-    logger.info(`Updating imports within source project to relative paths`);
-    updateImportPathsInProject(
-      tree,
-      sourceProject,
-      normalizedSource,
-      normalizedTarget,
-    );
+    handleSameProjectMove(tree, ctx);
+    return;
   }
 
-  // Update imports in target project to relative imports if they exist
-  // (skip if moving within same project)
-  if (!isSameProject && hasImportsInTarget && targetImportPath) {
-    logger.info(`Updating imports in target project to relative imports`);
-    const targetRoot = targetProject.sourceRoot || targetProject.root;
-    const relativeFilePathInTarget = path.relative(
-      targetRoot,
-      normalizedTarget,
-    );
-    updateImportsToRelative(
-      tree,
-      targetProject,
-      sourceImportPath || normalizedSource,
-      relativeFilePathInTarget,
-    );
+  if (isExported && sourceImportPath && targetImportPath) {
+    await handleExportedMove(tree, projectGraph, projects, ctx);
+    return;
   }
 
-  // Export the file from target project entrypoint if:
-  // - It was exported from source, OR
-  // - Target project has imports to it, OR
-  // - skipExport is not set
-  // (skip if moving within same project unless it was already exported)
-  const shouldExport =
-    (!isSameProject &&
-      (isExported || hasImportsInTarget) &&
-      !options.skipExport) ||
-    (isSameProject && isExported && !options.skipExport);
-
-  if (shouldExport && targetImportPath) {
-    const targetRoot = targetProject.sourceRoot || targetProject.root;
-    const relativeFilePathInTarget = path.relative(
-      targetRoot,
-      normalizedTarget,
-    );
-    ensureFileExported(tree, targetProject, relativeFilePathInTarget);
+  if (targetImportPath) {
+    handleNonExportedAliasMove(tree, ctx);
+    return;
   }
 
-  // Delete source file
+  handleDefaultMove(tree, ctx);
+}
+
+/**
+ * Applies the move behavior when the file remains in the same project.
+ *
+ * @param tree - The virtual file system tree.
+ * @param ctx - Resolved move context.
+ */
+function handleSameProjectMove(tree: Tree, ctx: MoveContext): void {
+  const { sourceProject, normalizedSource, normalizedTarget } = ctx;
+
+  logger.info(`Moving within same project, updating imports to relative paths`);
+
+  updateImportPathsInProject(
+    tree,
+    sourceProject,
+    normalizedSource,
+    normalizedTarget,
+  );
+}
+
+/**
+ * Handles the move when the source file is exported and must update dependents.
+ *
+ * @param tree - The virtual file system tree.
+ * @param projectGraph - Dependency graph for the workspace.
+ * @param projects - Map of all projects in the workspace.
+ * @param ctx - Resolved move context.
+ */
+async function handleExportedMove(
+  tree: Tree,
+  projectGraph: ProjectGraph,
+  projects: Map<string, ProjectConfiguration>,
+  ctx: MoveContext,
+): Promise<void> {
+  const {
+    sourceProjectName,
+    sourceImportPath,
+    targetImportPath,
+    sourceProject,
+    normalizedSource,
+    relativeFilePathInSource,
+  } = ctx;
+
+  if (!sourceImportPath || !targetImportPath) {
+    return;
+  }
+
+  logger.info(
+    `File is exported from ${sourceImportPath}, updating dependent projects`,
+  );
+
+  await updateImportPathsInDependentProjects(
+    tree,
+    projectGraph,
+    projects,
+    sourceProjectName,
+    sourceImportPath,
+    targetImportPath,
+  );
+
+  updateImportPathsToPackageAlias(
+    tree,
+    sourceProject,
+    normalizedSource,
+    targetImportPath,
+  );
+
+  removeFileExport(tree, sourceProject, relativeFilePathInSource);
+}
+
+/**
+ * Handles moves across projects when the file is not exported but aliases exist.
+ *
+ * @param tree - The virtual file system tree.
+ * @param ctx - Resolved move context.
+ */
+function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
+  const { sourceProject, normalizedSource, targetImportPath } = ctx;
+
+  if (!targetImportPath) {
+    return;
+  }
+
+  logger.info(
+    `File is not exported, updating imports within source project to use target import path`,
+  );
+
+  updateImportPathsToPackageAlias(
+    tree,
+    sourceProject,
+    normalizedSource,
+    targetImportPath,
+  );
+}
+
+/**
+ * Fallback move strategy when no aliases or exports are involved.
+ *
+ * @param tree - The virtual file system tree.
+ * @param ctx - Resolved move context.
+ */
+function handleDefaultMove(tree: Tree, ctx: MoveContext): void {
+  const { sourceProject, normalizedSource, normalizedTarget } = ctx;
+
+  logger.info(`Updating imports within source project to relative paths`);
+
+  updateImportPathsInProject(
+    tree,
+    sourceProject,
+    normalizedSource,
+    normalizedTarget,
+  );
+}
+
+/**
+ * Updates imports in the target project when necessary after moving the file.
+ *
+ * @param tree - The virtual file system tree.
+ * @param ctx - Resolved move context.
+ * @param sourceIdentifier - The import specifier to replace.
+ */
+function updateTargetProjectImportsIfNeeded(
+  tree: Tree,
+  ctx: MoveContext,
+  sourceIdentifier: string,
+): void {
+  const {
+    isSameProject,
+    hasImportsInTarget,
+    targetImportPath,
+    targetProject,
+    normalizedTarget,
+  } = ctx;
+
+  if (isSameProject || !hasImportsInTarget || !targetImportPath) {
+    return;
+  }
+
+  logger.info(`Updating imports in target project to relative imports`);
+
+  const targetRoot = targetProject.sourceRoot || targetProject.root;
+  const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
+
+  updateImportsToRelative(
+    tree,
+    targetProject,
+    sourceIdentifier,
+    relativeFilePathInTarget,
+  );
+}
+
+/**
+ * Ensures the moved file is exported from the target project when required.
+ *
+ * @param tree - The virtual file system tree.
+ * @param ctx - Resolved move context.
+ * @param options - Generator options controlling export behavior.
+ */
+function ensureExportIfNeeded(
+  tree: Tree,
+  ctx: MoveContext,
+  options: MoveFileGeneratorSchema,
+): void {
+  const { targetImportPath, targetProject, normalizedTarget } = ctx;
+
+  if (!targetImportPath) {
+    return;
+  }
+
+  if (!shouldExportFile(ctx, options)) {
+    return;
+  }
+
+  const targetRoot = targetProject.sourceRoot || targetProject.root;
+  const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
+
+  ensureFileExported(tree, targetProject, relativeFilePathInTarget);
+}
+
+/**
+ * Determines whether the moved file should be exported after the move completes.
+ *
+ * @param ctx - Resolved move context.
+ * @param options - Generator options controlling export behavior.
+ * @returns True if an export statement should be ensured.
+ */
+function shouldExportFile(
+  ctx: MoveContext,
+  options: MoveFileGeneratorSchema,
+): boolean {
+  const { isSameProject, isExported, hasImportsInTarget } = ctx;
+
+  if (options.skipExport) {
+    return false;
+  }
+
+  if (isSameProject) {
+    return isExported;
+  }
+
+  return isExported || hasImportsInTarget;
+}
+
+/**
+ * Performs cleanup by deleting the source file and formatting if required.
+ *
+ * @param tree - The virtual file system tree.
+ * @param normalizedSource - Normalized path of the original file.
+ * @param options - Generator options controlling formatting behavior.
+ */
+async function finalizeMove(
+  tree: Tree,
+  normalizedSource: string,
+  options: MoveFileGeneratorSchema,
+): Promise<void> {
   tree.delete(normalizedSource);
 
   if (!options.skipFormat) {
@@ -280,7 +532,42 @@ function getProjectImportPath(
   projectName: string,
   project: ProjectConfiguration,
 ): string | null {
+  const paths = readCompilerPaths(tree);
+  if (!paths) {
+    return null;
+  }
+
+  const sourceRoot = project.sourceRoot || project.root;
+
+  for (const [alias, pathEntry] of Object.entries(paths)) {
+    const pathStr = toFirstPath(pathEntry);
+    if (!pathStr) {
+      continue;
+    }
+
+    if (!pointsToProjectIndex(pathStr, sourceRoot)) {
+      continue;
+    }
+
+    if (isWildcardAlias(alias, pathStr)) {
+      return resolveWildcardAlias(alias, sourceRoot, projectName);
+    }
+
+    return alias;
+  }
+
+  return null;
+}
+
+/**
+ * Reads the TypeScript compiler path mappings from `tsconfig.base.json`.
+ *
+ * @param tree - The virtual file system tree.
+ * @returns The paths object or null if unavailable.
+ */
+function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
   const tsconfigPath = 'tsconfig.base.json';
+
   if (!tree.exists(tsconfigPath)) {
     return null;
   }
@@ -292,56 +579,84 @@ function getProjectImportPath(
     }
 
     const tsconfig = JSON.parse(tsconfigContent);
-    const paths = tsconfig.compilerOptions?.paths || {};
-    const sourceRoot = project.sourceRoot || project.root;
+    const paths = tsconfig.compilerOptions?.paths;
 
-    const isIndexFile = (pathStr: string): boolean =>
-      pathStr.endsWith('index.ts') ||
-      pathStr.endsWith('index.mts') ||
-      pathStr.endsWith('src/index.ts');
-
-    // Look for path alias that matches this project
-    const matchingAlias = Object.entries(paths)
-      .map(([alias, pathArray]) => ({
-        alias,
-        pathStr: (Array.isArray(pathArray)
-          ? pathArray[0]
-          : pathArray) as string,
-      }))
-      .filter(({ pathStr }) => typeof pathStr === 'string')
-      .find(({ alias, pathStr }) => {
-        // Check if path points to this project's index
-        if (!pathStr.includes(sourceRoot) || !isIndexFile(pathStr)) {
-          return false;
-        }
-
-        // Handle wildcard aliases (e.g., "@scope/*": ["packages/*/src/index.ts"])
-        if (alias.includes('*') && pathStr.includes('*')) {
-          return true;
-        }
-
-        // Non-wildcard alias
-        return true;
-      });
-
-    if (!matchingAlias) {
-      return null;
-    }
-
-    const { alias, pathStr } = matchingAlias;
-
-    // Extract project-specific alias for wildcard patterns
-    if (alias.includes('*') && pathStr.includes('*')) {
-      const projectDirName = sourceRoot.split('/').pop();
-      return alias.replace(/\*/g, projectDirName || projectName);
-    }
-
-    return alias;
+    return typeof paths === 'object' && paths ? paths : null;
   } catch (error) {
     logger.warn(`Could not parse tsconfig.base.json: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Normalizes a path mapping entry to its first string value.
+ *
+ * @param pathEntry - Single string or string array entry from tsconfig paths.
+ * @returns The first path string or null when not resolvable.
+ */
+function toFirstPath(pathEntry: unknown): string | null {
+  if (typeof pathEntry === 'string') {
+    return pathEntry;
+  }
+
+  if (Array.isArray(pathEntry) && typeof pathEntry[0] === 'string') {
+    return pathEntry[0];
   }
 
   return null;
+}
+
+/**
+ * Checks whether the provided path string points to the project's index file.
+ *
+ * @param pathStr - Path value from the tsconfig mapping.
+ * @param sourceRoot - Source root of the project.
+ * @returns True when the path targets the project's index.
+ */
+function pointsToProjectIndex(pathStr: string, sourceRoot: string): boolean {
+  return pathStr.includes(sourceRoot) && isIndexFilePath(pathStr);
+}
+
+/**
+ * Determines if a path string references a supported index file.
+ *
+ * @param pathStr - Path value from the tsconfig mapping.
+ * @returns True if the path references an index entrypoint.
+ */
+function isIndexFilePath(pathStr: string): boolean {
+  return (
+    pathStr.endsWith('index.ts') ||
+    pathStr.endsWith('index.mts') ||
+    pathStr.endsWith('src/index.ts')
+  );
+}
+
+/**
+ * Checks whether both alias and path represent wildcard mappings.
+ *
+ * @param alias - The alias key from tsconfig paths.
+ * @param pathStr - The resolved path string.
+ * @returns True when both contain wildcard tokens.
+ */
+function isWildcardAlias(alias: string, pathStr: string): boolean {
+  return alias.includes('*') && pathStr.includes('*');
+}
+
+/**
+ * Resolves a wildcard alias to the project-specific alias string.
+ *
+ * @param alias - The alias key from tsconfig paths.
+ * @param sourceRoot - Source root of the project.
+ * @param projectName - Fallback project name when the directory name is missing.
+ * @returns The resolved alias string.
+ */
+function resolveWildcardAlias(
+  alias: string,
+  sourceRoot: string,
+  projectName: string,
+): string {
+  const projectDirName = sourceRoot.split('/').pop();
+  return alias.replace(/\*/g, projectDirName || projectName);
 }
 
 /**

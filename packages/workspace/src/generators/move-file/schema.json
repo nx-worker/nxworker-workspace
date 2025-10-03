@@ -33,6 +33,16 @@
       "type": "boolean",
       "default": false,
       "x-priority": "internal"
+    },
+    "allowUnicode": {
+      "type": "boolean",
+      "description": "Allow Unicode characters in file path inputs (less safe)",
+      "default": false,
+      "x-prompt": {
+        "type": "confirmation",
+        "message": "Allow unicode characters in path (less safe)?",
+        "default": false
+      }
     }
   },
   "required": ["from", "to"]
