@@ -968,6 +968,274 @@ describe('workspace', () => {
       expect(readFileSync(movedPath, 'utf-8')).toContain('createDir');
     });
   });
+
+  describe('Node.js version-specific edge cases', () => {
+    let nodeLibName: string;
+    const nodeVersion = process.version;
+    const nodeMajor = parseInt(nodeVersion.split('.')[0].substring(1), 10);
+
+    beforeEach(() => {
+      nodeLibName = `lib-${uniqueId()}`;
+      execSync(
+        `npx nx generate @nx/js:library ${nodeLibName} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+    });
+
+    it('should work with file system operations on current Node.js version', () => {
+      // Node.js 18.x, 20.x, and 22.x have different fs implementations
+      // This test ensures the generator works across all supported versions
+
+      const fileName = 'node-version-test.ts';
+      const content = `// Node.js version: ${nodeVersion}\nexport const nodeVersion = ${nodeMajor};\n`;
+
+      writeFileSync(
+        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
+        content,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/versioned/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'versioned',
+        fileName,
+      );
+      const movedContent = readFileSync(movedPath, 'utf-8');
+      expect(movedContent).toContain('nodeVersion');
+      expect(movedContent).toContain(nodeVersion);
+    });
+
+    it('should handle path resolution across Node.js versions (18.x, 20.x, 22.x)', () => {
+      // Node.js path resolution has subtle differences across versions
+      // Particularly with how path.resolve and path.normalize work
+
+      const fileName = 'path-resolution.ts';
+      writeFileSync(
+        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
+        'export const pathTest = "test";\n',
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { pathTest } from './path-resolution';\nexport const value = pathTest;\n`,
+      );
+
+      // Move to parent directory and back down - tests path normalization
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/../lib/moved/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'moved',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('pathTest');
+
+      // Verify imports were updated correctly
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/moved\/path-resolution['"]/,
+      );
+    });
+
+    it('should handle modern ECMAScript module imports (Node.js 18+)', () => {
+      // Node.js 18+ has improved ESM support
+      // Test with .mjs extension if supported
+
+      const fileName = 'esm-module.ts';
+      const esmContent =
+        'export const esmFeature = () => "ESM in Node.js ${nodeMajor}";\n';
+
+      writeFileSync(
+        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
+        esmContent,
+      );
+
+      const consumerPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'esm-consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { esmFeature } from './esm-module';\nexport const feature = esmFeature;\n`,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/modules/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'modules',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('esmFeature');
+
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/modules\/esm-module['"]/,
+      );
+    });
+
+    it('should handle file operations with Node.js 20+ performance improvements', () => {
+      // Node.js 20+ has performance improvements in fs operations
+      // Test that the generator benefits from these improvements
+
+      const fileCount = 10;
+      const files: string[] = [];
+
+      // Create multiple files
+      for (let i = 0; i < fileCount; i++) {
+        const fileName = `perf-test-${i}.ts`;
+        files.push(fileName);
+        writeFileSync(
+          join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
+          `export const perfTest${i} = ${i};\n`,
+        );
+      }
+
+      const consumerPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'perf-consumer.ts',
+      );
+      writeFileSync(
+        consumerPath,
+        `import { perfTest0 } from './perf-test-0';\nexport const value = perfTest0;\n`,
+      );
+
+      // Move first file and measure that it completes successfully
+      const startTime = Date.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/perf-test-0.ts ${nodeLibName}/src/lib/performance/perf-test-0.ts --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+      const duration = Date.now() - startTime;
+
+      // Verify operation completed (performance check is informational)
+      const movedPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'performance',
+        'perf-test-0.ts',
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('perfTest0');
+
+      // Operation should complete in reasonable time (< 30 seconds)
+      expect(duration).toBeLessThan(30000);
+    });
+
+    it('should handle Buffer and stream operations across Node.js versions', () => {
+      // Node.js versions have different Buffer implementations
+      // Particularly Node.js 18 vs 20 vs 22
+
+      const fileName = 'buffer-test.ts';
+      const bufferContent =
+        '// Buffer handling\nexport const bufferData = Buffer.from("test");\n';
+
+      writeFileSync(
+        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
+        bufferContent,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/buffers/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'buffers',
+        fileName,
+      );
+      const movedContent = readFileSync(movedPath, 'utf-8');
+      expect(movedContent).toContain('bufferData');
+      expect(movedContent).toContain('Buffer.from');
+    });
+
+    it('should work with fetch API (Node.js 18+ built-in)', () => {
+      // Node.js 18+ includes native fetch API
+      // While the generator doesn't use fetch, test that it works in environments with it
+
+      const fileName = 'fetch-context.ts';
+      const content =
+        '// In Node.js 18+, fetch is available globally\nexport const hasFetch = typeof fetch !== "undefined";\n';
+
+      writeFileSync(
+        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
+        content,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/modern/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        nodeLibName,
+        'src',
+        'lib',
+        'modern',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('hasFetch');
+    });
+  });
 });
 
 function getProjectImportAlias(

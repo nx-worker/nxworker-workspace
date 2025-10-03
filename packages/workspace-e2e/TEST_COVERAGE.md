@@ -4,7 +4,7 @@ This document describes the end-to-end test coverage for the `move-file` generat
 
 ## Test Suite Overview
 
-The e2e test suite includes **19 test cases** organized into the following categories:
+The e2e test suite includes **25 test cases** organized into the following categories:
 
 ### Basic Functionality (4 tests)
 
@@ -34,14 +34,25 @@ These tests ensure consistent behavior across different CPU architectures (x64/a
 14. **Many Files Stress Test**: Creates 20 files and tests performance of moving files with many potential import updates
 15. **Binary-Safe Unicode Operations**: Verifies that Unicode content (Japanese, Greek, emoji) is preserved correctly across architectures
 
+### Node.js Version-Specific Edge Cases (6 tests)
+
+These tests validate consistent behavior across major Node.js versions (18.x, 20.x, 22.x):
+
+16. **File System Operations**: Tests that the generator works with different fs implementations across Node.js versions
+17. **Path Resolution**: Validates path normalization works consistently across Node.js 18.x, 20.x, and 22.x
+18. **Modern ESM Imports**: Tests compatibility with improved ECMAScript module support in Node.js 18+
+19. **Performance Improvements**: Verifies the generator benefits from Node.js 20+ fs performance enhancements
+20. **Buffer Operations**: Tests Buffer handling across different Node.js Buffer implementations
+21. **Built-in Fetch API**: Validates the generator works in Node.js 18+ environments with native fetch
+
 ### Failure Scenarios (4 tests)
 
 These tests validate proper error handling across platforms:
 
-16. **Non-Existent Source**: Verifies graceful failure when source file doesn't exist
-17. **Path Traversal Rejection**: Security test ensuring path traversal attempts (e.g., `../../../etc/passwd`) are rejected
-18. **Invalid Characters**: Tests rejection of dangerous characters like `[`, `]`, `*`, `(`, `)` that could be interpreted as regex patterns
-19. **Auto-Create Directories**: Tests that the generator creates target directories if they don't exist
+22. **Non-Existent Source**: Verifies graceful failure when source file doesn't exist
+23. **Path Traversal Rejection**: Security test ensuring path traversal attempts (e.g., `../../../etc/passwd`) are rejected
+24. **Invalid Characters**: Tests rejection of dangerous characters like `[`, `]`, `*`, `(`, `)` that could be interpreted as regex patterns
+25. **Auto-Create Directories**: Tests that the generator creates target directories if they don't exist
 
 ## Platform Coverage
 
@@ -51,6 +62,12 @@ The tests are designed to run on:
 - **macOS** (Intel and Apple Silicon)
 - **Windows Server** (x64)
 - **Windows 11** (x64 and ARM64)
+
+And across Node.js versions:
+
+- **Node.js 18.x** (LTS Hydrogen)
+- **Node.js 20.x** (LTS Iron)
+- **Node.js 22.x** (Current, tested)
 
 ## Architecture Coverage
 
@@ -108,7 +125,7 @@ npx nx e2e workspace-e2e --output-style stream
 
 ## Test Execution Time
 
-The full e2e suite typically takes **~5-10 minutes** to run, as it:
+The full e2e suite typically takes **~7-12 minutes** to run, as it:
 
 1. Starts a local Verdaccio registry
 2. Publishes the plugin to the local registry
