@@ -492,10 +492,10 @@ describe('workspace', () => {
         'export class DeeplyNestedService',
       );
 
-      // Verify the path is long but within macOS limits (~900 characters in the deep path portion)
+      // Verify the path is long but within macOS limits (~824 characters in the deep path portion)
       const deepPathLength = deepPathSegments.join('/').length;
-      expect(deepPathLength).toBeGreaterThan(850); // ~900 chars
-      expect(deepPathLength).toBeLessThan(1000); // Safe margin within macOS 1024 limit
+      expect(deepPathLength).toBeGreaterThan(800); // ~824 chars (15 segments * 54 chars + 14 slashes)
+      expect(deepPathLength).toBeLessThan(900); // Safe margin within macOS 1024 limit
 
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');

@@ -1036,8 +1036,18 @@ function toAbsoluteWorkspacePath(filePath: string): string {
   return path.join('/', normalized);
 }
 
+/**
+ * Strips file extension from import path for TypeScript and regular JavaScript files.
+ * Preserves extensions for ESM-specific files (.mjs, .mts, .cjs, .cts) as they are
+ * required by the ESM specification.
+ *
+ * @param importPath - The import path to process
+ * @returns The import path with extension stripped (or preserved for ESM files)
+ */
 function stripFileExtension(importPath: string): string {
-  return importPath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
+  // Only strip .ts, .tsx, .js, .jsx extensions
+  // Preserve .mjs, .mts, .cjs, .cts as they are required for ESM
+  return importPath.replace(/\.(ts|tsx|js|jsx)$/, '');
 }
 
 function getRelativeImportSpecifier(
