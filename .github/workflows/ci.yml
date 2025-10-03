@@ -231,14 +231,7 @@ jobs:
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - name: Run e2e tests
         shell: bash
-        env:
-          ARTIFACTS_DOWNLOADED: ${{ steps.download-artifacts.outcome == 'success' }}
-        run: |
-          if [ "$ARTIFACTS_DOWNLOADED" == "true" ]; then
-            npx nx affected -t e2e --exclude-task-dependencies --output-style=static
-          else
-            npx nx affected -t e2e --output-style=static
-          fi
+        run: npx nx affected -t e2e ${{ steps.download-artifacts.outcome == 'success' && '--exclude-task-dependencies' || '' }} --output-style=static
 
       - uses: ./.github/actions/post-status-check
         if: always()
