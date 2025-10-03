@@ -13,6 +13,10 @@ describe('isValidPathInput', () => {
     expect(isValidPathInput('файл.ts', { allowUnicode: true })).toBe(true);
   });
 
+  it('allows backslash for Windows path separators', () => {
+    expect(isValidPathInput('path\\to\\file.ts', {})).toBe(true);
+  });
+
   describe('shell metacharacters', () => {
     it('should reject pipe character |', () => {
       expect(isValidPathInput('file|name.ts', {})).toBe(false);
@@ -28,10 +32,6 @@ describe('isValidPathInput', () => {
 
     it('should reject double quote "', () => {
       expect(isValidPathInput('file"name.ts', {})).toBe(false);
-    });
-
-    it('should reject backslash \\', () => {
-      expect(isValidPathInput('file\\name.ts', {})).toBe(false);
     });
   });
 });
