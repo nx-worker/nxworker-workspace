@@ -10,7 +10,9 @@ import {
 } from '@nx/devkit';
 import { posix as path } from 'path';
 import { MoveFileGeneratorSchema } from './schema';
-import { sanitizePath, escapeRegex, isValidPathInput } from './security-utils';
+import { sanitizePath } from './security-utils/sanitize-path';
+import { escapeRegex } from './security-utils/escape-regex';
+import { isValidPathInput } from './security-utils/is-valid-path-input';
 
 /**
  * Generator to move a file from one Nx project to another
