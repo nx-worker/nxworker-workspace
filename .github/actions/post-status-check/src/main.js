@@ -9,6 +9,7 @@ async function run() {
     const context = core.getInput('context', { required: true });
     const jobStatus = core.getInput('job-status', { required: false });
     const workflowFile = core.getInput('workflow-file', { required: true });
+    const token = core.getInput('github-token', { required: true });
 
     // Only run for workflow_dispatch events
     if (github.context.eventName !== 'workflow_dispatch') {
@@ -18,21 +19,6 @@ async function run() {
 
     // Get the current commit SHA
     const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
-
-    // Get GitHub token from input, context, or environment (in order of preference)
-    let token = core.getInput('token', { required: false });
-    if (!token) {
-      token = github.context.token;
-    }
-    if (!token) {
-      token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-    }
-    if (!token) {
-      core.setFailed(
-        'GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.',
-      );
-      return;
-    }
 
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;

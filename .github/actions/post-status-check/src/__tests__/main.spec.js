@@ -45,6 +45,7 @@ describe('post-status-check action', () => {
       context: 'test-context',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
+      'github-token': 'test-token',
     };
 
     core.getInput = jest.fn((name) => getInputValues[name] || '');
@@ -52,12 +53,10 @@ describe('post-status-check action', () => {
     core.info = jest.fn();
 
     execSync.mockReturnValue('abc123def456\n');
-    process.env.GITHUB_TOKEN = 'test-token';
   });
 
   afterEach(() => {
-    delete process.env.GITHUB_TOKEN;
-    delete process.env.GH_TOKEN;
+    // Clean up if needed
   });
 
   const runAction = async () => {
@@ -74,6 +73,7 @@ describe('post-status-check action', () => {
       context: 'build',
       'job-status': '',
       'workflow-file': 'ci.yml',
+      'github-token': 'test-token',
     };
 
     // Act
@@ -98,6 +98,7 @@ describe('post-status-check action', () => {
       context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
+      'github-token': 'test-token',
     };
 
     // Act
@@ -123,6 +124,7 @@ describe('post-status-check action', () => {
       context: 'e2e',
       'job-status': 'failure',
       'workflow-file': 'ci.yml',
+      'github-token': 'test-token',
     };
 
     // Act
@@ -155,52 +157,6 @@ describe('post-status-check action', () => {
     );
   });
 
-  it('should fail if GitHub token is not available', async () => {
-    // Arrange
-    delete process.env.GITHUB_TOKEN;
-
-    // Act
-    await runAction();
-
-    // Assert
-    expect(core.setFailed).toHaveBeenCalledWith(
-      'GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.',
-    );
-    expect(mockCreateCommitStatus).not.toHaveBeenCalled();
-  });
-
-  it('should use GH_TOKEN if GITHUB_TOKEN is not set', async () => {
-    // Arrange
-    delete process.env.GITHUB_TOKEN;
-    process.env.GH_TOKEN = 'gh-token';
-
-    // Act
-    await runAction();
-
-    // Assert
-    expect(github.getOctokit).toHaveBeenCalledWith('gh-token');
-    expect(mockCreateCommitStatus).toHaveBeenCalled();
-  });
-
-  it('should use token from input if provided', async () => {
-    // Arrange
-    getInputValues = {
-      state: 'pending',
-      context: 'test-context',
-      'job-status': 'success',
-      'workflow-file': 'ci.yml',
-      token: 'input-token',
-    };
-    delete process.env.GITHUB_TOKEN;
-
-    // Act
-    await runAction();
-
-    // Assert
-    expect(github.getOctokit).toHaveBeenCalledWith('input-token');
-    expect(mockCreateCommitStatus).toHaveBeenCalled();
-  });
-
   it('should handle errors gracefully', async () => {
     // Arrange
     mockCreateCommitStatus.mockRejectedValue(new Error('API error'));
@@ -219,6 +175,7 @@ describe('post-status-check action', () => {
       context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
+      'github-token': 'test-token',
     };
 
     // Act
