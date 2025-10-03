@@ -159,6 +159,60 @@ The generator implements several security measures:
 - **Path Traversal Prevention**: Input paths are normalized and validated to prevent directory traversal attacks (e.g., `../../etc/passwd`)
 - **ReDoS Prevention**: All user input used in regular expressions is properly escaped to prevent Regular Expression Denial of Service attacks
 
+## Cross-Platform Compatibility
+
+The `move-file` generator is designed to work consistently across different operating systems and CPU architectures. The following considerations are taken into account:
+
+### Path Separators
+
+- **Windows**: Uses backslashes (`\`) as path separators
+- **Unix/Linux/macOS**: Uses forward slashes (`/`) as path separators
+- **Generator behavior**: All paths are normalized to POSIX style (forward slashes) internally, ensuring consistent behavior across platforms
+
+### Case Sensitivity
+
+- **Linux**: File systems are case-sensitive (`file.ts` ≠ `File.ts`)
+- **Windows/macOS**: File systems are typically case-insensitive (`file.ts` == `File.ts`)
+- **Generator behavior**: The generator updates import paths based on the exact file name as moved, preserving the case specified by the user
+
+### Path Length Limits
+
+- **Windows**: Historically limited to 260 characters (MAX_PATH), though modern Windows 10/11 can support longer paths with appropriate configuration
+- **Unix/Linux/macOS**: Support much longer paths (typically 4096 characters)
+- **Generator behavior**: Works with reasonably nested paths; extremely deep nesting may hit platform-specific limits
+
+### Special Characters
+
+- **Windows**: Does not allow certain characters in file names: `< > : " / \ | ? *`
+- **Unix/Linux**: Allows most characters except `/` (path separator) and null
+- **Generator behavior**: Validates input paths and rejects dangerous characters like brackets and asterisks that could be interpreted as regex patterns
+
+### File Locking
+
+- **Windows**: Has stricter file locking; files opened by processes cannot be deleted or modified
+- **Unix/Linux**: More permissive; allows deletion/modification of open files
+- **Generator behavior**: Performs file operations sequentially to minimize locking issues
+
+### Line Endings
+
+- **Windows**: Uses CRLF (`\r\n`)
+- **Unix/Linux/macOS**: Uses LF (`\n`)
+- **Generator behavior**: Preserves file content exactly as-is; line endings are maintained (Prettier may normalize them if formatting is enabled)
+
+### Unicode Support
+
+- **All platforms**: Support UTF-8 encoded file names and content
+- **Generator behavior**: Handles Unicode content correctly when `--allowUnicode` flag is set; otherwise rejects non-ASCII characters in file paths for security
+
+### Architecture Support
+
+The generator has been tested on:
+
+- **x64/amd64**: Standard 64-bit Intel/AMD architecture
+- **arm64**: ARM 64-bit architecture (including Apple Silicon, Windows ARM, and Linux ARM servers)
+
+Performance characteristics are consistent across architectures, with proper handling of large files and many concurrent operations.
+
 ## See Also
 
 - [Nx Generators](https://nx.dev/concepts/generators)
