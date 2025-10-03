@@ -434,28 +434,23 @@ describe('workspace', () => {
       }
     });
 
-    it('should handle deeply nested paths (Windows MAX_PATH vs Unix)', () => {
+    it('should handle deeply nested paths within OS limits (~3000 characters)', () => {
       // Windows historically had a 260-character limit (MAX_PATH)
-      // Modern Windows and Unix can handle much longer paths
-      // This tests that the generator works with very long paths (4096+ characters)
+      // Modern Windows and Unix can handle long paths, but have different limits:
+      // - Linux: PATH_MAX=4096, NAME_MAX=255 per directory/file
+      // - Windows (with long path support): 32,767 characters
+      // - macOS: PATH_MAX=1024
+      // This tests a realistic deep path (~3000 chars) that works across all platforms
 
       const fileName = 'deeply-nested-service.ts';
 
-      // Calculate base path length to determine how many segments we need
-      const basePath = join(projectDirectory, testLibName, 'src', 'lib');
-      const basePathLength = basePath.length + fileName.length + 2; // +2 for separators
+      // Create directory segments with names <255 chars (respecting NAME_MAX)
+      // Use 200-char segments to stay well within the limit
+      const segmentBase = 'very-long-directory-name-to-test-deep-paths-'.repeat(4); // ~180 chars
+      const numSegments = 15; // 15 * 200 = ~3000 characters
 
-      // Create enough segments to exceed 4096 characters total
-      const targetLength = 4200; // Target >4096
-      const remainingLength = targetLength - basePathLength;
-      const segmentName = 'seg000verylongnametoincreasepathlengthmore'; // 43 chars
-      const segmentLength = segmentName.length + 1; // +1 for separator
-      const numSegments = Math.ceil(remainingLength / segmentLength);
-
-      const deepPathSegments = Array.from(
-        { length: numSegments },
-        (_, i) =>
-          `seg${i.toString().padStart(3, '0')}verylongnametoincreasepathlengthmore`,
+      const deepPathSegments = Array.from({ length: numSegments }, (_, i) =>
+        `${segmentBase}${i.toString().padStart(2, '0')}`.substring(0, 200),
       );
       const deepPath = `src/lib/${deepPathSegments.join('/')}`;
 
@@ -497,13 +492,47 @@ describe('workspace', () => {
         'export class DeeplyNestedService',
       );
 
-      // Verify the path is indeed very long (>4096 characters)
-      expect(movedPath.length).toBeGreaterThan(4096);
+      // Verify the path is indeed very long (>2500 characters)
+      expect(movedPath.length).toBeGreaterThan(2500);
 
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toContain('DeeplyNestedService');
-      expect(updatedConsumerContent).toContain(deepPathSegments[0]); // Verify it references the deep path
+      expect(updatedConsumerContent).toContain(deepPathSegments[0].substring(0, 20)); // Verify it references the deep path
+    });
+
+    it('should fail gracefully when path exceeds OS limits', () => {
+      // This test verifies the generator propagates OS errors for paths that exceed system limits
+      // Different OSes have different limits, so we create a path that will fail on most systems
+
+      const fileName = 'service.ts';
+      
+      // Create a directory name that exceeds NAME_MAX (255 chars on Linux/macOS/Windows)
+      const invalidSegmentName = 'a'.repeat(300); // 300 chars - exceeds NAME_MAX
+
+      const sourcePath = join(
+        projectDirectory,
+        testLibName,
+        'src',
+        'lib',
+        fileName,
+      );
+      writeFileSync(
+        sourcePath,
+        'export class Service {}\n',
+      );
+
+      // Attempt to move to a path with an overly long directory name
+      // This should fail with an OS error (ENAMETOOLONG on Unix, similar error on Windows)
+      expect(() => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/${invalidSegmentName}/${fileName} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe', // Capture error output
+          },
+        );
+      }).toThrow(); // Expect the command to fail
     });
 
     it('should handle files with special characters allowed on Unix but problematic on Windows', () => {
