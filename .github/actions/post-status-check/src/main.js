@@ -19,10 +19,16 @@ async function run() {
     // Get the current commit SHA
     const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
 
-    // Get GitHub token from environment
-    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    // Get GitHub token from input, context, or environment (in order of preference)
+    let token = core.getInput('token', { required: false });
     if (!token) {
-      core.setFailed('GitHub token not found in environment');
+      token = github.context.token;
+    }
+    if (!token) {
+      token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    }
+    if (!token) {
+      core.setFailed('GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.');
       return;
     }
 
