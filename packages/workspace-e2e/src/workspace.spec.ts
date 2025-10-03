@@ -398,16 +398,25 @@ describe('workspace', () => {
       // Modern Windows and Unix can handle much longer paths
       // This tests that the generator works with very long paths (4096+ characters)
 
-      // Create a path with 4096+ characters by repeating directory names
-      const segmentLength = 50; // Each segment is 50 chars
-      const numSegments = Math.ceil(4096 / segmentLength) + 1; // Ensure >4096 chars
+      const fileName = 'deeply-nested-service.ts';
+
+      // Calculate base path length to determine how many segments we need
+      const basePath = join(projectDirectory, testLibName, 'src', 'lib');
+      const basePathLength = basePath.length + fileName.length + 2; // +2 for separators
+
+      // Create enough segments to exceed 4096 characters total
+      const targetLength = 4200; // Target >4096
+      const remainingLength = targetLength - basePathLength;
+      const segmentName = 'seg000verylongnametoincreasepathlengthmore'; // 43 chars
+      const segmentLength = segmentName.length + 1; // +1 for separator
+      const numSegments = Math.ceil(remainingLength / segmentLength);
+
       const deepPathSegments = Array.from(
         { length: numSegments },
         (_, i) =>
-          `segment${i.toString().padStart(3, '0')}verylongnametoincreasepathlength`,
+          `seg${i.toString().padStart(3, '0')}verylongnametoincreasepathlengthmore`,
       );
       const deepPath = `src/lib/${deepPathSegments.join('/')}`;
-      const fileName = 'deeply-nested-service.ts';
 
       const sourcePath = join(
         projectDirectory,
