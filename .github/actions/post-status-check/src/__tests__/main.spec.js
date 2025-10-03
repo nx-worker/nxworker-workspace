@@ -1,11 +1,11 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
-const { execSync } = require('child_process');
+const { execSync } = require('node:child_process');
 
 // Mock modules
 jest.mock('@actions/core');
 jest.mock('@actions/github');
-jest.mock('child_process');
+jest.mock('node:child_process');
 
 // Set test environment
 process.env.NODE_ENV = 'test';
