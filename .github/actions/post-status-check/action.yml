@@ -16,7 +16,7 @@ inputs:
     required: true
   github-token:
     description: GitHub token for posting status checks
-    required: true
+    required: false
 
 runs:
   using: node24

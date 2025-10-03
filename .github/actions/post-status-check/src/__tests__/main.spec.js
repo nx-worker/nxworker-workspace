@@ -157,6 +157,46 @@ describe('post-status-check action', () => {
     );
   });
 
+  it('should use token from github.context if input is not provided', async () => {
+    // Arrange
+    getInputValues = {
+      state: 'pending',
+      context: 'test-context',
+      'job-status': 'success',
+      'workflow-file': 'ci.yml',
+      'github-token': '',
+    };
+    github.context.token = 'context-token';
+
+    // Act
+    await runAction();
+
+    // Assert
+    expect(github.getOctokit).toHaveBeenCalledWith('context-token');
+    expect(mockCreateCommitStatus).toHaveBeenCalled();
+  });
+
+  it('should fail if GitHub token is not available', async () => {
+    // Arrange
+    getInputValues = {
+      state: 'pending',
+      context: 'test-context',
+      'job-status': 'success',
+      'workflow-file': 'ci.yml',
+      'github-token': '',
+    };
+    github.context.token = undefined;
+
+    // Act
+    await runAction();
+
+    // Assert
+    expect(core.setFailed).toHaveBeenCalledWith(
+      'GitHub token not found. Please provide it as an action input or ensure it is available in the context.',
+    );
+    expect(mockCreateCommitStatus).not.toHaveBeenCalled();
+  });
+
   it('should handle errors gracefully', async () => {
     // Arrange
     mockCreateCommitStatus.mockRejectedValue(new Error('API error'));
