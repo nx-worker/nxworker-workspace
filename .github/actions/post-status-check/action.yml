@@ -17,4 +17,4 @@ inputs:
 
 runs:
   using: node24
-  main: ../../../dist/.github/actions/post-status-check/main.js
+  main: src/main.js
