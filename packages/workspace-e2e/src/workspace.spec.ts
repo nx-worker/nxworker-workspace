@@ -1306,7 +1306,6 @@ async function createTestProject() {
         // Use an async sleep instead of Atomics.wait which is not intended for this use
         // and can be unreliable across environments.
         // This is safe because the surrounding callers (beforeAll/afterAll) are async.
-        // eslint-disable-next-line no-await-in-loop
         await sleep(delay);
       } else {
         throw err;
