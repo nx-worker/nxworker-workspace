@@ -45,6 +45,7 @@ describe('post-status-check action', () => {
       context: 'test-context',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
+      sha: '',
     };
 
     core.getInput = jest.fn((name) => getInputValues[name] || '');
@@ -200,6 +201,7 @@ describe('post-status-check action', () => {
       context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
+      sha: '',
     };
 
     // Act
@@ -210,5 +212,61 @@ describe('post-status-check action', () => {
       "Invalid state: invalid. Must be 'pending' or 'outcome'",
     );
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
+  });
+
+  it('should use provided SHA input instead of git rev-parse', async () => {
+    // Arrange
+    const customSha = 'custom-sha-123';
+    getInputValues = {
+      state: 'pending',
+      context: 'build',
+      'job-status': '',
+      'workflow-file': 'ci.yml',
+      sha: customSha,
+    };
+
+    // Act
+    await runAction();
+
+    // Assert
+    expect(mockCreateCommitStatus).toHaveBeenCalledWith({
+      owner: 'test-owner',
+      repo: 'test-repo',
+      sha: customSha,
+      state: 'pending',
+      context: 'build',
+      description: 'ci.yml (workflow_dispatch) in progress',
+      target_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
+    });
+    // Ensure git rev-parse is not called when SHA is provided
+    expect(execSync).not.toHaveBeenCalled();
+  });
+
+  it('should use git rev-parse when SHA input is not provided', async () => {
+    // Arrange
+    getInputValues = {
+      state: 'pending',
+      context: 'build',
+      'job-status': '',
+      'workflow-file': 'ci.yml',
+      sha: '',
+    };
+
+    // Act
+    await runAction();
+
+    // Assert
+    expect(execSync).toHaveBeenCalledWith('git rev-parse HEAD', {
+      encoding: 'utf-8',
+    });
+    expect(mockCreateCommitStatus).toHaveBeenCalledWith({
+      owner: 'test-owner',
+      repo: 'test-repo',
+      sha: 'abc123def456',
+      state: 'pending',
+      context: 'build',
+      description: 'ci.yml (workflow_dispatch) in progress',
+      target_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
+    });
   });
 });
