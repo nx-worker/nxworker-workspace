@@ -878,6 +878,96 @@ describe('workspace', () => {
       expect(movedContent).toContain('Ελληνικά');
     });
   });
+
+  describe('Failure scenarios (OS-specific)', () => {
+    let failLibName: string;
+
+    beforeEach(() => {
+      failLibName = `lib-${uniqueId()}`;
+      execSync(
+        `npx nx generate @nx/js:library ${failLibName} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+    });
+
+    it('should fail gracefully when source file does not exist', () => {
+      // This should fail consistently across all platforms
+      expect(() => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/non-existent.ts ${failLibName}/src/lib/moved/non-existent.ts --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }).toThrow();
+    });
+
+    it('should reject path traversal attempts (security test)', () => {
+      // Path traversal should be rejected on all platforms
+      writeFileSync(
+        join(projectDirectory, failLibName, 'src', 'lib', 'safe.ts'),
+        'export const safe = true;\n',
+      );
+
+      expect(() => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/safe.ts ../../../etc/passwd --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }).toThrow();
+    });
+
+    it('should reject invalid characters in file paths', () => {
+      // Characters like [, ], *, (, ) should be rejected as they can be regex patterns
+      expect(() => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file "${failLibName}/src/lib/[invalid].ts" "${failLibName}/src/lib/moved/file.ts" --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }).toThrow();
+    });
+
+    it('should handle non-existent target directory by creating it', () => {
+      // The generator should create the target directory if it doesn't exist
+      const fileName = 'create-dir.ts';
+      writeFileSync(
+        join(projectDirectory, failLibName, 'src', 'lib', fileName),
+        'export const createDir = true;\n',
+      );
+
+      // Move to a deeply nested directory that doesn't exist
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/${fileName} ${failLibName}/src/lib/a/b/c/d/${fileName} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedPath = join(
+        projectDirectory,
+        failLibName,
+        'src',
+        'lib',
+        'a',
+        'b',
+        'c',
+        'd',
+        fileName,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('createDir');
+    });
+  });
 });
 
 function getProjectImportAlias(
