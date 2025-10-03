@@ -1068,27 +1068,28 @@ describe('workspace', () => {
 
     it('should handle modern ECMAScript module imports (Node.js 18+)', () => {
       // Node.js 18+ has improved ESM support
-      // Test with .mjs extension if supported
+      // Test with .mjs extension to verify native ESM file handling
 
-      const fileName = 'esm-module.ts';
+      const fileName = 'esm-module.mjs';
       const esmContent =
-        'export const esmFeature = () => "ESM in Node.js ${nodeMajor}";\n';
+        'export const esmFeature = () => `ESM in Node.js ${process.version}`;\n';
 
       writeFileSync(
         join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
         esmContent,
       );
 
+      const consumerFileName = 'esm-consumer.mjs';
       const consumerPath = join(
         projectDirectory,
         nodeLibName,
         'src',
         'lib',
-        'esm-consumer.ts',
+        consumerFileName,
       );
       writeFileSync(
         consumerPath,
-        `import { esmFeature } from './esm-module';\nexport const feature = esmFeature;\n`,
+        `import { esmFeature } from './esm-module.mjs';\nexport const feature = esmFeature;\n`,
       );
 
       execSync(
@@ -1111,7 +1112,7 @@ describe('workspace', () => {
 
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
-        /from ['"]\.\/modules\/esm-module['"]/,
+        /from ['"]\.\/modules\/esm-module\.mjs['"]/,
       );
     });
   });
