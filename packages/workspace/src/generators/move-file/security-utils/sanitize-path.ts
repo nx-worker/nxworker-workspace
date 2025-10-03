@@ -1,4 +1,4 @@
-import { posix as path } from 'path';
+import { posix as path } from 'node:path';
 
 /**
  * Sanitizes a file path by normalizing and validating it.
