@@ -1,6 +1,7 @@
 const nx = require('@nx/eslint-plugin');
 const jsoncParser = require('jsonc-eslint-parser');
 const esxPlugin = require('eslint-plugin-es-x');
+const nPlugin = require('eslint-plugin-n');
 
 module.exports = [
   ...nx.configs['flat/base'],
@@ -31,8 +32,11 @@ module.exports = [
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     plugins: {
       'es-x': esxPlugin,
+      n: nPlugin,
     },
     rules: {
+      // Enforce node: protocol for built-in modules (supported in Node.js 18+)
+      'n/prefer-node-protocol': 'error',
       // Ban Node.js 22+ features not available in Node.js 18
       // RegExp Unicode Sets + /v flag (Node 22+)
       'es-x/no-regexp-v-flag': 'error',

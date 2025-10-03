@@ -26,6 +26,7 @@
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^9.1.2",
     "eslint-plugin-es-x": "^9.1.0",
+    "eslint-plugin-n": "^17.23.1",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "nx": "^19.8.14",

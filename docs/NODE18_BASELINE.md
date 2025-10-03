@@ -31,7 +31,13 @@ The repository has been configured to enforce Node.js 18 as the minimum supporte
 
 ### 3. ESLint Rules
 
-Added `eslint-plugin-es-x` (v9.1.0) to enforce Node.js 18 compatibility by banning features that are not available or stable in Node.js 18:
+Added `eslint-plugin-es-x` (v9.1.0) and `eslint-plugin-n` to enforce Node.js 18 compatibility:
+
+#### Code Style Enforcement
+
+- `n/prefer-node-protocol`: Enforces `node:` prefix for built-in modules (e.g., `node:fs` instead of `fs`)
+  - Supported in Node.js 14.18.0+, including all Node.js 18+ versions
+  - Improves code clarity by distinguishing built-in modules from third-party packages
 
 #### Banned Features (Node.js 22+)
 
