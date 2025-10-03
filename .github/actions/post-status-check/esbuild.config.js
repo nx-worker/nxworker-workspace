@@ -1,6 +1,8 @@
 module.exports = (options) => {
-  const isProduction = process.env.NODE_ENV === 'production' || options.configuration === 'production';
-  
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    options.configuration === 'production';
+
   return {
     ...options,
     bundle: true,

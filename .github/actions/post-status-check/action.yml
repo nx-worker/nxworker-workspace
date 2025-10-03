@@ -10,7 +10,7 @@ inputs:
     required: true
   job-status:
     description: Job status (for outcome checks)
-    required: true
+    required: false
   workflow-file:
     description: Workflow file name to use in the status description (e.g. ci.yml)
     required: true

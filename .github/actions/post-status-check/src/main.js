@@ -7,7 +7,7 @@ async function run() {
     // Get inputs
     const state = core.getInput('state', { required: true });
     const context = core.getInput('context', { required: true });
-    const jobStatus = core.getInput('job-status', { required: true });
+    const jobStatus = core.getInput('job-status', { required: false });
     const workflowFile = core.getInput('workflow-file', { required: true });
 
     // Only run for workflow_dispatch events
