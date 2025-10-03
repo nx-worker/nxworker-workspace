@@ -602,7 +602,7 @@ describe('workspace', () => {
       // The generator should preserve the file content exactly
 
       const fileName = 'line-endings.ts';
-      const content = 'export function test() {\n  return "test";\n}\n';
+      const content = "export function test() {\n  return 'test';\n}\n";
 
       writeFileSync(
         join(projectDirectory, testLibName, 'src', 'lib', fileName),
@@ -624,7 +624,7 @@ describe('workspace', () => {
 
       // Content should be preserved (Prettier might normalize, but basic structure should match)
       expect(movedContent).toContain('export function test()');
-      expect(movedContent).toContain('return "test"');
+      expect(movedContent).toContain("return 'test'");
     });
 
     it('should handle files at project root correctly (path edge case)', () => {
