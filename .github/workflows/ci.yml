@@ -42,13 +42,16 @@ jobs:
 
       - uses: ./.github/actions/set-nx-shas
 
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Build post-status-check action
+        run: node .github/actions/post-status-check/build.js
+
       - uses: ./.github/actions/post-status-check
         with:
           state: pending
           context: build
           workflow-file: ci.yml
-
-      - uses: ./.github/actions/setup-node-and-install
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t build --output-style=static
@@ -95,13 +98,16 @@ jobs:
 
       - uses: ./.github/actions/set-nx-shas
 
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Build post-status-check action
+        run: node .github/actions/post-status-check/build.js
+
       - uses: ./.github/actions/post-status-check
         with:
           state: pending
           context: lint
           workflow-file: ci.yml
-
-      - uses: ./.github/actions/setup-node-and-install
 
       - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
@@ -153,15 +159,18 @@ jobs:
 
       - uses: ./.github/actions/set-nx-shas
 
+      - uses: ./.github/actions/setup-node-and-install
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Build post-status-check action
+        run: node .github/actions/post-status-check/build.js
+
       - uses: ./.github/actions/post-status-check
         with:
           state: pending
           context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           workflow-file: ci.yml
-
-      - uses: ./.github/actions/setup-node-and-install
-        with:
-          node-version: ${{ matrix.node-version }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t test --output-style=static
@@ -211,13 +220,16 @@ jobs:
 
       - uses: ./.github/actions/set-nx-shas
 
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Build post-status-check action
+        run: node .github/actions/post-status-check/build.js
+
       - uses: ./.github/actions/post-status-check
         with:
           state: pending
           context: e2e (${{ matrix.os }})
           workflow-file: ci.yml
-
-      - uses: ./.github/actions/setup-node-and-install
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
