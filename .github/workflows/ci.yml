@@ -59,6 +59,7 @@ jobs:
           name: build-artifacts
           path: dist/
           retention-days: 7
+          if-no-files-found: ignore
 
       - uses: ./.github/actions/post-status-check
         if: always()
@@ -220,13 +221,17 @@ jobs:
           workflow-file: ci.yml
 
       - name: Download build artifacts
+        id: download-artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: build-artifacts
           path: dist/
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
+      - name: Run e2e tests
+        shell: bash
+        run: npx nx affected -t e2e ${{ steps.download-artifacts.outcome == 'success' && '--exclude-task-dependencies' || '' }} --output-style=static
 
       - uses: ./.github/actions/post-status-check
         if: always()
