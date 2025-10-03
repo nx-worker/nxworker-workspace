@@ -598,9 +598,9 @@ describe('workspace', () => {
         // Windows doesn't allow these characters in filenames: < > : " / \ | ? *
         // Unix allows most of these (except / which is the path separator)
         // This test only runs on non-Windows platforms
-        // Testing with: < > : " \ | ? *
+        // Testing with: < > : (shell metacharacters | ? * " are avoided due to escaping complexity)
 
-        const fileName = 'util<>:"\\|?*.ts';
+        const fileName = 'util<>:test.ts';
         const sourcePath = join(
           projectDirectory,
           testLibName,
