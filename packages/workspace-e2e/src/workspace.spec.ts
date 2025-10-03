@@ -434,23 +434,23 @@ describe('workspace', () => {
       }
     });
 
-    it('should handle deeply nested paths within OS limits (~3000 characters)', () => {
+    it('should handle deeply nested paths within OS limits (~900 characters)', () => {
       // Windows historically had a 260-character limit (MAX_PATH)
       // Modern Windows and Unix can handle long paths, but have different limits:
       // - Linux: PATH_MAX=4096, NAME_MAX=255 per directory/file
       // - Windows (with long path support): 32,767 characters
-      // - macOS: PATH_MAX=1024
-      // This tests a realistic deep path (~3000 chars) that works across all platforms
+      // - macOS: PATH_MAX=1024 (most restrictive)
+      // This tests a realistic deep path (~900 chars) that works within macOS limits
 
       const fileName = 'deeply-nested-service.ts';
 
       // Create directory segments with names <255 chars (respecting NAME_MAX)
-      // Use 200-char segments to stay well within the limit
-      const segmentBase = 'very-long-directory-name-to-test-deep-paths-'.repeat(4); // ~180 chars
-      const numSegments = 15; // 15 * 200 = ~3000 characters
+      // Use shorter segments to stay within macOS's 1024-char limit
+      const segmentBase = 'long-dir-name-for-testing-'.repeat(2); // ~54 chars
+      const numSegments = 15; // 15 * 60 = ~900 characters (safe for macOS)
 
       const deepPathSegments = Array.from({ length: numSegments }, (_, i) =>
-        `${segmentBase}${i.toString().padStart(2, '0')}`.substring(0, 200),
+        `${segmentBase}${i.toString().padStart(2, '0')}`.substring(0, 60),
       );
       const deepPath = `src/lib/${deepPathSegments.join('/')}`;
 
@@ -492,8 +492,10 @@ describe('workspace', () => {
         'export class DeeplyNestedService',
       );
 
-      // Verify the path is indeed very long (>2500 characters)
-      expect(movedPath.length).toBeGreaterThan(2500);
+      // Verify the path is long but within macOS limits (~900 characters in the deep path portion)
+      const deepPathLength = deepPathSegments.join('/').length;
+      expect(deepPathLength).toBeGreaterThan(850); // ~900 chars
+      expect(deepPathLength).toBeLessThan(1000); // Safe margin within macOS 1024 limit
 
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
