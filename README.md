@@ -6,6 +6,15 @@
 
 [Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/npm-workspaces-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 
+## Requirements
+
+This workspace requires:
+
+- **Node.js**: ^18.0.0
+- **npm**: ^10.0.0
+
+The codebase enforces Node.js 18 as the baseline to match Nx 19 compatibility. ESLint rules automatically prevent the use of Node.js 20+ and 22+ features to ensure compatibility.
+
 ## Finish your CI setup
 
 [Click here to finish setting up your workspace!](https://cloud.nx.app)
