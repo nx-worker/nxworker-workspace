@@ -12,6 +12,9 @@ module.exports = [
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',
