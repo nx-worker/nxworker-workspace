@@ -12,4 +12,26 @@ describe('isValidPathInput', () => {
   it('accepts unicode when allowUnicode is true', () => {
     expect(isValidPathInput('файл.ts', { allowUnicode: true })).toBe(true);
   });
+
+  describe('shell metacharacters', () => {
+    it('should reject pipe character |', () => {
+      expect(isValidPathInput('file|name.ts', {})).toBe(false);
+    });
+
+    it('should reject question mark ?', () => {
+      expect(isValidPathInput('file?.ts', {})).toBe(false);
+    });
+
+    it('should reject asterisk *', () => {
+      expect(isValidPathInput('file*.ts', {})).toBe(false);
+    });
+
+    it('should reject double quote "', () => {
+      expect(isValidPathInput('file"name.ts', {})).toBe(false);
+    });
+
+    it('should reject backslash \\', () => {
+      expect(isValidPathInput('file\\name.ts', {})).toBe(false);
+    });
+  });
 });
