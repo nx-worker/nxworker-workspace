@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import * as path from 'path';
-import { sanitizePath, escapeRegex } from './security-utils';
+import { sanitizePath, escapeRegex, isValidPathInput } from './security-utils';
 
 describe('sanitizePath', () => {
   describe('valid paths', () => {
@@ -342,6 +342,75 @@ describe('escapeRegex', () => {
       expect(regex.test('test*.ts')).toBe(true);
       expect(regex.test('test123.ts')).toBe(false);
       expect(regex.test('testanything.ts')).toBe(false);
+    });
+  });
+});
+
+describe('isValidPathInput', () => {
+  describe('default behavior', () => {
+    it('allows common ASCII filename characters', () => {
+      expect(isValidPathInput('packages/lib1/src/my-file 01.ts', {})).toBe(
+        true,
+      );
+    });
+
+    it('rejects characters outside the whitelist', () => {
+      expect(isValidPathInput('invalid|file.ts', {})).toBe(false);
+      expect(isValidPathInput('another?file.ts', {})).toBe(false);
+    });
+
+    it('treats empty strings as valid', () => {
+      expect(isValidPathInput('', {})).toBe(true);
+    });
+  });
+
+  describe('allowUnicode option', () => {
+    it('accepts unicode when allowUnicode is true', () => {
+      expect(isValidPathInput('файл.ts', { allowUnicode: true })).toBe(true);
+      expect(isValidPathInput('Δοκιμή.ts', { allowUnicode: true })).toBe(true);
+    });
+
+    it('rejects unicode when allowUnicode is false', () => {
+      expect(isValidPathInput('файл.ts', { allowUnicode: false })).toBe(false);
+      expect(isValidPathInput('Δοκιμή.ts', { allowUnicode: false })).toBe(false);
+    });
+  });
+
+  describe('maxLength option', () => {
+    it('accepts strings at or below the limit', () => {
+      expect(isValidPathInput('short', { maxLength: 5 })).toBe(true);
+      expect(isValidPathInput('12345', { maxLength: 5 })).toBe(true);
+    });
+
+    it('rejects strings that exceed the limit', () => {
+      expect(isValidPathInput('toolong', { maxLength: 5 })).toBe(false);
+      expect(isValidPathInput('exceeds-limit', { maxLength: 3 })).toBe(false);
+    });
+  });
+
+  describe('additionalAllowedChars option', () => {
+    it('allows extra characters when specified', () => {
+      expect(
+        isValidPathInput('file#with+extra.ts', {
+          additionalAllowedChars: '#+',
+        }),
+      ).toBe(true);
+    });
+
+    it('still rejects other disallowed characters', () => {
+      expect(
+        isValidPathInput('file#with?extra.ts', {
+          additionalAllowedChars: '#',
+        }),
+      ).toBe(false);
+      expect(isValidPathInput('file?with?extra.ts', {})).toBe(false);
+    });
+  });
+
+  describe('input validation edge cases', () => {
+    it('rejects non-string inputs', () => {
+      expect(isValidPathInput(null as unknown as string, {})).toBe(false);
+      expect(isValidPathInput((123 as unknown) as string, {})).toBe(false);
     });
   });
 });

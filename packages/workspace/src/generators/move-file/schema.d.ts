@@ -3,4 +3,5 @@ export interface MoveFileGeneratorSchema {
   to: string;
   skipExport?: boolean;
   skipFormat?: boolean;
+  allowUnicode?: boolean;
 }
