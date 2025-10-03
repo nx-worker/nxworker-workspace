@@ -364,7 +364,7 @@ describe('workspace', () => {
         "import { util } from './util';\nexport const value = util();\n",
       );
 
-      // Use forward slashes in generator arguments (POSIX-style)
+      // Test with POSIX-style paths (forward slashes)
       // This should work on all platforms
       execSync(
         `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts ${testLibName}/src/lib/utilities/util.ts --no-interactive`,
@@ -387,10 +387,51 @@ describe('workspace', () => {
       );
 
       // Verify imports use forward slashes (normalized)
-      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      let updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
         /from ['"]\.\/utilities\/util['"]/,
       );
+
+      // Test with Windows-style paths on Windows (backslashes)
+      if (process.platform === 'win32') {
+        // Move file back first
+        const utilBackPath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'util.ts',
+        );
+        writeFileSync(
+          utilBackPath,
+          "export function util() { return 'utility'; }\n",
+        );
+        writeFileSync(
+          consumerPath,
+          "import { util } from './util';\nexport const value = util();\n",
+        );
+
+        // Use backslashes in paths (Windows-style)
+        const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
+        const winStyleTarget = `${testLibName}\\src\\lib\\utilities\\util.ts`;
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${winStyleSource} ${winStyleTarget} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        expect(readFileSync(movedPath, 'utf-8')).toContain(
+          'export function util()',
+        );
+
+        // Imports should still use forward slashes (normalized)
+        updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+        expect(updatedConsumerContent).toMatch(
+          /from ['"]\.\/utilities\/util['"]/,
+        );
+      }
     });
 
     it('should handle deeply nested paths (Windows MAX_PATH vs Unix)', () => {
@@ -514,7 +555,68 @@ describe('workspace', () => {
       expect(readFileSync(movedPath, 'utf-8')).toContain(
         'export function specialUtil()',
       );
+
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      expect(updatedConsumerContent).toMatch(
+        /from ['"]\.\/special\/util_with-special\.chars['"]/,
+      );
     });
+
+    (process.platform === 'win32' ? it.skip : it)(
+      'should handle files with Unix-specific special characters (skipped on Windows)',
+      () => {
+        // Characters like colon (:) are allowed on Unix but not on Windows
+        // This test only runs on non-Windows platforms
+
+        const fileName = 'util:with:colons.ts';
+        const sourcePath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          fileName,
+        );
+        writeFileSync(
+          sourcePath,
+          "export function colonUtil() { return 'colon'; }\n",
+        );
+
+        const consumerPath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'consumer-unix.ts',
+        );
+        writeFileSync(
+          consumerPath,
+          `import { colonUtil } from './${fileName.replace('.ts', '')}';\nexport const value = colonUtil();\n`,
+        );
+
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/unix-special/${fileName} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        const movedPath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'unix-special',
+          fileName,
+        );
+        expect(readFileSync(movedPath, 'utf-8')).toContain(
+          'export function colonUtil()',
+        );
+
+        const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+        expect(updatedConsumerContent).toContain('./unix-special/');
+      },
+    );
 
     it('should handle files with spaces in names (cross-platform compatibility)', () => {
       // Spaces in file names can be tricky across platforms
@@ -620,36 +722,74 @@ describe('workspace', () => {
       // Windows uses CRLF (\r\n), Unix uses LF (\n)
       // The generator should preserve the file content exactly including line endings
 
-      const fileName = 'line-endings.ts';
-      // Use LF line endings explicitly
-      const contentLF = "export function test() {\n  return 'test';\n}\n";
+      const fileNameLF = 'line-endings-lf.ts';
+      const fileNameCRLF = 'line-endings-crlf.ts';
 
+      // Test LF line endings
+      const contentLF = "export function testLF() {\n  return 'test';\n}\n";
       writeFileSync(
-        join(projectDirectory, testLibName, 'src', 'lib', fileName),
+        join(projectDirectory, testLibName, 'src', 'lib', fileNameLF),
         contentLF,
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/moved/${fileName} --skipFormat --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileNameLF} ${testLibName}/src/lib/moved/${fileNameLF} --skipFormat --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
         },
       );
 
-      const movedContent = readFileSync(
-        join(projectDirectory, testLibName, 'src', 'lib', 'moved', fileName),
+      const movedContentLF = readFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', 'moved', fileNameLF),
         'utf-8',
       );
 
       // Content should be preserved exactly (formatting skipped)
-      expect(movedContent).toContain('export function test()');
-      expect(movedContent).toContain("return 'test'");
+      expect(movedContentLF).toContain('export function testLF()');
+      expect(movedContentLF).toContain("return 'test'");
 
-      // Assert that line endings are preserved (LF, not CRLF)
-      expect(movedContent).toBe(contentLF);
-      expect(movedContent).not.toContain('\r\n'); // No CRLF
-      expect(movedContent.split('\n').length).toBe(4); // 3 lines + empty string after final \n
+      // Assert that LF line endings are preserved
+      expect(movedContentLF).toBe(contentLF);
+      expect(movedContentLF).not.toContain('\r\n'); // No CRLF
+      expect(movedContentLF.split('\n').length).toBe(4); // 3 lines + empty string after final \n
+
+      // Test CRLF line endings
+      const contentCRLF =
+        "export function testCRLF() {\r\n  return 'test';\r\n}\r\n";
+      writeFileSync(
+        join(projectDirectory, testLibName, 'src', 'lib', fileNameCRLF),
+        contentCRLF,
+      );
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileNameCRLF} ${testLibName}/src/lib/moved/${fileNameCRLF} --skipFormat --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      const movedContentCRLF = readFileSync(
+        join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'moved',
+          fileNameCRLF,
+        ),
+        'utf-8',
+      );
+
+      // Content should be preserved exactly (formatting skipped)
+      expect(movedContentCRLF).toContain('export function testCRLF()');
+      expect(movedContentCRLF).toContain("return 'test'");
+
+      // Assert that CRLF line endings are preserved
+      expect(movedContentCRLF).toBe(contentCRLF);
+      expect(movedContentCRLF).toContain('\r\n'); // Has CRLF
+      expect(movedContentCRLF.split('\r\n').length).toBe(4); // 3 lines + empty string after final \r\n
     });
 
     it('should handle files at project root correctly (path edge case)', () => {
