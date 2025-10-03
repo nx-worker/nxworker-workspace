@@ -1,6 +1,6 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
-const { execSync } = require('child_process');
+const { execSync } = require('node:child_process');
 
 async function run() {
   try {
