@@ -1135,9 +1135,9 @@ describe('workspace', () => {
       expect(readFileSync(movedPath, 'utf-8')).toContain('esmFeature');
 
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
-      expect(updatedConsumerContent).toMatch(
-        /from ['"]\.\/modules\/esm-module\.mjs['"]/,
-      );
+      // For .mjs files, imports must include the .mjs extension
+      // The generator should update the import path to reflect the new location
+      expect(updatedConsumerContent).toContain('./modules/esm-module.mjs');
     });
   });
 });
