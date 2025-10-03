@@ -396,10 +396,17 @@ describe('workspace', () => {
     it('should handle deeply nested paths (Windows MAX_PATH vs Unix)', () => {
       // Windows historically had a 260-character limit (MAX_PATH)
       // Modern Windows and Unix can handle much longer paths
-      // This tests that the generator works with deeply nested directory structures
+      // This tests that the generator works with very long paths (4096+ characters)
 
-      const deepPath =
-        'src/lib/features/domain/services/implementations/handlers/processors/validators/transformers';
+      // Create a path with 4096+ characters by repeating directory names
+      const segmentLength = 50; // Each segment is 50 chars
+      const numSegments = Math.ceil(4096 / segmentLength) + 1; // Ensure >4096 chars
+      const deepPathSegments = Array.from(
+        { length: numSegments },
+        (_, i) =>
+          `segment${i.toString().padStart(3, '0')}verylongnametoincreasepathlength`,
+      );
+      const deepPath = `src/lib/${deepPathSegments.join('/')}`;
       const fileName = 'deeply-nested-service.ts';
 
       const sourcePath = join(
@@ -411,7 +418,7 @@ describe('workspace', () => {
       );
       writeFileSync(
         sourcePath,
-        'export class DeeplyNestedService { getId() { return "deep"; } }\n',
+        "export class DeeplyNestedService { getId() { return 'deep'; } }\n",
       );
 
       const consumerPath = join(
@@ -440,11 +447,13 @@ describe('workspace', () => {
         'export class DeeplyNestedService',
       );
 
+      // Verify the path is indeed very long (>4096 characters)
+      expect(movedPath.length).toBeGreaterThan(4096);
+
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
-      expect(updatedConsumerContent).toContain(
-        'features/domain/services/implementations/handlers/processors/validators/transformers/deeply-nested-service',
-      );
+      expect(updatedConsumerContent).toContain('DeeplyNestedService');
+      expect(updatedConsumerContent).toContain(deepPathSegments[0]); // Verify it references the deep path
     });
 
     it('should handle files with special characters allowed on Unix but problematic on Windows', () => {
@@ -600,14 +609,15 @@ describe('workspace', () => {
 
     it('should preserve line endings across platforms (CRLF vs LF)', () => {
       // Windows uses CRLF (\r\n), Unix uses LF (\n)
-      // The generator should preserve the file content exactly
+      // The generator should preserve the file content exactly including line endings
 
       const fileName = 'line-endings.ts';
-      const content = "export function test() {\n  return 'test';\n}\n";
+      // Use LF line endings explicitly
+      const contentLF = "export function test() {\n  return 'test';\n}\n";
 
       writeFileSync(
         join(projectDirectory, testLibName, 'src', 'lib', fileName),
-        content,
+        contentLF,
       );
 
       execSync(
@@ -626,6 +636,11 @@ describe('workspace', () => {
       // Content should be preserved exactly (formatting skipped)
       expect(movedContent).toContain('export function test()');
       expect(movedContent).toContain("return 'test'");
+
+      // Assert that line endings are preserved (LF, not CRLF)
+      expect(movedContent).toBe(contentLF);
+      expect(movedContent).not.toContain('\r\n'); // No CRLF
+      expect(movedContent.split('\n').length).toBe(4); // 3 lines + empty string after final \n
     });
 
     it('should handle files at project root correctly (path edge case)', () => {
