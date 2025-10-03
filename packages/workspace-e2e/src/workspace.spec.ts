@@ -600,7 +600,7 @@ describe('workspace', () => {
         // This test only runs on non-Windows platforms
         // Testing with: < > : " \ | ? *
 
-        const fileName = 'util<>:"|?*.ts';
+        const fileName = 'util<>:"\\|?*.ts';
         const sourcePath = join(
           projectDirectory,
           testLibName,
