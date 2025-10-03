@@ -8,9 +8,8 @@ describe('workspace', () => {
   function uniqueId() {
     return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
   }
-
-  beforeAll(() => {
-    projectDirectory = createTestProject();
+  beforeAll(async () => {
+    projectDirectory = await createTestProject();
     libNames = {
       lib1: `lib-${uniqueId()}`,
       lib2: `lib-${uniqueId()}`,
@@ -28,7 +27,7 @@ describe('workspace', () => {
     });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     // Cleanup the test project (Windows: handle EBUSY)
     if (projectDirectory) {
       let attempts = 0;
@@ -41,7 +40,7 @@ describe('workspace', () => {
         } catch (err) {
           if (err.code === 'EBUSY' || err.code === 'ENOTEMPTY') {
             attempts++;
-            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+            await sleep(delay);
           } else {
             throw err;
           }
@@ -347,11 +346,15 @@ function getProjectImportAlias(
   );
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Creates a test project with create-nx-workspace and installs the plugin
  * @returns The directory where the test project was created
  */
-function createTestProject() {
+async function createTestProject() {
   function uniqueId() {
     return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
   }
@@ -369,7 +372,11 @@ function createTestProject() {
     } catch (err) {
       if (err.code === 'EBUSY' || err.code === 'ENOTEMPTY') {
         attempts++;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+        // Use an async sleep instead of Atomics.wait which is not intended for this use
+        // and can be unreliable across environments.
+        // This is safe because the surrounding callers (beforeAll/afterAll) are async.
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(delay);
       } else {
         throw err;
       }
