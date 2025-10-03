@@ -5,8 +5,8 @@
   "scripts": {},
   "private": true,
   "engines": {
-    "node": "^22.20.0",
-    "npm": "^10.9.3"
+    "node": "^18.0.0",
+    "npm": "^10.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -22,9 +22,10 @@
     "@swc/helpers": "~0.5.17",
     "@swc/jest": "~0.2.39",
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.18.8",
+    "@types/node": "^18.19.68",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-es-x": "^9.1.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "nx": "^19.8.14",
