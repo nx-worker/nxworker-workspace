@@ -9,6 +9,7 @@ async function run() {
     const context = core.getInput('context', { required: true });
     const jobStatus = core.getInput('job-status', { required: false });
     const workflowFile = core.getInput('workflow-file', { required: true });
+    const inputSha = core.getInput('sha', { required: false });
 
     // Only run for workflow_dispatch events
     if (github.context.eventName !== 'workflow_dispatch') {
@@ -16,8 +17,9 @@ async function run() {
       return;
     }
 
-    // Get the current commit SHA
-    const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+    // Get the commit SHA (use input if provided, otherwise use HEAD)
+    const sha =
+      inputSha || execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
 
     // Get GitHub token from input, context, or environment (in order of preference)
     let token = core.getInput('token', { required: false });
