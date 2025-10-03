@@ -15,8 +15,8 @@ inputs:
     description: Workflow file name to use in the status description (e.g. ci.yml)
     required: true
   sha:
-    description: Commit SHA to post status to (defaults to HEAD)
-    required: false
+    description: Commit SHA to post status to
+    required: true
 
 runs:
   using: node24

@@ -1,11 +1,9 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
-const { execSync } = require('node:child_process');
 
 // Mock modules
 jest.mock('@actions/core');
 jest.mock('@actions/github');
-jest.mock('node:child_process');
 
 // Set test environment
 process.env.NODE_ENV = 'test';
@@ -45,14 +43,13 @@ describe('post-status-check action', () => {
       context: 'test-context',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
-      sha: '',
+      sha: 'abc123def456',
     };
 
     core.getInput = jest.fn((name) => getInputValues[name] || '');
     core.setFailed = jest.fn();
     core.info = jest.fn();
 
-    execSync.mockReturnValue('abc123def456\n');
     process.env.GITHUB_TOKEN = 'test-token';
   });
 
@@ -75,6 +72,7 @@ describe('post-status-check action', () => {
       context: 'build',
       'job-status': '',
       'workflow-file': 'ci.yml',
+      sha: 'abc123def456',
     };
 
     // Act
@@ -99,6 +97,7 @@ describe('post-status-check action', () => {
       context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
+      sha: 'abc123def456',
     };
 
     // Act
@@ -124,6 +123,7 @@ describe('post-status-check action', () => {
       context: 'e2e',
       'job-status': 'failure',
       'workflow-file': 'ci.yml',
+      sha: 'abc123def456',
     };
 
     // Act
@@ -201,7 +201,7 @@ describe('post-status-check action', () => {
       context: 'test',
       'job-status': 'success',
       'workflow-file': 'ci.yml',
-      sha: '',
+      sha: 'abc123def456',
     };
 
     // Act
@@ -214,7 +214,7 @@ describe('post-status-check action', () => {
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
   });
 
-  it('should use provided SHA input instead of git rev-parse', async () => {
+  it('should use provided SHA input', async () => {
     // Arrange
     const customSha = 'custom-sha-123';
     getInputValues = {
@@ -233,36 +233,6 @@ describe('post-status-check action', () => {
       owner: 'test-owner',
       repo: 'test-repo',
       sha: customSha,
-      state: 'pending',
-      context: 'build',
-      description: 'ci.yml (workflow_dispatch) in progress',
-      target_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
-    });
-    // Ensure git rev-parse is not called when SHA is provided
-    expect(execSync).not.toHaveBeenCalled();
-  });
-
-  it('should use git rev-parse when SHA input is not provided', async () => {
-    // Arrange
-    getInputValues = {
-      state: 'pending',
-      context: 'build',
-      'job-status': '',
-      'workflow-file': 'ci.yml',
-      sha: '',
-    };
-
-    // Act
-    await runAction();
-
-    // Assert
-    expect(execSync).toHaveBeenCalledWith('git rev-parse HEAD', {
-      encoding: 'utf-8',
-    });
-    expect(mockCreateCommitStatus).toHaveBeenCalledWith({
-      owner: 'test-owner',
-      repo: 'test-repo',
-      sha: 'abc123def456',
       state: 'pending',
       context: 'build',
       description: 'ci.yml (workflow_dispatch) in progress',
