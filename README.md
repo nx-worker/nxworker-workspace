@@ -10,10 +10,10 @@
 
 This workspace requires:
 
-- **Node.js**: ^18.0.0
-- **npm**: ^10.0.0
+- **Node.js**: >=18.0.0 (development uses Node.js 22 LTS "Jod")
+- **npm**: >=10.0.0
 
-The codebase enforces Node.js 18 as the baseline to match Nx 19 compatibility. ESLint rules automatically prevent the use of Node.js 20+ and 22+ features to ensure compatibility.
+The codebase enforces Node.js 18 as the baseline to match Nx 19 compatibility. ESLint rules automatically prevent the use of Node.js 20+ and 22+ features to ensure compatibility across all supported Node.js versions.
 
 ## Finish your CI setup
 

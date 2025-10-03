@@ -3,7 +3,7 @@
 ## Repository Snapshot
 
 - **Purpose:** Nx workspace hosting an Nx plugin/library (`packages/workspace`) plus an end-to-end test harness that validates publishing the plugin to a temporary Verdaccio registry and installing it into a freshly generated Nx workspace.
-- **Scale & Stack:** Small repo (<50 files). TypeScript/JavaScript with Nx 19, SWC for builds, Jest for unit/e2e tests, Verdaccio 5 for local package registry, Prettier/ESLint for formatting and linting. Targets Node.js 18+ and npm 10 (see `.node-version` and `package.json#engines`). ESLint rules enforce Node.js 18 baseline by banning features from Node.js 20+.
+- **Scale & Stack:** Small repo (<50 files). TypeScript/JavaScript with Nx 19, SWC for builds, Jest for unit/e2e tests, Verdaccio 5 for local package registry, Prettier/ESLint for formatting and linting. Supports Node.js 18+ and npm 10+; development uses Node.js 22 LTS "Jod" (see `.node-version` and `package.json#engines`). ESLint rules enforce Node.js 18 baseline by banning features from Node.js 20+.
 
 ## Workspace Layout Highlights
 
@@ -27,7 +27,7 @@ npm ci
 
 - Removes existing `node_modules` and installs exactly from `package-lock.json`.
 - Observed warnings: deprecated transitive deps (glob, rimraf, verdaccio) and 23 npm audit advisories; no action currently taken.
-- Requires Node 18.x and npm 10.x; confirm via `node -v` / `npm -v` if failures occur.
+- Requires Node 18.x or newer and npm 10.x or newer; development uses Node.js 22 LTS. Confirm via `node -v` / `npm -v` if failures occur.
 
 ### 2. Formatting
 

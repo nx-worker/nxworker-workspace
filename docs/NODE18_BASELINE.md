@@ -10,11 +10,13 @@ The repository has been configured to enforce Node.js 18 as the minimum supporte
 
 ### 1. Version Requirements
 
-- **`.node-version`**: Set to `18` (down from `lts/jod` which was Node.js 22)
+- **`.node-version`**: Set to `lts/jod` (Node.js 22 LTS) for development
 - **`package.json#engines`**:
-  - Node.js: `^18.0.0` (down from `^22.20.0`)
-  - npm: `^10.0.0` (relaxed from `^10.9.3`)
-- **`@types/node`**: `^18.19.68` (down from `^22.18.8`)
+  - Node.js: `>=18.0.0` (supports Node.js 18 or newer)
+  - npm: `>=10.0.0` (supports npm 10 or newer)
+- **`@types/node`**: `^18.19.68` (matches the baseline Node.js 18)
+
+**Note**: While development uses Node.js 22 LTS, the codebase is tested and compatible with Node.js 18+. CI should use a matrix strategy to test across multiple Node.js versions (18, 20, 22).
 
 ### 2. Build Targets
 
