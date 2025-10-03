@@ -8,7 +8,7 @@ import {
   logger,
   createProjectGraphAsync,
 } from '@nx/devkit';
-import { posix as path } from 'path';
+import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
 import { escapeRegex } from './security-utils/escape-regex';
