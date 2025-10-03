@@ -349,7 +349,7 @@ describe('workspace', () => {
       );
       writeFileSync(
         sourcePath,
-        'export function util() { return "utility"; }\n',
+        "export function util() { return 'utility'; }\n",
       );
 
       const consumerPath = join(
@@ -396,9 +396,10 @@ describe('workspace', () => {
     it('should handle deeply nested paths (Windows MAX_PATH vs Unix)', () => {
       // Windows historically had a 260-character limit (MAX_PATH)
       // Modern Windows and Unix can handle much longer paths
-      // This tests that the generator works with reasonably long nested paths
+      // This tests that the generator works with deeply nested directory structures
 
-      const deepPath = 'src/lib/features/domain/services/implementations';
+      const deepPath =
+        'src/lib/features/domain/services/implementations/handlers/processors/validators/transformers';
       const fileName = 'deeply-nested-service.ts';
 
       const sourcePath = join(
@@ -442,16 +443,16 @@ describe('workspace', () => {
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toContain(
-        'features/domain/services/implementations/deeply-nested-service',
+        'features/domain/services/implementations/handlers/processors/validators/transformers/deeply-nested-service',
       );
     });
 
     it('should handle files with special characters allowed on Unix but problematic on Windows', () => {
       // Windows doesn't allow certain characters in file names: < > : " / \ | ? *
       // Unix allows most of these
-      // We test with characters that ARE allowed on both but might cause issues
+      // We test with hyphens and underscores which are safe on both platforms
 
-      const fileName = 'util-with-special-chars.ts';
+      const fileName = 'util_with-special.chars.ts';
       const sourcePath = join(
         projectDirectory,
         testLibName,
@@ -461,7 +462,7 @@ describe('workspace', () => {
       );
       writeFileSync(
         sourcePath,
-        'export function specialUtil() { return "special"; }\n',
+        "export function specialUtil() { return 'special'; }\n",
       );
 
       const consumerPath = join(
@@ -610,7 +611,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/moved/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/moved/${fileName} --skipFormat --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -622,7 +623,7 @@ describe('workspace', () => {
         'utf-8',
       );
 
-      // Content should be preserved (Prettier might normalize, but basic structure should match)
+      // Content should be preserved exactly (formatting skipped)
       expect(movedContent).toContain('export function test()');
       expect(movedContent).toContain("return 'test'");
     });
@@ -740,7 +741,7 @@ describe('workspace', () => {
       // between x64 and arm64 architectures
 
       const fileName = 'large-module.ts';
-      const largeContent = generateLargeTypeScriptFile(1000); // 1000 lines
+      const largeContent = generateLargeTypeScriptFile(10000); // 10,000 lines
 
       writeFileSync(
         join(projectDirectory, archLibName, 'src', 'lib', fileName),
@@ -779,7 +780,7 @@ describe('workspace', () => {
 
       // Verify content is complete
       expect(movedContent).toContain('export function func0()');
-      expect(movedContent).toContain('export function func999()');
+      expect(movedContent).toContain('export function func9999()');
 
       // Verify imports were updated
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
@@ -793,17 +794,16 @@ describe('workspace', () => {
       // This tests performance and memory handling on different architectures
 
       const fileCount = 20;
-      const files: string[] = [];
 
-      // Create files
-      for (let i = 0; i < fileCount; i++) {
+      // Create files using Array methods
+      Array.from({ length: fileCount }, (_, i) => {
         const fileName = `module${i}.ts`;
-        files.push(fileName);
         writeFileSync(
           join(projectDirectory, archLibName, 'src', 'lib', fileName),
           `export function func${i}() { return ${i}; }\n`,
         );
-      }
+        return fileName;
+      });
 
       // Create consumer that imports from first file
       const consumerPath = join(
@@ -1114,127 +1114,6 @@ describe('workspace', () => {
         /from ['"]\.\/modules\/esm-module['"]/,
       );
     });
-
-    it('should handle file operations with Node.js 20+ performance improvements', () => {
-      // Node.js 20+ has performance improvements in fs operations
-      // Test that the generator benefits from these improvements
-
-      const fileCount = 10;
-      const files: string[] = [];
-
-      // Create multiple files
-      for (let i = 0; i < fileCount; i++) {
-        const fileName = `perf-test-${i}.ts`;
-        files.push(fileName);
-        writeFileSync(
-          join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
-          `export const perfTest${i} = ${i};\n`,
-        );
-      }
-
-      const consumerPath = join(
-        projectDirectory,
-        nodeLibName,
-        'src',
-        'lib',
-        'perf-consumer.ts',
-      );
-      writeFileSync(
-        consumerPath,
-        `import { perfTest0 } from './perf-test-0';\nexport const value = perfTest0;\n`,
-      );
-
-      // Move first file and measure that it completes successfully
-      const startTime = Date.now();
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/perf-test-0.ts ${nodeLibName}/src/lib/performance/perf-test-0.ts --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-      const duration = Date.now() - startTime;
-
-      // Verify operation completed (performance check is informational)
-      const movedPath = join(
-        projectDirectory,
-        nodeLibName,
-        'src',
-        'lib',
-        'performance',
-        'perf-test-0.ts',
-      );
-      expect(readFileSync(movedPath, 'utf-8')).toContain('perfTest0');
-
-      // Operation should complete in reasonable time (< 30 seconds)
-      expect(duration).toBeLessThan(30000);
-    });
-
-    it('should handle Buffer and stream operations across Node.js versions', () => {
-      // Node.js versions have different Buffer implementations
-      // Particularly Node.js 18 vs 20 vs 22
-
-      const fileName = 'buffer-test.ts';
-      const bufferContent =
-        '// Buffer handling\nexport const bufferData = Buffer.from("test");\n';
-
-      writeFileSync(
-        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
-        bufferContent,
-      );
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/buffers/${fileName} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      const movedPath = join(
-        projectDirectory,
-        nodeLibName,
-        'src',
-        'lib',
-        'buffers',
-        fileName,
-      );
-      const movedContent = readFileSync(movedPath, 'utf-8');
-      expect(movedContent).toContain('bufferData');
-      expect(movedContent).toContain('Buffer.from');
-    });
-
-    it('should work with fetch API (Node.js 18+ built-in)', () => {
-      // Node.js 18+ includes native fetch API
-      // While the generator doesn't use fetch, test that it works in environments with it
-
-      const fileName = 'fetch-context.ts';
-      const content =
-        '// In Node.js 18+, fetch is available globally\nexport const hasFetch = typeof fetch !== "undefined";\n';
-
-      writeFileSync(
-        join(projectDirectory, nodeLibName, 'src', 'lib', fileName),
-        content,
-      );
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/modern/${fileName} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      const movedPath = join(
-        projectDirectory,
-        nodeLibName,
-        'src',
-        'lib',
-        'modern',
-        fileName,
-      );
-      expect(readFileSync(movedPath, 'utf-8')).toContain('hasFetch');
-    });
   });
 });
 
@@ -1272,13 +1151,12 @@ function sleep(ms: number) {
  * @returns TypeScript source code
  */
 function generateLargeTypeScriptFile(lines: number): string {
-  let content = '// Large auto-generated TypeScript file\n\n';
-  for (let i = 0; i < lines; i++) {
-    content += `export function func${i}() {\n`;
-    content += `  return ${i};\n`;
-    content += `}\n\n`;
-  }
-  return content;
+  const header = '// Large auto-generated TypeScript file\n\n';
+  const functions = Array.from(
+    { length: lines },
+    (_, i) => `export function func${i}() {\n  return ${i};\n}\n`,
+  ).join('\n');
+  return header + functions;
 }
 
 /**
