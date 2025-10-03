@@ -164,7 +164,7 @@ describe('post-status-check action', () => {
 
     // Assert
     expect(core.setFailed).toHaveBeenCalledWith(
-      'GitHub token not found in environment',
+      'GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.',
     );
     expect(mockCreateCommitStatus).not.toHaveBeenCalled();
   });
