@@ -1,3 +1,10 @@
+const {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+} = require('@jest/globals');
 const core = require('@actions/core');
 const github = require('@actions/github');
 
@@ -14,9 +21,6 @@ describe('post-status-check action', () => {
   let getInputValues;
 
   beforeEach(() => {
-    // Reset mocks
-    jest.clearAllMocks();
-
     // Setup default mocks
     mockCreateCommitStatus = jest.fn().mockResolvedValue({});
     mockOctokit = {
