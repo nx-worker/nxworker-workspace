@@ -500,7 +500,9 @@ describe('workspace', () => {
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toContain('DeeplyNestedService');
-      expect(updatedConsumerContent).toContain(deepPathSegments[0].substring(0, 20)); // Verify it references the deep path
+      expect(updatedConsumerContent).toContain(
+        deepPathSegments[0].substring(0, 20),
+      ); // Verify it references the deep path
     });
 
     it('should fail gracefully when path exceeds OS limits', () => {
@@ -508,7 +510,7 @@ describe('workspace', () => {
       // Different OSes have different limits, so we create a path that will fail on most systems
 
       const fileName = 'service.ts';
-      
+
       // Create a directory name that exceeds NAME_MAX (255 chars on Linux/macOS/Windows)
       const invalidSegmentName = 'a'.repeat(300); // 300 chars - exceeds NAME_MAX
 
@@ -519,10 +521,7 @@ describe('workspace', () => {
         'lib',
         fileName,
       );
-      writeFileSync(
-        sourcePath,
-        'export class Service {}\n',
-      );
+      writeFileSync(sourcePath, 'export class Service {}\n');
 
       // Attempt to move to a path with an overly long directory name
       // This should fail with an OS error (ENAMETOOLONG on Unix, similar error on Windows)
@@ -541,6 +540,8 @@ describe('workspace', () => {
       // Windows doesn't allow certain characters in file names: < > : " / \ | ? *
       // Unix allows most of these
       // We test with hyphens and underscores which are safe on both platforms
+      // The forbidden characters are: less-than (<), greater-than (>), colon (:),
+      // double-quote ("), forward-slash (/), backslash (\), pipe (|), question-mark (?), asterisk (*)
 
       const fileName = 'util_with-special.chars.ts';
       const sourcePath = join(
@@ -550,9 +551,15 @@ describe('workspace', () => {
         'lib',
         fileName,
       );
+      // File content can safely contain these special characters in strings and comments:
+      // < > : " / \ | ? *
       writeFileSync(
         sourcePath,
-        "export function specialUtil() { return 'special'; }\n",
+        `// Special chars test: < > : " / \\ | ? *
+export function specialUtil() {
+  const chars = '< > : " / \\\\ | ? *';
+  return 'special';
+}\n`,
       );
 
       const consumerPath = join(
@@ -583,9 +590,10 @@ describe('workspace', () => {
         'special',
         fileName,
       );
-      expect(readFileSync(movedPath, 'utf-8')).toContain(
-        'export function specialUtil()',
-      );
+      const movedContent = readFileSync(movedPath, 'utf-8');
+      expect(movedContent).toContain('export function specialUtil()');
+      // Verify special characters are preserved in file content
+      expect(movedContent).toContain('< > : " / \\ | ? *');
 
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
