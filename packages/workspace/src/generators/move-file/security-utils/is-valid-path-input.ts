@@ -14,6 +14,12 @@ export interface PathValidationOptions {
 const UNIX_ONLY_CHARS = '<>:';
 
 /**
+ * Backslash is the path separator on Windows but not valid in filenames on Unix.
+ * It should only be allowed as input on Windows platforms.
+ */
+const WINDOWS_ONLY_CHARS = '\\\\';
+
+/**
  * Validate user input intended to be used as a literal file/path fragment using
  * a whitelist approach. The default configuration allows ASCII alphanumerics
  * plus a small set of safe punctuation, but callers can opt into
@@ -48,14 +54,16 @@ export function isValidPathInput(
 
   // Only allow Unix-specific characters on non-Windows platforms
   const unixChars = process.platform === 'win32' ? '' : UNIX_ONLY_CHARS;
+  // Only allow backslash on Windows platforms
+  const windowsChars = process.platform === 'win32' ? WINDOWS_ONLY_CHARS : '';
 
   if (allowUnicode) {
-    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./\\\\${unixChars} ${extra}-]*$`;
+    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./${windowsChars}${unixChars} ${extra}-]*$`;
     const re = new RegExp(pattern, 'u');
     return re.test(str);
   }
 
-  const asciiPattern = `^[A-Za-z0-9_@./\\\\${unixChars} ${extra}-]*$`;
+  const asciiPattern = `^[A-Za-z0-9_@./${windowsChars}${unixChars} ${extra}-]*$`;
   const asciiRe = new RegExp(asciiPattern);
   return asciiRe.test(str);
 }
