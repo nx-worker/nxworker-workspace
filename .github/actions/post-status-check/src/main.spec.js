@@ -1,10 +1,3 @@
-const {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-} = require('@jest/globals');
 const core = require('@actions/core');
 const github = require('@actions/github');
 
@@ -67,8 +60,8 @@ describe('post-status-check action', () => {
 
   const runAction = async () => {
     // Dynamically require to get fresh module
-    delete require.cache[require.resolve('../main')];
-    const { run } = require('../main');
+    delete require.cache[require.resolve('./main')];
+    const { run } = require('./main');
     await run();
   };
 
