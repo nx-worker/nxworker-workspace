@@ -38,12 +38,12 @@ export function isValidPathInput(
     : '';
 
   if (allowUnicode) {
-    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./\\\\ ${extra}-]*$`;
+    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./\\\\<>: ${extra}-]*$`;
     const re = new RegExp(pattern, 'u');
     return re.test(str);
   }
 
-  const asciiPattern = `^[A-Za-z0-9_@./\\\\ ${extra}-]*$`;
+  const asciiPattern = `^[A-Za-z0-9_@./\\\\<>: ${extra}-]*$`;
   const asciiRe = new RegExp(asciiPattern);
   return asciiRe.test(str);
 }

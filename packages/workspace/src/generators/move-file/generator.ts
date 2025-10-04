@@ -726,11 +726,11 @@ function updateImportPathsToPackageAlias(
       );
 
       const staticPattern = new RegExp(
-        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"])`,
+        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
         'g',
       );
       const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"]\\s*\\))`,
+        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"]\\s*\\))`,
         'g',
       );
 
@@ -787,11 +787,11 @@ function updateImportPathsInProject(
       );
 
       const staticPattern = new RegExp(
-        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"])`,
+        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
         'g',
       );
       const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"]\\s*\\))`,
+        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"]\\s*\\))`,
         'g',
       );
 
