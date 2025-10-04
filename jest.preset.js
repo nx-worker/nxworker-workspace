@@ -6,4 +6,7 @@ module.exports = {
   resetMocks: true,
   resetModules: true,
   restoreMocks: true,
+  reporters: process.env.GITHUB_ACTIONS
+    ? ['default', 'github-actions']
+    : undefined,
 };
