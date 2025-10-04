@@ -54,8 +54,12 @@ describe('post-status-check action', () => {
     };
 
     core.getInput.mockImplementation((name) => getInputValues[name] || '');
-    core.setFailed.mockImplementation(() => {});
-    core.info.mockImplementation(() => {});
+    core.setFailed.mockImplementation(() => {
+      // No-op
+    });
+    core.info.mockImplementation(() => {
+      // No-op
+    });
 
     process.env.GITHUB_TOKEN = 'test-token';
   });
