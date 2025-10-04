@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "move-file": {
+      "factory": "./src/generators/move-file/generator",
+      "schema": "./src/generators/move-file/schema.json",
+      "description": "Move a file from one Nx project to another and update import paths throughout the workspace"
+    }
+  }
+}

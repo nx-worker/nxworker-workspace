@@ -4,5 +4,6 @@ module.exports = {
   ...nxPreset,
   clearMocks: true,
   resetMocks: true,
+  resetModules: true,
   restoreMocks: true,
 };

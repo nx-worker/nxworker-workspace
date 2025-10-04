@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "MoveFile",
+  "title": "Move File Generator",
+  "description": "Move a file from one Nx project to another and update import paths",
+  "type": "object",
+  "properties": {
+    "from": {
+      "type": "string",
+      "description": "Path to the source file relative to workspace root",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What is the source file path (relative to workspace root)?"
+    },
+    "to": {
+      "type": "string",
+      "description": "Path to the target file relative to workspace root",
+      "$default": {
+        "$source": "argv",
+        "index": 1
+      },
+      "x-prompt": "What is the target file path (relative to workspace root)?"
+    },
+    "skipExport": {
+      "type": "boolean",
+      "description": "Skip adding export to target project's index file",
+      "default": false
+    },
+    "skipFormat": {
+      "description": "Skip formatting files.",
+      "type": "boolean",
+      "default": false,
+      "x-priority": "internal"
+    },
+    "allowUnicode": {
+      "type": "boolean",
+      "description": "Allow Unicode characters in file path inputs (less safe)",
+      "default": false,
+      "x-prompt": {
+        "type": "confirmation",
+        "message": "Allow unicode characters in path (less safe)?",
+        "default": false
+      }
+    }
+  },
+  "required": ["from", "to"]
+}

@@ -1,5 +1,4 @@
 const nx = require('@nx/eslint-plugin');
-const jsoncParser = require('jsonc-eslint-parser');
 const esxPlugin = require('eslint-plugin-es-x');
 const nPlugin = require('eslint-plugin-n');
 const globals = require('globals');
@@ -13,6 +12,9 @@ module.exports = [
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',
@@ -82,9 +84,8 @@ module.exports = [
   },
   {
     files: ['**/*.json'],
-    languageOptions: {
-      parser: jsoncParser,
-    },
+    // Override or add rules here
     rules: {},
+    languageOptions: { parser: require('jsonc-eslint-parser') },
   },
 ];

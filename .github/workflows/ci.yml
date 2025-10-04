@@ -139,11 +139,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest # Linux x64
+          - os: ubuntu-latest
             node-version: 18
           - os: ubuntu-latest
-            node-version: 20 # Linux x64
-          - os: ubuntu-24.04-arm # Linux arm64
+            node-version: 20
+          - os: ubuntu-24.04-arm # Linux
+            node-version: 22
+          - os: windows-latest # Windows
+            node-version: 22
+          - os: macos-latest # macOS
             node-version: 22
     runs-on: ${{ matrix.os }}
     steps:
@@ -197,19 +201,69 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
+  # Determine the GitHub runner image matrix for the e2e job based on event type
+  # and branch.
+  # Merge to main and manual workflow_dispatch results in the full matrix while
+  # PRs and workflow_dispatch for chore/update-dependencies (dependency-update.yml)
+  # use the fast matrix
+  set-e2e-matrix:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      # `include` as in `matrix.strategy.include`
+      MATRIX_FAST: |
+        include:
+          - os: ubuntu-24.04-arm
+      MATRIX_FULL: |
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+          - os: ubuntu-24.04-arm
+          - os: windows-11-arm
+          - os: macos-15-intel
+          - os: macos-latest
+    steps:
+      - id: set-matrix
+        name: Set matrix output property
+        shell: bash
+        run: |
+          # Set the matrix output property
+
+          # Fail the step on the first error and propagate pipeline failures
+          set -eo pipefail
+
+          # Normalize the Git ref to a plain branch name so workflow_dispatch runs
+          # can opt into the fast matrix when launched against chore/update-dependencies
+          REF_NAME="$GITHUB_REF"
+
+          # Is branch name?
+          if [[ "$REF_NAME" == refs/heads/* ]]; then
+            REF_NAME="${REF_NAME#refs/heads/}"
+          fi
+
+          # Select the matrix YAML based on event type and branch
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$REF_NAME" == "chore/update-dependencies" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          else
+            printf '%s\n' "$MATRIX_FULL" > matrix.yml
+          fi
+
+          # Convert the chosen YAML matrix to JSON using js-yaml so the e2e job can consume it
+          MATRIX_JSON=$(npx --yes js-yaml matrix.yml | tr -d '\n')
+          # Publish the JSON matrix via step outputs for downstream jobs
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
   e2e:
-    needs: build
+    needs:
+      - build
+      - set-e2e-matrix
     permissions:
       statuses: write # workflow_dispatch runs post commit status updates via gh api
     strategy:
-      matrix:
-        os:
-          - ubuntu-latest # Linux x64
-          - windows-latest # Windows x64
-          - ubuntu-24.04-arm # Linux arm64
-          - windows-11-arm # Windows arm64
-          - macos-15-intel # macOS x64
-          - macos-latest # macOS arm64
+      matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Determine checkout ref
