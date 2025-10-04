@@ -13,9 +13,8 @@ runs:
     - name: Set up Node.js
       uses: actions/setup-node@v5
       with:
-        # If node-version and node-version-file are both provided the action will use version from node-version.
         node-version: ${{ inputs.node-version }}
-        node-version-file: .node-version
+        node-version-file: ${{ inputs.node-version == '' && '.node-version' || '' }}
         cache: npm
 
     - name: Install packages

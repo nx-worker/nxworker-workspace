@@ -4,7 +4,4 @@ module.exports = {
   testEnvironment: 'node',
   moduleFileExtensions: ['js', 'jsx'],
   coverageDirectory: '../../../coverage/.github/actions/post-status-check',
-  clearMocks: true,
-  resetMocks: true,
-  restoreMocks: true,
 };
