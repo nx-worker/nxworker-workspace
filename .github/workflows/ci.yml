@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Git ref to run against'
+        description: "Git ref to run against"
         required: false
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
   build:
     permissions:
       statuses: write # workflow_dispatch runs post commit status updates via gh api
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
         id: checkout-ref
@@ -80,7 +80,7 @@ jobs:
   lint:
     permissions:
       statuses: write # workflow_dispatch runs post commit status updates via gh api
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
         id: checkout-ref
@@ -118,7 +118,7 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
-      - name: '[PR] Check formatting'
+      - name: "[PR] Check formatting"
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
@@ -139,11 +139,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-latest # Linux x64
             node-version: 18
           - os: ubuntu-latest
-            node-version: 20
-          - os: ubuntu-24.04-arm
+            node-version: 20 # Linux x64
+          - os: ubuntu-24.04-arm # Linux arm64
             node-version: 22
     runs-on: ${{ matrix.os }}
     steps:
@@ -204,12 +204,12 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
-          - ubuntu-24.04-arm
-          - windows-11-arm
-          - macos-15-intel
-          - macos-latest
+          - ubuntu-latest # Linux x64
+          - windows-latest # Windows x64
+          - ubuntu-24.04-arm # Linux arm64
+          - windows-11-arm # Windows arm64
+          - macos-15-intel # macOS x64
+          - macos-latest # macOS arm64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Determine checkout ref
