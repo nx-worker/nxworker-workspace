@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Git ref to run against"
+        description: 'Git ref to run against'
         required: false
 
 permissions:
@@ -118,7 +118,7 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
-      - name: "[PR] Check formatting"
+      - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
