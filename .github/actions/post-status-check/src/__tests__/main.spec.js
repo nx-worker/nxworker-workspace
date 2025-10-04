@@ -1,3 +1,10 @@
+const {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+} = require('@jest/globals');
 const core = require('@actions/core');
 const github = require('@actions/github');
 
