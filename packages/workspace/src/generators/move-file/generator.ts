@@ -725,6 +725,19 @@ function updateImportPathsToPackageAlias(
         path.basename(sourceFilePath, path.extname(sourceFilePath)),
       );
 
+      // Match import statements that reference the source file
+      // Pattern breakdown:
+      // - (from\\s+['"]) - Captures "from '" or 'from "'
+      // - (\\.{1,2}/[^'"]*${sourceFileName}[^'"]*) - Captures the import path:
+      //   * \\.{1,2}/ - Matches "./" or "../"
+      //   * [^'"]* - Matches any characters before the filename (e.g., "path/to/")
+      //   * ${sourceFileName} - The actual filename without extension
+      //   * [^'"]* - Matches any characters after the filename (e.g., ".mjs" for ESM files)
+      // - (['"]') - Captures the closing quote
+      // This allows matching imports like:
+      // - from './file'
+      // - from './path/to/file'
+      // - from './file.mjs' (ESM with extension)
       const staticPattern = new RegExp(
         `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
         'g',
@@ -786,6 +799,19 @@ function updateImportPathsInProject(
         path.basename(sourceFilePath, path.extname(sourceFilePath)),
       );
 
+      // Match import statements that reference the source file
+      // Pattern breakdown:
+      // - (from\\s+['"]) - Captures "from '" or 'from "'
+      // - (\\.{1,2}/[^'"]*${sourceFileName}[^'"]*) - Captures the import path:
+      //   * \\.{1,2}/ - Matches "./" or "../"
+      //   * [^'"]* - Matches any characters before the filename (e.g., "path/to/")
+      //   * ${sourceFileName} - The actual filename without extension
+      //   * [^'"]* - Matches any characters after the filename (e.g., ".mjs" for ESM files)
+      // - (['"]') - Captures the closing quote
+      // This allows matching imports like:
+      // - from './file'
+      // - from './path/to/file'
+      // - from './file.mjs' (ESM with extension)
       const staticPattern = new RegExp(
         `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
         'g',

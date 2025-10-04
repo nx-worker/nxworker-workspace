@@ -5,6 +5,15 @@ export interface PathValidationOptions {
 }
 
 /**
+ * Characters that are valid in Unix filenames but not on Windows.
+ * These should only be allowed when not running on Windows.
+ * - < (less than)
+ * - > (greater than)
+ * - : (colon)
+ */
+const UNIX_ONLY_CHARS = '<>:';
+
+/**
  * Validate user input intended to be used as a literal file/path fragment using
  * a whitelist approach. The default configuration allows ASCII alphanumerics
  * plus a small set of safe punctuation, but callers can opt into
@@ -37,13 +46,16 @@ export function isValidPathInput(
     ? additionalAllowedChars.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
     : '';
 
+  // Only allow Unix-specific characters on non-Windows platforms
+  const unixChars = process.platform === 'win32' ? '' : UNIX_ONLY_CHARS;
+
   if (allowUnicode) {
-    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./\\\\<>: ${extra}-]*$`;
+    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./\\\\${unixChars} ${extra}-]*$`;
     const re = new RegExp(pattern, 'u');
     return re.test(str);
   }
 
-  const asciiPattern = `^[A-Za-z0-9_@./\\\\<>: ${extra}-]*$`;
+  const asciiPattern = `^[A-Za-z0-9_@./\\\\${unixChars} ${extra}-]*$`;
   const asciiRe = new RegExp(asciiPattern);
   return asciiRe.test(str);
 }
