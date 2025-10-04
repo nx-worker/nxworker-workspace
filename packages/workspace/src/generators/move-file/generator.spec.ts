@@ -1,40 +1,41 @@
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
-import { Tree, addProjectConfiguration, updateJson } from '@nx/devkit';
+import {
+  Tree,
+  addProjectConfiguration,
+  updateJson,
+  createProjectGraphAsync,
+  formatFiles,
+} from '@nx/devkit';
 
 import { moveFileGenerator } from './generator';
 import { MoveFileGeneratorSchema } from './schema';
 
-// Mock createProjectGraphAsync to return a simple dependency graph
-jest.mock('@nx/devkit', () => ({
-  ...jest.requireActual('@nx/devkit'),
-  createProjectGraphAsync: jest.fn(async () => ({
-    nodes: {},
-    dependencies: {
-      app1: [{ source: 'app1', target: 'lib1', type: 'static' }],
-      lib1: [],
-      lib2: [],
-    },
-  })),
-}));
+jest.mock('@nx/devkit', () => {
+  const actual = jest.requireActual('@nx/devkit');
+  return {
+    ...actual,
+    formatFiles: jest.fn(),
+    createProjectGraphAsync: jest.fn(),
+  };
+});
 
-// Mock formatFiles
-jest.mock('@nx/devkit', () => ({
-  ...jest.requireActual('@nx/devkit'),
-  formatFiles: jest.fn(async () => Promise.resolve()),
-  createProjectGraphAsync: jest.fn(async () => ({
-    nodes: {},
-    dependencies: {
-      app1: [{ source: 'app1', target: 'lib1', type: 'static' }],
-      lib1: [],
-      lib2: [],
-    },
-  })),
-}));
+const createProjectGraphAsyncMock = jest.mocked(createProjectGraphAsync);
+const formatFilesMock = jest.mocked(formatFiles);
 
 describe('move-file generator', () => {
   let tree: Tree;
 
   beforeEach(() => {
+    createProjectGraphAsyncMock.mockImplementation(async () => ({
+      nodes: {},
+      dependencies: {
+        app1: [{ source: 'app1', target: 'lib1', type: 'static' }],
+        lib1: [],
+        lib2: [],
+      },
+    }));
+    formatFilesMock.mockResolvedValue(undefined);
+
     tree = createTreeWithEmptyWorkspace();
 
     // Setup tsconfig.base.json with path mappings
