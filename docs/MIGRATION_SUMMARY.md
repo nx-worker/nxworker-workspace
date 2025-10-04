@@ -35,8 +35,8 @@ All jobs now have `checks: write` permission (keeping `statuses: write` for back
 jobs:
   build:
     permissions:
-      checks: write  # New: for Checks API
-      statuses: write  # Kept for backward compat
+      checks: write # New: for Checks API
+      statuses: write # Kept for backward compat
 ```
 
 ### Action Calls Updated
@@ -44,21 +44,23 @@ jobs:
 Changed from `post-status-check` to `post-check-run`:
 
 **Before:**
+
 ```yaml
 - uses: ./.github/actions/post-status-check
   with:
     state: pending
-    context: build  # Old parameter
+    context: build # Old parameter
     workflow-file: ci.yml
     sha: ${{ steps.commit-sha.outputs.sha }}
 ```
 
 **After:**
+
 ```yaml
 - uses: ./.github/actions/post-check-run
   with:
     state: pending
-    name: ci/build  # New parameter: stable check name
+    name: ci/build # New parameter: stable check name
     workflow-file: ci.yml
     sha: ${{ steps.commit-sha.outputs.sha }}
 ```
@@ -69,10 +71,10 @@ The following stable check names are now used:
 
 - `ci/build` - Build job
 - `ci/lint` - Linting job
-- `ci/test (ubuntu-latest, Node.js 18)` - Test matrix entries
-- `ci/e2e (ubuntu-24.04-arm)` - E2E matrix entries
+- `ci/test` - Test job summary (aggregates all matrix results)
+- `ci/e2e` - E2E job summary (aggregates all matrix results)
 
-These names can be used in branch protection rules.
+These names can be used in branch protection rules. The summary checks aggregate results from all matrix job variants.
 
 ## Testing
 
@@ -100,16 +102,37 @@ All tests pass:
 
 ### Matrix Job Support
 
-For matrix jobs, each matrix entry gets its own check run with a unique name:
+Matrix jobs use a summary job pattern to aggregate results:
 
-```
-ci/test (ubuntu-latest, Node.js 18)
-ci/test (ubuntu-latest, Node.js 20)
-ci/test (windows-latest, Node.js 22)
-...
+1. **Matrix job**: Runs tests across multiple OS/Node.js combinations without creating individual check-runs
+2. **Summary job**: Depends on the matrix job and creates a single aggregated check-run
+
+Example:
+
+```yaml
+test:
+  strategy:
+    matrix:
+      include:
+        - os: ubuntu-latest
+          node-version: 18
+        - os: ubuntu-latest
+          node-version: 20
+  runs-on: ${{ matrix.os }}
+  steps:
+    - run: npm test
+
+test-summary:
+  needs: test
+  if: always()
+  steps:
+    - uses: ./.github/actions/post-check-run
+      with:
+        name: ci/test  # Single stable check name
+        ...
 ```
 
-This makes it easy to see which specific matrix configuration failed.
+This creates a single `ci/test` check-run suitable for branch protection, with the overall result determined by whether all matrix jobs succeeded.
 
 ### Rich Metadata
 
@@ -136,16 +159,12 @@ Check run summaries include:
 
 ## Benefits
 
-✅ **Richer UI**: Check runs display better in GitHub's UI with summaries and metadata
-✅ **Branch Protection**: Stable check names work better with branch protection rules
-✅ **Matrix Support**: Each matrix entry gets its own check run, easier to debug
-✅ **Future-Ready**: Checks API supports annotations and other advanced features
-✅ **Tested**: 16 comprehensive unit tests ensure reliability
+✅ **Richer UI**: Check runs display better in GitHub's UI with summaries and metadata ✅ **Branch Protection**: Stable check names work better with branch protection rules ✅ **Matrix Support**: Each matrix entry gets its own check run, easier to debug ✅ **Future-Ready**: Checks API supports annotations and other advanced features ✅ **Tested**: 16 comprehensive unit tests ensure reliability
 
 ## API Comparison
 
 | Feature | Statuses API | Checks API |
-|---------|-------------|------------|
+| --- | --- | --- |
 | Endpoint | `/repos/{owner}/{repo}/statuses/{sha}` | `/repos/{owner}/{repo}/check-runs` |
 | Permission | `statuses: write` | `checks: write` |
 | States | `pending`, `success`, `failure`, `error` | `queued`, `in_progress`, `completed` |

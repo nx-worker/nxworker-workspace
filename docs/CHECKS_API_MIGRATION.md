@@ -27,8 +27,8 @@ The new action (`.github/actions/post-check-run`) uses the GitHub Checks API to 
 ```yaml
 - uses: ./.github/actions/post-check-run
   with:
-    state: pending  # or 'outcome'
-    name: ci/build  # Stable name for branch protection
+    state: pending # or 'outcome'
+    name: ci/build # Stable name for branch protection
     workflow-file: ci.yml
     sha: ${{ steps.commit-sha.outputs.sha }}
 
@@ -45,18 +45,49 @@ The new action (`.github/actions/post-check-run`) uses the GitHub Checks API to 
 
 ### Matrix Jobs
 
-For matrix jobs, include matrix parameters in the check name:
+For matrix jobs, we use a summary job pattern to create a single stable check for branch protection:
 
 ```yaml
-- uses: ./.github/actions/post-check-run
-  with:
-    state: pending
-    name: ci/test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
-    workflow-file: ci.yml
-    sha: ${{ steps.commit-sha.outputs.sha }}
+# Matrix job runs tests but doesn't create individual checks
+test:
+  strategy:
+    matrix:
+      include:
+        - os: ubuntu-latest
+          node-version: 18
+        - os: ubuntu-latest
+          node-version: 20
+  runs-on: ${{ matrix.os }}
+  steps:
+    - run: npm test
+
+# Summary job aggregates matrix results into a single check
+test-summary:
+  needs: test
+  if: always()
+  permissions:
+    checks: write
+  runs-on: ubuntu-24.04-arm
+  steps:
+    - name: Determine overall status
+      id: overall-status
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "status=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "status=failure" >> "$GITHUB_OUTPUT"
+        fi
+
+    - uses: ./.github/actions/post-check-run
+      with:
+        state: outcome
+        name: ci/test # Single stable name for branch protection
+        job-status: ${{ steps.overall-status.outputs.status }}
+        workflow-file: ci.yml
+        sha: ${{ steps.commit-sha.outputs.sha }}
 ```
 
-This creates separate check-runs for each matrix entry, making it easy to identify which specific configuration failed.
+This creates a single check-run named `ci/test` that aggregates all matrix results, making it ideal for branch protection rules.
 
 ## Permissions
 
@@ -66,7 +97,7 @@ Jobs using the new action require `checks: write` permission:
 jobs:
   build:
     permissions:
-      checks: write  # Required for Checks API
+      checks: write # Required for Checks API
     steps:
       # ... your steps
 ```
@@ -76,20 +107,18 @@ jobs:
 The following stable check names are used in the CI workflow:
 
 - `ci/build` - Build job
-- `ci/lint` - Linting job  
-- `ci/test (<os>, Node.js <version>)` - Test job (matrix)
-- `ci/e2e (<os>)` - E2E test job (matrix)
+- `ci/lint` - Linting job
+- `ci/test` - Test job summary (aggregates all matrix results)
+- `ci/e2e` - E2E test job summary (aggregates all matrix results)
 
 To require these checks in branch protection:
 
 1. Go to repository **Settings** → **Branches**
 2. Edit branch protection rule for `main`
 3. Enable "Require status checks to pass before merging"
-4. Add the check names (e.g., `ci/build`, `ci/lint`)
+4. Add the stable check names: `ci/build`, `ci/lint`, `ci/test`, `ci/e2e`
 
-**Note**: For matrix jobs, you can either:
-- Require all matrix combinations (e.g., `ci/test (ubuntu-latest, Node.js 18)`, `ci/test (ubuntu-latest, Node.js 20)`, etc.)
-- Or use a job-level summary check that aggregates matrix results (future enhancement)
+The summary checks (`ci/test` and `ci/e2e`) aggregate results from all matrix job variants, so you only need to require these single checks instead of each individual matrix combination.
 
 ## Migration Checklist
 
@@ -114,7 +143,7 @@ Currently, both `checks: write` and `statuses: write` permissions are set in wor
 ## Differences from Statuses API
 
 | Feature | Statuses API | Checks API |
-|---------|-------------|------------|
+| --- | --- | --- |
 | API endpoint | `/repos/{owner}/{repo}/statuses/{sha}` | `/repos/{owner}/{repo}/check-runs` |
 | Permission | `statuses: write` | `checks: write` |
 | States | `pending`, `success`, `failure`, `error` | `queued`, `in_progress`, `completed` |
@@ -134,6 +163,7 @@ Currently, both `checks: write` and `statuses: write` permissions are set in wor
 ### Check-runs not updating
 
 The action stores check-run IDs in memory during workflow execution. Ensure:
+
 - Pending state is called before outcome state
 - Both calls use the exact same `name` parameter
 
