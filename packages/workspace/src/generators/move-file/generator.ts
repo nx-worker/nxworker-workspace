@@ -725,12 +725,25 @@ function updateImportPathsToPackageAlias(
         path.basename(sourceFilePath, path.extname(sourceFilePath)),
       );
 
+      // Match import statements that reference the source file
+      // Pattern breakdown:
+      // - (from\\s+['"]) - Captures "from '" or 'from "'
+      // - (\\.{1,2}/[^'"]*${sourceFileName}[^'"]*) - Captures the import path:
+      //   * \\.{1,2}/ - Matches "./" or "../"
+      //   * [^'"]* - Matches any characters before the filename (e.g., "path/to/")
+      //   * ${sourceFileName} - The actual filename without extension
+      //   * [^'"]* - Matches any characters after the filename (e.g., ".mjs" for ESM files)
+      // - (['"]') - Captures the closing quote
+      // This allows matching imports like:
+      // - from './file'
+      // - from './path/to/file'
+      // - from './file.mjs' (ESM with extension)
       const staticPattern = new RegExp(
-        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"])`,
+        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
         'g',
       );
       const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"]\\s*\\))`,
+        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"]\\s*\\))`,
         'g',
       );
 
@@ -786,12 +799,25 @@ function updateImportPathsInProject(
         path.basename(sourceFilePath, path.extname(sourceFilePath)),
       );
 
+      // Match import statements that reference the source file
+      // Pattern breakdown:
+      // - (from\\s+['"]) - Captures "from '" or 'from "'
+      // - (\\.{1,2}/[^'"]*${sourceFileName}[^'"]*) - Captures the import path:
+      //   * \\.{1,2}/ - Matches "./" or "../"
+      //   * [^'"]* - Matches any characters before the filename (e.g., "path/to/")
+      //   * ${sourceFileName} - The actual filename without extension
+      //   * [^'"]* - Matches any characters after the filename (e.g., ".mjs" for ESM files)
+      // - (['"]') - Captures the closing quote
+      // This allows matching imports like:
+      // - from './file'
+      // - from './path/to/file'
+      // - from './file.mjs' (ESM with extension)
       const staticPattern = new RegExp(
-        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"])`,
+        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
         'g',
       );
       const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName})(['"]\\s*\\))`,
+        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"]\\s*\\))`,
         'g',
       );
 
@@ -1036,8 +1062,18 @@ function toAbsoluteWorkspacePath(filePath: string): string {
   return path.join('/', normalized);
 }
 
+/**
+ * Strips file extension from import path for TypeScript and regular JavaScript files.
+ * Preserves extensions for ESM-specific files (.mjs, .mts, .cjs, .cts) as they are
+ * required by the ESM specification.
+ *
+ * @param importPath - The import path to process
+ * @returns The import path with extension stripped (or preserved for ESM files)
+ */
 function stripFileExtension(importPath: string): string {
-  return importPath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
+  // Only strip .ts, .tsx, .js, .jsx extensions
+  // Preserve .mjs, .mts, .cjs, .cts as they are required for ESM
+  return importPath.replace(/\.(ts|tsx|js|jsx)$/, '');
 }
 
 function getRelativeImportSpecifier(

@@ -1,7 +1,8 @@
 /**
- * Escape characters with special meaning either inside or outside character sets.
+ * Escape characters with special meaning outside character classes.
  * Use a simple backslash escape when it’s always valid.
  * Prevents ReDoS (Regular Expression Denial of Service) attacks
+ * @remarks To escape character classes, use `RegExp.escape` or a `core-js-pure` polyfill.
  * @param str - The string to escape
  * @returns The escaped string safe for use in regular expressions
  */

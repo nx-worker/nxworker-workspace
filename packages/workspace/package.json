@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "dependencies": {
     "@nx/devkit": "^19.8.14",
-    "@swc/helpers": "~0.5.11"
+    "@swc/helpers": "~0.5.11",
+    "core-js-pure": "^3.41.0"
   },
   "type": "commonjs",
   "main": "./src/index.js",

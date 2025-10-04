@@ -492,15 +492,17 @@ describe('workspace', () => {
         'export class DeeplyNestedService',
       );
 
-      // Verify the path is long but within macOS limits (~900 characters in the deep path portion)
+      // Verify the path is long but within macOS limits (~824 characters in the deep path portion)
       const deepPathLength = deepPathSegments.join('/').length;
-      expect(deepPathLength).toBeGreaterThan(850); // ~900 chars
-      expect(deepPathLength).toBeLessThan(1000); // Safe margin within macOS 1024 limit
+      expect(deepPathLength).toBeGreaterThan(800); // ~824 chars (15 segments * 54 chars + 14 slashes)
+      expect(deepPathLength).toBeLessThan(900); // Safe margin within macOS 1024 limit
 
       // Verify imports were updated with correct relative path
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toContain('DeeplyNestedService');
-      expect(updatedConsumerContent).toContain(deepPathSegments[0].substring(0, 20)); // Verify it references the deep path
+      expect(updatedConsumerContent).toContain(
+        deepPathSegments[0].substring(0, 20),
+      ); // Verify it references the deep path
     });
 
     it('should fail gracefully when path exceeds OS limits', () => {
@@ -508,7 +510,7 @@ describe('workspace', () => {
       // Different OSes have different limits, so we create a path that will fail on most systems
 
       const fileName = 'service.ts';
-      
+
       // Create a directory name that exceeds NAME_MAX (255 chars on Linux/macOS/Windows)
       const invalidSegmentName = 'a'.repeat(300); // 300 chars - exceeds NAME_MAX
 
@@ -519,10 +521,7 @@ describe('workspace', () => {
         'lib',
         fileName,
       );
-      writeFileSync(
-        sourcePath,
-        'export class Service {}\n',
-      );
+      writeFileSync(sourcePath, 'export class Service {}\n');
 
       // Attempt to move to a path with an overly long directory name
       // This should fail with an OS error (ENAMETOOLONG on Unix, similar error on Windows)
@@ -596,10 +595,12 @@ describe('workspace', () => {
     (process.platform === 'win32' ? it.skip : it)(
       'should handle files with Unix-specific special characters (skipped on Windows)',
       () => {
-        // Characters like colon (:) are allowed on Unix but not on Windows
+        // Windows doesn't allow these characters in filenames: < > : " / \ | ? *
+        // Unix allows most of these (except / which is the path separator)
         // This test only runs on non-Windows platforms
+        // Testing with: < > : (shell metacharacters | ? * " are avoided due to escaping complexity)
 
-        const fileName = 'util:with:colons.ts';
+        const fileName = 'util<>:test.ts';
         const sourcePath = join(
           projectDirectory,
           testLibName,
@@ -609,7 +610,7 @@ describe('workspace', () => {
         );
         writeFileSync(
           sourcePath,
-          "export function colonUtil() { return 'colon'; }\n",
+          "export function specialUtil() { return 'special'; }\n",
         );
 
         const consumerPath = join(
@@ -621,11 +622,11 @@ describe('workspace', () => {
         );
         writeFileSync(
           consumerPath,
-          `import { colonUtil } from './${fileName.replace('.ts', '')}';\nexport const value = colonUtil();\n`,
+          `import { specialUtil } from './${fileName.replace('.ts', '')}';\nexport const value = specialUtil();\n`,
         );
 
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/unix-special/${fileName} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file "${testLibName}/src/lib/${fileName}" "${testLibName}/src/lib/unix-special/${fileName}" --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -641,7 +642,7 @@ describe('workspace', () => {
           fileName,
         );
         expect(readFileSync(movedPath, 'utf-8')).toContain(
-          'export function colonUtil()',
+          'export function specialUtil()',
         );
 
         const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
