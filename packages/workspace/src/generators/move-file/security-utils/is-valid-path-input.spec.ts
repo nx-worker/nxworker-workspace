@@ -17,6 +17,10 @@ describe('isValidPathInput', () => {
     expect(isValidPathInput('path\\to\\file.ts', {})).toBe(true);
   });
 
+  it('allows angle brackets and colon for Unix-specific filenames', () => {
+    expect(isValidPathInput('file<>:test.ts', {})).toBe(true);
+  });
+
   describe('shell metacharacters', () => {
     it('should reject pipe character |', () => {
       expect(isValidPathInput('file|name.ts', {})).toBe(false);
