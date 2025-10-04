@@ -12,13 +12,9 @@ module.exports = [
         },
       ],
     },
-    languageOptions: {
-      parser: require('jsonc-eslint-parser'),
-    },
   },
   {
     files: ['**/package.json'],
     rules: { '@nx/nx-plugin-checks': 'error' },
-    languageOptions: { parser: require('jsonc-eslint-parser') },
   },
 ];
