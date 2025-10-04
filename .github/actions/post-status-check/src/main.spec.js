@@ -1,9 +1,19 @@
+const mockCore = {
+  getInput: jest.fn(),
+  setFailed: jest.fn(),
+  info: jest.fn(),
+};
+
+const mockGithub = {
+  getOctokit: jest.fn(),
+  context: {},
+};
+
+jest.mock('@actions/core', () => mockCore);
+jest.mock('@actions/github', () => mockGithub);
+
 const core = require('@actions/core');
 const github = require('@actions/github');
-
-// Mock modules
-jest.mock('@actions/core');
-jest.mock('@actions/github');
 
 // Set test environment
 process.env.NODE_ENV = 'test';
@@ -24,7 +34,7 @@ describe('post-status-check action', () => {
       },
     };
 
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
     github.context = {
       eventName: 'workflow_dispatch',
       repo: {
@@ -43,9 +53,9 @@ describe('post-status-check action', () => {
       sha: 'abc123def456',
     };
 
-    core.getInput = jest.fn((name) => getInputValues[name] || '');
-    core.setFailed = jest.fn();
-    core.info = jest.fn();
+    core.getInput.mockImplementation((name) => getInputValues[name] || '');
+    core.setFailed.mockImplementation(() => {});
+    core.info.mockImplementation(() => {});
 
     process.env.GITHUB_TOKEN = 'test-token';
   });
@@ -57,7 +67,6 @@ describe('post-status-check action', () => {
 
   const runAction = async () => {
     // Dynamically require to get fresh module
-    delete require.cache[require.resolve('./main')];
     const { run } = require('./main');
     await run();
   };
