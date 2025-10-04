@@ -13,12 +13,24 @@ describe('isValidPathInput', () => {
     expect(isValidPathInput('файл.ts', { allowUnicode: true })).toBe(true);
   });
 
-  it('allows backslash for Windows path separators', () => {
-    expect(isValidPathInput('path\\to\\file.ts', {})).toBe(true);
-  });
+  describe('platform-specific characters', () => {
+    it('allows backslash on Windows, rejects on Unix', () => {
+      const result = isValidPathInput('path\\to\\file.ts', {});
+      if (process.platform === 'win32') {
+        expect(result).toBe(true);
+      } else {
+        expect(result).toBe(false);
+      }
+    });
 
-  it('allows angle brackets and colon for Unix-specific filenames', () => {
-    expect(isValidPathInput('file<>:test.ts', {})).toBe(true);
+    it('allows angle brackets and colon on Unix, rejects on Windows', () => {
+      const result = isValidPathInput('file<>:test.ts', {});
+      if (process.platform === 'win32') {
+        expect(result).toBe(false);
+      } else {
+        expect(result).toBe(true);
+      }
+    });
   });
 
   describe('shell metacharacters', () => {
