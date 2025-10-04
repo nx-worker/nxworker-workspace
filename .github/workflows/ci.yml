@@ -257,12 +257,12 @@ jobs:
           path: dist/
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      # Always exclude task dependencies (--excludeTaskDependencies) because the build job already built all projects
+      # Always exclude task dependencies (--exclude-task-dependencies) because the build job already built all projects
       # and uploaded artifacts. This prevents rebuilding dependencies in each e2e matrix job, saving time
       # and ensuring all e2e jobs use the exact same build artifacts for consistency.
       - name: Run e2e tests
         shell: bash
-        run: npx nx affected -t e2e --excludeTaskDependencies --output-style=static
+        run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
 
       - uses: ./.github/actions/post-status-check
         if: always()
