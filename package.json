@@ -48,7 +48,8 @@
     "packages/*"
   ],
   "dependencies": {
-    "@nx/devkit": "^19.8.14"
+    "@nx/devkit": "^19.8.14",
+    "core-js": "^3.45.1"
   },
   "overrides": {
     "@swc/core": "~1.5.29"
