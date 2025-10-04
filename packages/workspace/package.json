@@ -4,7 +4,8 @@
   "dependencies": {
     "@nx/devkit": "^19.8.14",
     "@swc/helpers": "~0.5.11",
-    "core-js": "^3.37.1"
+    "core-js": "^3.37.1",
+    "core-js-pure": "^3.45.1"
   },
   "type": "commonjs",
   "main": "./src/index.js",
