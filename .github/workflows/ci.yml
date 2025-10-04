@@ -139,11 +139,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest # Linux x64
+          - os: ubuntu-latest
             node-version: 18
           - os: ubuntu-latest
-            node-version: 20 # Linux x64
-          - os: ubuntu-24.04-arm # Linux arm64
+            node-version: 20
+          - os: ubuntu-24.04-arm # Linux
+            node-version: 22
+          - os: windows-latest # Windows
+            node-version: 22
+          - os: macos-latest # macOS
             node-version: 22
     runs-on: ${{ matrix.os }}
     steps:
