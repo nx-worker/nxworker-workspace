@@ -1,98 +1,88 @@
-# Nxworker19
+# `@nxworker/workspace`
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+`@nxworker/workspace` is an Nx-based monorepo that hosts the `@nxworker/workspace` Nx plugin and an end-to-end test harness that exercises the plugin against a temporary Verdaccio registry. The repository provides a realistic reference for building, validating, and releasing Nx plugins while keeping a tight feedback loop for contributors.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+## Prerequisites
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/npm-workspaces-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+- **Node.js** ≥18 (development uses Node.js 22 LTS "Jod")
+- **npm** 10.x
 
-## Requirements
+Install dependencies with:
 
-This workspace requires:
-
-- **Node.js**: >=18.0.0 (development uses Node.js 22 LTS "Jod")
-- **npm**: >=10.0.0
-
-The codebase enforces Node.js 18 as the baseline to match Nx 19 compatibility. ESLint rules automatically prevent the use of Node.js 20+ and 22+ features to ensure compatibility across all supported Node.js versions.
-
-## Finish your CI setup
-
-[Click here to finish setting up your workspace!](https://cloud.nx.app)
-
-## Run tasks
-
-To run tasks with Nx use:
-
-```sh
-npx nx <target> <project-name>
+```shell
+npm ci
 ```
 
-For example:
-
-```sh
-npx nx build myproject
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+## Repository layout
 
 ```
-npx nx release
+packages/
+	workspace/          → Nx plugin source, build + unit tests
+	workspace-e2e/      → Jest e2e project that publishes to Verdaccio and installs the plugin
+tools/scripts/        → Verdaccio lifecycle helpers used by the e2e suite
+docs/                 → Additional documentation (Node 18 baseline, etc.)
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+Key configuration files live at the repository root (`nx.json`, `project.json`, `tsconfig.base.json`, `.eslintrc.json`, `.prettierrc`, `.node-version`, `jest.config.ts`). Path alias `@nxworker/workspace` resolves to `packages/workspace/src/index.ts`.
 
-[Learn more about Nx release &raquo;](hhttps://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Core npm scripts & Nx targets
 
-## Add new projects
+All commands should be run from the repository root. Nx caches results by default; add `--skip-nx-cache` to surface realtime logs when needed.
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+| Task | Purpose | Command |
+| --- | --- | --- |
+| Format check | Validate Prettier formatting | `npx nx format:check` |
+| Lint | Validate code style in all projects | `npx nx run-many --targets=lint` |
+| Build | Build the Nx plugin and internal projects | `npx nx run-many --targets=build` |
+| Unit tests | Run unit tests for the Nx plugin and internal project | `npx nx run-many --targets=test` |
+| End-to-end | Publish the plugin to a local Verdaccio registry and install into a fresh Nx workspace then exercise the plugin | `npx nx run-many --targets=e2e` |
 
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
+Run every step exactly as CI does:
 
-```sh
-npx nx add @nx/react
+```shell
+npx nx format:check
+npx nx affected -t lint test build e2e
 ```
 
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
+## Local Verdaccio workflow
 
-```sh
-# Genenerate an app
-npx nx g @nx/react:app demo
+The e2e suite starts Verdaccio automatically via `tools/scripts/start-local-registry.ts`. If you need to debug manually:
 
-# Generate a library
-npx nx g @nx/react:lib some-lib
+```shell
+npx nx local-registry     # starts Verdaccio on http://localhost:4873
+# ...run your debugging commands...
+npx nx stop-local-registry
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+Artifacts live under `tmp/local-registry` and `dist/`. Delete them when disk usage becomes an issue.
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Releasing the plugin
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+The repo uses the Nx Release workflow configured in `nx.json`. Build artifacts are produced before versioning to ensure integrity.
 
-## Install Nx Console
+```shell
+npx nx release --dry-run   # preview version + changelog
+npx nx release             # build, version, publish
+```
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+## Development tips
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- Prefer `npx nx graph` to inspect project dependencies.
+- Run `npx nx reset` if cache artifacts become stale or if Verdaccio instances are left running unexpectedly.
 
-## Useful links
+## Troubleshooting
 
-Learn more:
+| Issue | Fix |
+| --- | --- |
+| ESLint errors mentioning Node ≥20 APIs | Refactor to Node 18-compatible APIs; see `docs/NODE18_BASELINE.md` |
+| Verdaccio port still in use | Run `npx nx reset` or manually stop lingering Node processes |
+| `create-nx-workspace` download failures in e2e | Ensure internet access and retry; the script scaffolds into `tmp/` |
 
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/npm-workspaces-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Contributing
 
-And join the Nx community:
+1. Create a feature branch
+1. Implement your changes with accompanying tests and docs
+1. Run the full validation suite (`format`, `lint`, `test`, `build`, and `e2e`)
+1. Submit a pull request using Conventional Commit style, for example `feat(workspace): add move-file generator`
 
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+For ideas or questions, open an issue or reach out in GitHub Discussions.
