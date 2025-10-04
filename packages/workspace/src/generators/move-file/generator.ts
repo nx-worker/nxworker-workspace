@@ -301,14 +301,17 @@ async function handleExportedMove(
     targetImportPath,
   );
 
+  // Remove the export from source index BEFORE updating imports to package alias
+  // This ensures we can find and remove the relative path export before it's
+  // converted to a package alias
+  removeFileExport(tree, sourceProject, relativeFilePathInSource);
+
   updateImportPathsToPackageAlias(
     tree,
     sourceProject,
     normalizedSource,
     targetImportPath,
   );
-
-  removeFileExport(tree, sourceProject, relativeFilePathInSource);
 }
 
 /**
@@ -1180,6 +1183,12 @@ function removeFileExport(
     });
 
     if (updatedContent !== content) {
+      // If the file becomes empty or whitespace-only, add export {}
+      // to prevent runtime errors when importing from the package
+      if (updatedContent.trim() === '') {
+        updatedContent = 'export {};\n';
+      }
+
       tree.write(indexPath, updatedContent);
       logger.info(`Removed export from ${indexPath}`);
     }

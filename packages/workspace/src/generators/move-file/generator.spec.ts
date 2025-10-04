@@ -268,6 +268,63 @@ describe('move-file generator', () => {
       expect(appContent).toContain("import('@test/lib2').then(m => m.helper)");
     });
 
+    it('should remove export from source index when file is moved', async () => {
+      // Setup: Create two files and export both
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/utils/other.ts',
+        'export function other() { return "world"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export * from './utils/helper';\nexport * from './utils/other';",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Source index should have removed the helper export but kept other
+      const sourceIndex = tree.read('packages/lib1/src/index.ts', 'utf-8');
+      expect(sourceIndex).not.toContain("export * from './utils/helper'");
+      expect(sourceIndex).toContain("export * from './utils/other'");
+    });
+
+    it('should add empty export when removing last export from source index', async () => {
+      // Setup: Create a file and export it (the only export)
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export * from './utils/helper';",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Source index should have export {} to prevent runtime errors
+      const sourceIndex = tree.read('packages/lib1/src/index.ts', 'utf-8');
+      expect(sourceIndex).not.toContain("export * from './utils/helper'");
+      expect(sourceIndex?.trim()).toBe('export {};');
+    });
+
     it('should handle export { Named } from pattern', async () => {
       tree.write(
         'packages/lib1/src/utils/helper.ts',
