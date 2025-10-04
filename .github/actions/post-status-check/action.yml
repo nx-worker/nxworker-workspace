@@ -9,7 +9,7 @@ inputs:
     description: Status context name
     required: true
   job-status:
-    description: Job status (for outcome checks)
+    description: 'Job status (for outcome checks; expected values: success, failure, cancelled, etc.)'
     required: false
   workflow-file:
     description: Workflow file name to use in the status description (e.g. ci.yml)
