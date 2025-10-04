@@ -13,13 +13,13 @@ export interface PathValidationOptions {
  * - > (greater than)
  * - : (colon)
  */
-const UNIX_ONLY_CHARS = escapeRegexp('<>:');
+const UNIX_ONLY_CHARS = '<>:';
 
 /**
  * Backslash is the path separator on Windows but not valid in filenames on Unix.
  * It should only be allowed as input on Windows platforms.
  */
-const WINDOWS_ONLY_CHARS = escapeRegexp('\\');
+const WINDOWS_ONLY_CHARS = '\\';
 
 /**
  * Validate user input intended to be used as a literal file/path fragment using
@@ -50,22 +50,20 @@ export function isValidPathInput(
     return false;
   }
 
-  const extra = additionalAllowedChars
-    ? escapeRegexp(additionalAllowedChars)
-    : '';
-
   // Only allow Unix-specific characters on non-Windows platforms
   const unixChars = process.platform === 'win32' ? '' : UNIX_ONLY_CHARS;
   // Only allow backslash on Windows platforms
   const windowsChars = process.platform === 'win32' ? WINDOWS_ONLY_CHARS : '';
 
+  let pathRegex: RegExp;
+
   if (allowUnicode) {
-    const pattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./${windowsChars}${unixChars} ${extra}-]*$`;
-    const re = new RegExp(pattern, 'u');
-    return re.test(str);
+    const unicodePathPattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./${escapeRegexp(windowsChars)}${escapeRegexp(unixChars)} ${escapeRegexp(additionalAllowedChars)}-]*$`;
+    pathRegex = new RegExp(unicodePathPattern, 'u');
+  } else {
+    const asciiPathPattern = `^[A-Za-z0-9_@./${escapeRegexp(windowsChars)}${escapeRegexp(unixChars)} ${escapeRegexp(additionalAllowedChars)}-]*$`;
+    pathRegex = new RegExp(asciiPathPattern);
   }
 
-  const asciiPattern = `^[A-Za-z0-9_@./${windowsChars}${unixChars} ${extra}-]*$`;
-  const asciiRe = new RegExp(asciiPattern);
-  return asciiRe.test(str);
+  return pathRegex.test(str);
 }
