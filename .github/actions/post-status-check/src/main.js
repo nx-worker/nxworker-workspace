@@ -1,6 +1,5 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
-const { execSync } = require('node:child_process');
 
 async function run() {
   try {
@@ -9,15 +8,13 @@ async function run() {
     const context = core.getInput('context', { required: true });
     const jobStatus = core.getInput('job-status', { required: false });
     const workflowFile = core.getInput('workflow-file', { required: true });
+    const sha = core.getInput('sha', { required: true });
 
     // Only run for workflow_dispatch events
     if (github.context.eventName !== 'workflow_dispatch') {
       core.info('Skipping status check - not a workflow_dispatch event');
       return;
     }
-
-    // Get the current commit SHA
-    const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
 
     // Get GitHub token from input, context, or environment (in order of preference)
     let token = core.getInput('token', { required: false });
