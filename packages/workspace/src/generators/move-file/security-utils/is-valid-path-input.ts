@@ -1,3 +1,6 @@
+/// <reference path="./regexp-escape.d.ts" />
+import 'core-js/stable/regexp/escape';
+
 export interface PathValidationOptions {
   allowUnicode?: boolean;
   maxLength?: number;
@@ -11,13 +14,13 @@ export interface PathValidationOptions {
  * - > (greater than)
  * - : (colon)
  */
-const UNIX_ONLY_CHARS = '<>:';
+const UNIX_ONLY_CHARS = RegExp.escape('<>:');
 
 /**
  * Backslash is the path separator on Windows but not valid in filenames on Unix.
  * It should only be allowed as input on Windows platforms.
  */
-const WINDOWS_ONLY_CHARS = '\\\\';
+const WINDOWS_ONLY_CHARS = RegExp.escape('\\');
 
 /**
  * Validate user input intended to be used as a literal file/path fragment using
@@ -49,7 +52,7 @@ export function isValidPathInput(
   }
 
   const extra = additionalAllowedChars
-    ? additionalAllowedChars.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    ? RegExp.escape(additionalAllowedChars)
     : '';
 
   // Only allow Unix-specific characters on non-Windows platforms
