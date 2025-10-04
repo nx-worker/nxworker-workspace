@@ -2,6 +2,7 @@ const nx = require('@nx/eslint-plugin');
 const jsoncParser = require('jsonc-eslint-parser');
 const esxPlugin = require('eslint-plugin-es-x');
 const nPlugin = require('eslint-plugin-n');
+const globals = require('globals');
 
 module.exports = [
   ...nx.configs['flat/base'],
@@ -69,6 +70,14 @@ module.exports = [
       'es-x/no-set-prototype-issubsetof': 'error',
       'es-x/no-set-prototype-issupersetof': 'error',
       'es-x/no-set-prototype-isdisjointfrom': 'error',
+    },
+  },
+  {
+    files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.spec.js', '**/*.spec.jsx'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
     },
   },
   {

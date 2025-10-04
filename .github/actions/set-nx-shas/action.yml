@@ -1,0 +1,8 @@
+name: Set Nx SHAs
+description: Derive appropriate SHAs for nx affected commands
+
+runs:
+  using: composite
+  steps:
+    - name: Derive appropriate SHAs for base and head for `nx affected` commands
+      uses: nrwl/nx-set-shas@v4

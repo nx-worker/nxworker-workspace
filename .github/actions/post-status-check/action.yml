@@ -1,0 +1,23 @@
+name: Post status check
+description: Post pending or outcome status check for workflow_dispatch events
+
+inputs:
+  state:
+    description: Status state (pending or outcome)
+    required: true
+  context:
+    description: Status context name
+    required: true
+  job-status:
+    description: 'Job status (for outcome checks; expected values: success, failure, cancelled, etc.)'
+    required: false
+  workflow-file:
+    description: Workflow file name to use in the status description (e.g. ci.yml)
+    required: true
+  sha:
+    description: Commit SHA to post status to
+    required: true
+
+runs:
+  using: node24
+  main: src/main.js

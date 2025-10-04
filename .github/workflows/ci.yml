@@ -15,10 +15,10 @@ permissions:
   contents: read # default to read-only access for repository contents
 
 jobs:
-  main:
+  build:
     permissions:
       statuses: write # workflow_dispatch runs post commit status updates via gh api
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
         id: checkout-ref
@@ -32,6 +32,7 @@ jobs:
           else
             echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
           fi
+
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
@@ -39,54 +40,235 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: '[workflow_dispatch] Publish pending check status'
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          sha=$(git rev-parse HEAD)
-          gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
-            -f state="pending" \
-            -f context='main' \
-            -f description='ci.yml (workflow_dispatch) in progress' \
-            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      # Cache node_modules
-      - uses: actions/setup-node@v5
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - uses: ./.github/actions/post-status-check
         with:
-          node-version-file: .node-version
-          cache: npm
+          state: pending
+          context: build
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
 
-      - run: npm ci
-      - name: Derive appropriate SHAs for base and head for `nx affected` commands
-        uses: nrwl/nx-set-shas@v4
+      # Build all projects to create a complete build artifact for downstream e2e jobs.
+      # This ensures e2e jobs always have all required build outputs regardless of which projects are affected.
+      - run: npx nx run-many -t build --output-style=static
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - uses: ./.github/actions/post-status-check
+        if: always()
+        with:
+          state: outcome
+          context: build
+          job-status: ${{ job.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+
+  lint:
+    permissions:
+      statuses: write # workflow_dispatch runs post commit status updates via gh api
+    runs-on: ubuntu-24.04-arm # Linux arm64
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - uses: ./.github/actions/post-status-check
+        with:
+          state: pending
+          context: lint
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
 
       - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t lint test build e2e
-      - name: '[workflow_dispatch] Publish outcome check status'
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+      - run: npx nx affected -t lint --output-style=static
+
+      - uses: ./.github/actions/post-status-check
+        if: always()
+        with:
+          state: outcome
+          context: lint
+          job-status: ${{ job.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+
+  test:
+    permissions:
+      statuses: write # workflow_dispatch runs post commit status updates via gh api
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest # Linux x64
+            node-version: 18
+          - os: ubuntu-latest
+            node-version: 20 # Linux x64
+          - os: ubuntu-24.04-arm # Linux arm64
+            node-version: 22
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
         run: |
-          sha=$(git rev-parse HEAD)
-          if [ "$JOB_STATUS" = "success" ]; then
-            state="success"
-            description="ci.yml (workflow_dispatch) succeeded"
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
           else
-            state="failure"
-            description="ci.yml (workflow_dispatch) failed"
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
           fi
 
-          gh api "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
-            -f state="$state" \
-            -f context='main' \
-            -f description="$description" \
-            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
 
-          if [ "$JOB_STATUS" != "success" ]; then
-            exit 1
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - uses: ./.github/actions/post-status-check
+        with:
+          state: pending
+          context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+
+      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
+      - run: npx nx affected -t test --output-style=static
+
+      - uses: ./.github/actions/post-status-check
+        if: always()
+        with:
+          state: outcome
+          context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
+          job-status: ${{ job.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+
+  e2e:
+    needs: build
+    permissions:
+      statuses: write # workflow_dispatch runs post commit status updates via gh api
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest # Linux x64
+          - windows-latest # Windows x64
+          - ubuntu-24.04-arm # Linux arm64
+          - windows-11-arm # Windows arm64
+          - macos-15-intel # macOS x64
+          - macos-latest # macOS arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
           fi
+
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - uses: ./.github/actions/post-status-check
+        with:
+          state: pending
+          context: e2e (${{ matrix.os }})
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-artifacts
+          path: dist/
+
+      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
+      # Always exclude task dependencies (--exclude-task-dependencies) because the build job already built all projects
+      # and uploaded artifacts. This prevents rebuilding dependencies in each e2e matrix job, saving time
+      # and ensuring all e2e jobs use the exact same build artifacts for consistency.
+      - name: Run e2e tests
+        shell: bash
+        run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
+
+      - uses: ./.github/actions/post-status-check
+        if: always()
+        with:
+          state: outcome
+          context: e2e (${{ matrix.os }})
+          job-status: ${{ job.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
