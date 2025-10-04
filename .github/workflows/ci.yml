@@ -17,7 +17,8 @@ permissions:
 jobs:
   build:
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
+      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -49,10 +50,10 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         with:
           state: pending
-          context: build
+          name: ci/build
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
@@ -68,18 +69,19 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         if: always()
         with:
           state: outcome
-          context: build
+          name: ci/build
           job-status: ${{ job.status }}
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
   lint:
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
+      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -111,10 +113,10 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         with:
           state: pending
-          context: lint
+          name: ci/lint
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
@@ -124,18 +126,19 @@ jobs:
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint --output-style=static
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         if: always()
         with:
           state: outcome
-          context: lint
+          name: ci/lint
           job-status: ${{ job.status }}
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
   test:
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
+      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     strategy:
       matrix:
         include:
@@ -182,21 +185,21 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         with:
           state: pending
-          context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
+          name: ci/test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t test --output-style=static
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         if: always()
         with:
           state: outcome
-          context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
+          name: ci/test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           job-status: ${{ job.status }}
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
@@ -261,7 +264,8 @@ jobs:
       - build
       - set-e2e-matrix
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
+      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     strategy:
       matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
@@ -295,10 +299,10 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         with:
           state: pending
-          context: e2e (${{ matrix.os }})
+          name: ci/e2e (${{ matrix.os }})
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
 
@@ -318,11 +322,11 @@ jobs:
         shell: bash
         run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
 
-      - uses: ./.github/actions/post-status-check
+      - uses: ./.github/actions/post-check-run
         if: always()
         with:
           state: outcome
-          context: e2e (${{ matrix.os }})
+          name: ci/e2e (${{ matrix.os }})
           job-status: ${{ job.status }}
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}

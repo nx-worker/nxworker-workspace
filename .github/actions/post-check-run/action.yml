@@ -1,0 +1,26 @@
+name: Post check run
+description: Create or update a GitHub check run using the Checks API
+
+inputs:
+  state:
+    description: Check run state (pending or outcome)
+    required: true
+  name:
+    description: Check run name (e.g., "ci/build", "ci/lint", "ci/test")
+    required: true
+  job-status:
+    description: 'Job status (for outcome checks; expected values: success, failure, cancelled, skipped)'
+    required: false
+  workflow-file:
+    description: Workflow file name to use in the check run summary (e.g. ci.yml)
+    required: true
+  sha:
+    description: Commit SHA to attach check run to
+    required: true
+  token:
+    description: GitHub token with checks:write permission
+    required: false
+
+runs:
+  using: node24
+  main: src/main.js
