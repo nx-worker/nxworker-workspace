@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -40,21 +40,30 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/setup-node-and-install
-
-      - uses: ./.github/actions/post-status-check
-        with:
-          state: pending
-          context: build
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
 
       # Build all projects to create a complete build artifact for downstream e2e jobs.
       # This ensures e2e jobs always have all required build outputs regardless of which projects are affected.
@@ -68,18 +77,124 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - uses: ./.github/actions/post-status-check
-        if: always()
+  # Create pending check for test summary (runs before matrix jobs)
+  create-test-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.test-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
         with:
-          state: outcome
-          context: build
-          job-status: ${{ job.status }}
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        id: test-check-pending
+        with:
+          state: pending
+          name: ci/test
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  create-e2e-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.e2e-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        id: e2e-check-pending
+        with:
+          state: pending
+          name: ci/e2e
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   lint:
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -102,21 +217,30 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/setup-node-and-install
-
-      - uses: ./.github/actions/post-status-check
-        with:
-          state: pending
-          context: lint
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
 
       - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
@@ -124,19 +248,10 @@ jobs:
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint --output-style=static
 
-      - uses: ./.github/actions/post-status-check
-        if: always()
-        with:
-          state: outcome
-          context: lint
-          job-status: ${{ job.status }}
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
-
   test:
-    permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+    needs: create-test-check
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -171,35 +286,83 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
-        shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
       - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/setup-node-and-install
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: ./.github/actions/post-status-check
-        with:
-          state: pending
-          context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
-
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t test --output-style=static
 
-      - uses: ./.github/actions/post-status-check
+  # Summary check that aggregates all test matrix results into a single check for branch protection
+  test-summary:
+    needs: [create-test-check, test]
+    if: always()
+    permissions:
+      checks: write # Update check runs via Checks API
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine overall status
+        id: overall-status
+        run: |
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
         if: always()
         with:
           state: outcome
-          context: test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
-          job-status: ${{ job.status }}
+          name: ci/test
+          job-status: ${{ steps.overall-status.outputs.status }}
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-test-check.outputs.check-run-id }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
   # and branch.
@@ -261,7 +424,7 @@ jobs:
       - build
       - set-e2e-matrix
     permissions:
-      statuses: write # workflow_dispatch runs post commit status updates via gh api
+      checks: write # Create and update check runs via Checks API
     strategy:
       matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
@@ -286,21 +449,30 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/setup-node-and-install
-
-      - uses: ./.github/actions/post-status-check
-        with:
-          state: pending
-          context: e2e (${{ matrix.os }})
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
 
       - name: Download build artifacts
         id: download-artifacts
@@ -318,11 +490,74 @@ jobs:
         shell: bash
         run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
 
-      - uses: ./.github/actions/post-status-check
+  # Summary check that aggregates all e2e matrix results into a single check for branch protection
+  e2e-summary:
+    needs:
+      - create-e2e-check
+      - e2e
+      - set-e2e-matrix
+    if: always()
+    permissions:
+      checks: write # Create and update check runs via Checks API
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine overall status
+        id: overall-status
+        run: |
+          if [ "${{ needs.e2e.result }}" == "success" ]; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
         if: always()
         with:
           state: outcome
-          context: e2e (${{ matrix.os }})
-          job-status: ${{ job.status }}
+          name: ci/e2e
+          job-status: ${{ steps.overall-status.outputs.status }}
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-e2e-check.outputs.check-run-id }}

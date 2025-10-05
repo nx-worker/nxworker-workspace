@@ -1,5 +1,5 @@
 {
-  "name": "@nxworker/github-actions-post-status-check",
+  "name": "@nxworker/github-actions-post-check-run",
   "version": "0.0.0",
   "private": true,
   "type": "commonjs",
