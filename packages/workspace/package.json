@@ -23,6 +23,10 @@
     "url": "https://github.com/nx-worker/nxworker-workspace/issues"
   },
   "homepage": "https://github.com/nx-worker/nxworker-workspace#readme",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/LayZeeDK"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
