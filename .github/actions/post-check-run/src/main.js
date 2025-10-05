@@ -127,12 +127,9 @@ async function run() {
           },
         });
 
-        core.info(`Created completed check run ${checkName} with ${conclusion}`);
-      }
-
-      // Exit with error if job failed (for outcome state)
-      if (conclusion === 'failure') {
-        core.setFailed(`Job status is ${jobStatus}`);
+        core.info(
+          `Created completed check run ${checkName} with ${conclusion}`,
+        );
       }
     } else {
       // state is 'pending' but we already have a check run ID

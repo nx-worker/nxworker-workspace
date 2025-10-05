@@ -109,7 +109,8 @@ describe('post-check-run action', () => {
         name: 'ci/build',
         head_sha: 'abc123def456',
         status: 'in_progress',
-        details_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
+        details_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
         output: {
           title: 'ci/build',
           summary: expect.stringContaining('Check is currently in progress'),
@@ -185,7 +186,8 @@ describe('post-check-run action', () => {
         check_run_id: 12345,
         status: 'completed',
         conclusion: 'success',
-        details_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
+        details_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
         output: {
           title: 'ci/build',
           summary: expect.stringContaining('✅ Check completed successfully'),
@@ -217,13 +219,14 @@ describe('post-check-run action', () => {
         check_run_id: 12345,
         status: 'completed',
         conclusion: 'failure',
-        details_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
+        details_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
         output: {
           title: 'ci/test',
           summary: expect.stringContaining('❌ Check failed'),
         },
       });
-      expect(core.setFailed).toHaveBeenCalledWith('Job status is failure');
+      expect(core.setFailed).not.toHaveBeenCalled();
     });
 
     it('should handle cancelled job status', async () => {
@@ -297,7 +300,8 @@ describe('post-check-run action', () => {
         head_sha: 'abc123def456',
         status: 'completed',
         conclusion: 'success',
-        details_url: 'https://github.com/test-owner/test-repo/actions/runs/123456',
+        details_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
         output: {
           title: 'ci/test',
           summary: expect.stringContaining('✅'),
