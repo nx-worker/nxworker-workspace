@@ -156,16 +156,6 @@ To require these checks in branch protection:
 4. Enable "Require status checks to pass before merging"
 5. Search for and add your check names (e.g., `ci/build`, `ci/lint`)
 
-## Differences from `post-status-check`
-
-| Feature | `post-status-check` (Statuses API) | `post-check-run` (Checks API) |
-| --- | --- | --- |
-| API | Statuses API | Checks API |
-| Permission | `statuses: write` | `checks: write` |
-| Rich output | No | Yes (markdown summary) |
-| Annotations | No | Yes (future) |
-| Matrix friendly | Limited | Yes |
-
 ## Development
 
 ### Running Tests
