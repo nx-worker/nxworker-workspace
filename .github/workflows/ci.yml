@@ -82,6 +82,89 @@ jobs:
           token: ${{ github.token }}
           check-run-id: ${{ steps.build-check-pending.outputs.check-run-id }}
 
+  # Create pending check for test summary (runs before matrix jobs)
+  create-test-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.test-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/post-check-run
+        id: test-check-pending
+        with:
+          state: pending
+          name: ci/test
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+          token: ${{ github.token }}
+
+  create-e2e-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.e2e-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/post-check-run
+        id: e2e-check-pending
+        with:
+          state: pending
+          name: ci/e2e
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+          token: ${{ github.token }}
+
   lint:
     permissions:
       checks: write # Create and update check runs via Checks API
@@ -144,10 +227,9 @@ jobs:
           check-run-id: ${{ steps.lint-check-pending.outputs.check-run-id }}
 
   test:
-    permissions:
-      checks: write # Create and update check runs via Checks API
-      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
+    needs: create-test-check
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -205,10 +287,10 @@ jobs:
 
   # Summary check that aggregates all test matrix results into a single check for branch protection
   test-summary:
-    needs: test
+    needs: [create-test-check, test]
     if: always()
     permissions:
-      checks: write # Create and update check runs via Checks API
+      checks: write # Update check runs via Checks API
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Determine checkout ref
@@ -235,15 +317,6 @@ jobs:
         id: commit-sha
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - uses: ./.github/actions/post-check-run
-        id: test-summary-check-pending
-        with:
-          state: pending
-          name: ci/test
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
-          token: ${{ github.token }}
 
       - name: Determine overall status
         id: overall-status
@@ -281,8 +354,49 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
-          check-run-id: ${{ steps.test-summary-check-pending.outputs.check-run-id }}
+          check-run-id: ${{ needs.create-test-check.outputs.check-run-id }}
           matrix-info: ${{ steps.matrix-info.outputs.info }}
+
+  create-test-check:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.test-check-pending.outputs.check-run-id }}
+    permissions:
+      checks: write
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Get commit SHA
+        id: commit-sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/post-check-run
+        id: test-check-pending
+        with:
+          state: pending
+          name: ci/test
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+          token: ${{ github.token }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
   # and branch.
@@ -405,6 +519,7 @@ jobs:
   # Summary check that aggregates all e2e matrix results into a single check for branch protection
   e2e-summary:
     needs:
+      - create-e2e-check
       - e2e
       - set-e2e-matrix
     if: always()
@@ -436,15 +551,6 @@ jobs:
         id: commit-sha
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - uses: ./.github/actions/post-check-run
-        id: e2e-summary-check-pending
-        with:
-          state: pending
-          name: ci/e2e
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
-          token: ${{ github.token }}
 
       - name: Determine overall status
         id: overall-status
@@ -490,5 +596,5 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
-          check-run-id: ${{ steps.e2e-summary-check-pending.outputs.check-run-id }}
+          check-run-id: ${{ needs.create-e2e-check.outputs.check-run-id }}
           matrix-info: ${{ steps.matrix-info.outputs.info }}
