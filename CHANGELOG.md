@@ -1,12 +1,8 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## 19.0.0-alpha.0 (2024-10-05)
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [19.0.0-alpha.0] - 2024-10-05
-
-### Added
+### Features
 
 - **move-file generator**: Safely move files between Nx projects while automatically updating all imports, exports, and dependent projects
   - Detects source and target Nx projects and their TypeScript path aliases
@@ -26,5 +22,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Nx 19.8 or later
 - Node.js 18.0.0 or later
-
-[19.0.0-alpha.0]: https://github.com/nx-worker/nxworker-workspace/releases/tag/19.0.0-alpha.0
