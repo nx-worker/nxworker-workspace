@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   build:
+    permissions:
+      checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -75,7 +77,124 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Create pending check for test summary (runs before matrix jobs)
+  create-test-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.test-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        id: test-check-pending
+        with:
+          state: pending
+          name: ci/test
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  create-e2e-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.e2e-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        id: e2e-check-pending
+        with:
+          state: pending
+          name: ci/e2e
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   lint:
+    permissions:
+      checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -130,6 +249,7 @@ jobs:
       - run: npx nx affected -t lint --output-style=static
 
   test:
+    needs: create-test-check
     strategy:
       fail-fast: false
       matrix:
@@ -177,19 +297,72 @@ jobs:
 
   # Summary check that aggregates all test matrix results into a single check for branch protection
   test-summary:
-    needs: test
+    needs: [create-test-check, test]
     if: always()
+    permissions:
+      checks: write # Update check runs via Checks API
     runs-on: ubuntu-24.04-arm
     steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Determine overall status
+        id: overall-status
         run: |
           if [ "${{ needs.test.result }}" == "success" ]; then
-            echo "Test matrix succeeded"
-            exit 0
+            echo "status=success" >> "$GITHUB_OUTPUT"
           else
-            echo "Test matrix failed"
-            exit 1
+            echo "status=failure" >> "$GITHUB_OUTPUT"
           fi
+
+      - uses: ./.github/actions/post-check-run
+        if: always()
+        with:
+          state: outcome
+          name: ci/test
+          job-status: ${{ steps.overall-status.outputs.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-test-check.outputs.check-run-id }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
   # and branch.
@@ -250,6 +423,8 @@ jobs:
     needs:
       - build
       - set-e2e-matrix
+    permissions:
+      checks: write # Create and update check runs via Checks API
     strategy:
       matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
@@ -318,17 +493,71 @@ jobs:
   # Summary check that aggregates all e2e matrix results into a single check for branch protection
   e2e-summary:
     needs:
+      - create-e2e-check
       - e2e
       - set-e2e-matrix
     if: always()
+    permissions:
+      checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm
     steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Determine overall status
+        id: overall-status
         run: |
           if [ "${{ needs.e2e.result }}" == "success" ]; then
-            echo "E2E matrix succeeded"
-            exit 0
+            echo "status=success" >> "$GITHUB_OUTPUT"
           else
-            echo "E2E matrix failed"
-            exit 1
+            echo "status=failure" >> "$GITHUB_OUTPUT"
           fi
+
+      - uses: ./.github/actions/post-check-run
+        if: always()
+        with:
+          state: outcome
+          name: ci/e2e
+          job-status: ${{ steps.overall-status.outputs.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-e2e-check.outputs.check-run-id }}
