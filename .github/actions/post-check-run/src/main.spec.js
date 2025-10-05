@@ -1,551 +1,277 @@
-const mockCore = {
-  getInput: jest.fn(),
-  setOutput: jest.fn(),
-  setFailed: jest.fn(),
-  info: jest.fn(),
-};
-
-const mockGithub = {
-  getOctokit: jest.fn(),
-  context: {},
-};
-
-jest.mock('@actions/core', () => mockCore);
-jest.mock('@actions/github', () => mockGithub);
-
 const core = require('@actions/core');
 const github = require('@actions/github');
+const { run } = require('./main');
 
-// Set test environment
-process.env.NODE_ENV = 'test';
+// Mock the modules
+jest.mock('@actions/core');
+jest.mock('@actions/github');
 
 describe('post-check-run action', () => {
-  let mockOctokit;
-  let mockCreateCheckRun;
-  let mockUpdateCheckRun;
+  let mockCreateCommitStatus;
   let getInputValues;
 
   beforeEach(() => {
-    // Clear the check run IDs map before each test
-    const { checkRunIds } = require('./main');
-    checkRunIds.clear();
+    // Reset mocks
+    jest.clearAllMocks();
 
-    // Setup default mocks
-    mockCreateCheckRun = jest.fn().mockResolvedValue({
-      data: { id: 12345 },
-    });
-    mockUpdateCheckRun = jest.fn().mockResolvedValue({});
-    mockOctokit = {
+    // Mock octokit
+    mockCreateCommitStatus = jest.fn().mockResolvedValue({});
+    github.getOctokit = jest.fn().mockReturnValue({
       rest: {
-        checks: {
-          create: mockCreateCheckRun,
-          update: mockUpdateCheckRun,
-        },
-        apps: {
-          getAuthenticated: jest.fn().mockResolvedValue({
-            data: {
-              name: 'GitHub Actions',
-              slug: 'github-actions',
-            },
-          }),
-        },
-        users: {
-          getAuthenticated: jest.fn(),
+        repos: {
+          createCommitStatus: mockCreateCommitStatus,
         },
       },
-    };
+    });
 
-    github.getOctokit.mockReturnValue(mockOctokit);
+    // Mock github context
     github.context = {
-      eventName: 'pull_request',
-      repo: {
-        owner: 'test-owner',
-        repo: 'test-repo',
-      },
+      repo: { owner: 'test-owner', repo: 'test-repo' },
       runId: 123456,
-      runNumber: 42,
-      workflow: 'CI',
-      job: 'test',
-      actor: 'test-user',
-      ref: 'refs/heads/main',
       serverUrl: 'https://github.com',
       payload: {
-        repository: {
-          full_name: 'test-owner/test-repo',
-        },
+        repository: { full_name: 'test-owner/test-repo' },
       },
     };
 
-    // Default inputs
+    // Default input values
     getInputValues = {
       state: 'pending',
-      name: 'ci/test',
-      'job-status': 'success',
-      'workflow-file': 'ci.yml',
+      name: 'ci/build',
       sha: 'abc123def456',
+      token: 'test-token',
     };
 
-    core.getInput.mockImplementation((name) => getInputValues[name] || '');
-    core.setFailed.mockImplementation(() => {
-      // No-op
-    });
-    core.info.mockImplementation(() => {
-      // No-op
-    });
-
-    process.env.GITHUB_TOKEN = 'test-token';
+    core.getInput = jest.fn((name) => getInputValues[name] || '');
+    core.setFailed = jest.fn();
+    core.info = jest.fn();
   });
 
-  afterEach(() => {
-    delete process.env.GITHUB_TOKEN;
-    delete process.env.GH_TOKEN;
-    jest.clearAllMocks();
-  });
-
-  const runAction = async () => {
-    // Dynamically require to get fresh module
-    delete require.cache[require.resolve('./main')];
-    const { run } = require('./main');
-    await run();
-  };
-
-  describe('pending check runs', () => {
-    it('should create a new check run in pending state', async () => {
+  describe('pending status', () => {
+    it('should create a pending commit status', async () => {
       // Arrange
       getInputValues = {
         state: 'pending',
         name: 'ci/build',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
         sha: 'abc123def456',
+        token: 'test-token',
       };
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockCreateCheckRun).toHaveBeenCalledWith({
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith({
         owner: 'test-owner',
         repo: 'test-repo',
-        name: 'ci/build',
-        head_sha: 'abc123def456',
-        status: 'in_progress',
-        external_id: 'CI-123456-ci/build',
-        details_url:
+        sha: 'abc123def456',
+        state: 'pending',
+        target_url:
           'https://github.com/test-owner/test-repo/actions/runs/123456',
-        output: {
-          title: 'ci/build',
-          summary: expect.stringContaining('Check is currently in progress'),
-          text: expect.stringContaining('Check Run Details'),
-        },
+        description: 'Check is currently in progress...',
+        context: 'ci/build',
       });
-      expect(mockUpdateCheckRun).not.toHaveBeenCalled();
-    });
-
-    it('should include workflow metadata in summary', async () => {
-      // Arrange
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/lint',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
-
-      // Act
-      await runAction();
-
-      // Assert
-      expect(mockCreateCheckRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          output: {
-            title: 'ci/lint',
-            summary: expect.stringMatching(/Workflow.*ci\.yml/),
-            text: expect.stringContaining('Check Run Details'),
-          },
-        }),
-      );
-    });
-
-    it('should store check run ID for later updates', async () => {
-      // Arrange
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/test',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
-
-      // Act
-      await runAction();
-
-      // Assert
-      const { checkRunIds } = require('./main');
-      expect(checkRunIds.get('ci/test')).toBe(12345);
+      expect(core.setFailed).not.toHaveBeenCalled();
     });
   });
 
-  describe('outcome check runs', () => {
-    it('should update check run to success when job succeeds', async () => {
-      // Arrange - first create pending
-      const { checkRunIds } = require('./main');
-      checkRunIds.set('ci/build', 12345);
-
+  describe('outcome status', () => {
+    it('should create a success status when job succeeds', async () => {
+      // Arrange
       getInputValues = {
         state: 'outcome',
-        name: 'ci/build',
+        name: 'ci/test',
         'job-status': 'success',
-        'workflow-file': 'ci.yml',
         sha: 'abc123def456',
+        token: 'test-token',
       };
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockUpdateCheckRun).toHaveBeenCalledWith({
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith({
         owner: 'test-owner',
         repo: 'test-repo',
-        check_run_id: 12345,
-        status: 'completed',
-        conclusion: 'success',
-        details_url:
+        sha: 'abc123def456',
+        state: 'success',
+        target_url:
           'https://github.com/test-owner/test-repo/actions/runs/123456',
-        output: {
-          title: 'ci/build',
-          summary: expect.stringContaining('✅ Check completed successfully'),
-          text: expect.stringContaining('Check Run Details'),
-        },
+        description: '✅ Check completed successfully!',
+        context: 'ci/test',
       });
       expect(core.setFailed).not.toHaveBeenCalled();
     });
 
-    it('should update check run to failure when job fails', async () => {
-      // Arrange - first create pending
-      const { checkRunIds } = require('./main');
-      checkRunIds.set('ci/test', 12345);
-
+    it('should create a failure status when job fails', async () => {
+      // Arrange
       getInputValues = {
         state: 'outcome',
         name: 'ci/test',
         'job-status': 'failure',
-        'workflow-file': 'ci.yml',
         sha: 'abc123def456',
+        token: 'test-token',
       };
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockUpdateCheckRun).toHaveBeenCalledWith({
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith({
         owner: 'test-owner',
         repo: 'test-repo',
-        check_run_id: 12345,
-        status: 'completed',
-        conclusion: 'failure',
-        details_url:
+        sha: 'abc123def456',
+        state: 'failure',
+        target_url:
           'https://github.com/test-owner/test-repo/actions/runs/123456',
-        output: {
-          title: 'ci/test',
-          summary: expect.stringContaining('❌ Check failed'),
-          text: expect.stringContaining('Check Run Details'),
-        },
+        description: '❌ Check failed.',
+        context: 'ci/test',
       });
-      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(core.setFailed).toHaveBeenCalledWith('❌ Check failed.');
     });
 
     it('should handle cancelled job status', async () => {
-      // Arrange - first create pending
-      const { checkRunIds } = require('./main');
-      checkRunIds.set('ci/test', 12345);
-
+      // Arrange
       getInputValues = {
         state: 'outcome',
         name: 'ci/test',
         'job-status': 'cancelled',
-        'workflow-file': 'ci.yml',
         sha: 'abc123def456',
+        token: 'test-token',
       };
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockUpdateCheckRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          conclusion: 'cancelled',
-        }),
-      );
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        sha: 'abc123def456',
+        state: 'error',
+        target_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
+        description: '🚫 Check was cancelled.',
+        context: 'ci/test',
+      });
       expect(core.setFailed).not.toHaveBeenCalled();
     });
 
     it('should handle skipped job status', async () => {
-      // Arrange - first create pending
-      const { checkRunIds } = require('./main');
-      checkRunIds.set('ci/test', 12345);
-
+      // Arrange
       getInputValues = {
         state: 'outcome',
         name: 'ci/test',
         'job-status': 'skipped',
-        'workflow-file': 'ci.yml',
         sha: 'abc123def456',
+        token: 'test-token',
       };
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockUpdateCheckRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          conclusion: 'skipped',
-        }),
-      );
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        sha: 'abc123def456',
+        state: 'success',
+        target_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
+        description: '⏭️ Check was skipped.',
+        context: 'ci/test',
+      });
       expect(core.setFailed).not.toHaveBeenCalled();
-    });
-
-    it('should create check run directly if no pending check exists', async () => {
-      // Arrange - no pending check run
-      getInputValues = {
-        state: 'outcome',
-        name: 'ci/test',
-        'job-status': 'success',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
-
-      // Act
-      await runAction();
-
-      // Assert
-      expect(mockCreateCheckRun).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        name: 'ci/test',
-        head_sha: 'abc123def456',
-        status: 'completed',
-        conclusion: 'success',
-        external_id: 'CI-123456-ci/test',
-        details_url:
-          'https://github.com/test-owner/test-repo/actions/runs/123456',
-        output: {
-          title: 'ci/test',
-          summary: expect.stringContaining('✅'),
-          text: expect.stringContaining('Check Run Details'),
-        },
-      });
-      expect(mockUpdateCheckRun).not.toHaveBeenCalled();
-    });
-
-    it('should use provided check-run-id input to update existing check run', async () => {
-      // Arrange - providing check-run-id from a previous pending call
-      getInputValues = {
-        state: 'outcome',
-        name: 'ci/test',
-        'job-status': 'success',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-        'check-run-id': '99999', // ID from previous pending step
-      };
-
-      // Act
-      await runAction();
-
-      // Assert - should update the check run with the provided ID
-      expect(mockUpdateCheckRun).toHaveBeenCalledWith({
-        owner: 'test-owner',
-        repo: 'test-repo',
-        check_run_id: '99999',
-        status: 'completed',
-        conclusion: 'success',
-        details_url:
-          'https://github.com/test-owner/test-repo/actions/runs/123456',
-        output: {
-          title: 'ci/test',
-          summary: expect.stringContaining('✅'),
-          text: expect.stringContaining('Check Run Details'),
-        },
-      });
-      expect(mockCreateCheckRun).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('matrix job support', () => {
-    it('should support matrix-specific check names', async () => {
-      // Arrange
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/test (ubuntu-latest, Node.js 18)',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
-
-      // Act
-      await runAction();
-
-      // Assert
-      expect(mockCreateCheckRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'ci/test (ubuntu-latest, Node.js 18)',
-        }),
-      );
-    });
-
-    it('should handle multiple matrix check runs independently', async () => {
-      // Arrange - First matrix entry
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/test (ubuntu-latest, Node.js 18)',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
-      await runAction();
-
-      // Arrange - Second matrix entry
-      mockCreateCheckRun.mockResolvedValue({
-        data: { id: 67890 },
-      });
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/test (windows-latest, Node.js 20)',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
-
-      // Act
-      await runAction();
-
-      // Assert
-      const { checkRunIds } = require('./main');
-      expect(checkRunIds.get('ci/test (ubuntu-latest, Node.js 18)')).toBe(
-        12345,
-      );
-      expect(checkRunIds.get('ci/test (windows-latest, Node.js 20)')).toBe(
-        67890,
-      );
     });
   });
 
   describe('error handling', () => {
     it('should fail if GitHub token is not available', async () => {
       // Arrange
+      core.getInput = jest.fn((name) => '');
+      github.context.token = undefined;
       delete process.env.GITHUB_TOKEN;
+      delete process.env.GH_TOKEN;
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
       expect(core.setFailed).toHaveBeenCalledWith(
-        'GitHub token not found. Please provide it as an action input, or ensure it is available in the context or environment.',
+        expect.stringContaining('GitHub token not found'),
       );
-      expect(mockCreateCheckRun).not.toHaveBeenCalled();
     });
 
     it('should use GH_TOKEN if GITHUB_TOKEN is not set', async () => {
       // Arrange
+      core.getInput = jest.fn((name) => {
+        if (name === 'token') return '';
+        return getInputValues[name] || '';
+      });
+      github.context.token = undefined;
       delete process.env.GITHUB_TOKEN;
       process.env.GH_TOKEN = 'gh-token';
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
       expect(github.getOctokit).toHaveBeenCalledWith('gh-token');
-      expect(mockCreateCheckRun).toHaveBeenCalled();
+      delete process.env.GH_TOKEN;
     });
 
     it('should handle API errors gracefully', async () => {
       // Arrange
-      mockCreateCheckRun.mockRejectedValue(new Error('API error'));
+      mockCreateCommitStatus.mockRejectedValue(new Error('API Error'));
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(core.setFailed).toHaveBeenCalledWith('API error');
+      expect(core.setFailed).toHaveBeenCalledWith('API Error');
     });
 
     it('should fail for invalid state input', async () => {
       // Arrange
-      getInputValues = {
-        state: 'invalid',
-        name: 'ci/test',
-        'job-status': 'success',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
+      getInputValues.state = 'invalid';
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
       expect(core.setFailed).toHaveBeenCalledWith(
         "Invalid state: invalid. Must be 'pending' or 'outcome'",
       );
-      expect(mockCreateCheckRun).not.toHaveBeenCalled();
     });
   });
 
   describe('context information', () => {
     it('should use provided SHA input', async () => {
       // Arrange
-      const customSha = 'custom-sha-123';
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/build',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: customSha,
-      };
+      getInputValues.sha = 'custom-sha-123';
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockCreateCheckRun).toHaveBeenCalledWith(
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith(
         expect.objectContaining({
-          head_sha: customSha,
+          sha: 'custom-sha-123',
         }),
       );
     });
 
-    it('should include actor and ref in summary', async () => {
+    it('should use correct context name', async () => {
       // Arrange
-      github.context.actor = 'octocat';
-      github.context.ref = 'refs/heads/feature-branch';
-
-      getInputValues = {
-        state: 'pending',
-        name: 'ci/lint',
-        'job-status': '',
-        'workflow-file': 'ci.yml',
-        sha: 'abc123def456',
-      };
+      getInputValues.name = 'ci/custom-check';
 
       // Act
-      await runAction();
+      await run();
 
       // Assert
-      expect(mockCreateCheckRun).toHaveBeenCalledWith(
+      expect(mockCreateCommitStatus).toHaveBeenCalledWith(
         expect.objectContaining({
-          output: {
-            title: 'ci/lint',
-            summary: expect.stringMatching(/Actor.*octocat/),
-            text: expect.stringContaining('Check Run Details'),
-          },
-        }),
-      );
-      expect(mockCreateCheckRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          output: {
-            title: 'ci/lint',
-            summary: expect.stringMatching(/Ref.*refs\/heads\/feature-branch/),
-            text: expect.stringContaining('Check Run Details'),
-          },
+          context: 'ci/custom-check',
         }),
       );
     });

@@ -1,5 +1,5 @@
-name: Post check run
-description: Create or update a GitHub check run using the Checks API
+name: Post commit status
+description: Create or update a GitHub commit status using the Status API
 
 inputs:
   state:
@@ -11,22 +11,14 @@ inputs:
   job-status:
     description: 'Job status (for outcome checks; expected values: success, failure, cancelled, skipped)'
     required: false
-  workflow-file:
-    description: Workflow file name to use in the check run summary (e.g. ci.yml)
-    required: true
   sha:
     description: Commit SHA to attach check run to
     required: true
   token:
     description: GitHub token with checks:write permission
     required: false
-  check-run-id:
-    description: 'Existing check run ID to update (for outcome state)'
-    required: false
 
 outputs:
-  check-run-id:
-    description: 'The ID of the check run that was created or updated'
 
 runs:
   using: node24
