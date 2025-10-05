@@ -250,6 +250,7 @@ async function run() {
         name: checkName,
         head_sha: sha,
         status,
+        external_id: `${workflow}-${runId}-${checkName}`,
         details_url: targetUrl,
         output: {
           title: checkName,
@@ -291,6 +292,7 @@ async function run() {
           head_sha: sha,
           status,
           conclusion,
+          external_id: `${workflow}-${runId}-${checkName}`,
           details_url: targetUrl,
           output: {
             title: checkName,

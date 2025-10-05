@@ -130,6 +130,7 @@ describe('post-check-run action', () => {
         name: 'ci/build',
         head_sha: 'abc123def456',
         status: 'in_progress',
+        external_id: 'CI-123456-ci/build',
         details_url:
           'https://github.com/test-owner/test-repo/actions/runs/123456',
         output: {
@@ -325,6 +326,7 @@ describe('post-check-run action', () => {
         head_sha: 'abc123def456',
         status: 'completed',
         conclusion: 'success',
+        external_id: 'CI-123456-ci/test',
         details_url:
           'https://github.com/test-owner/test-repo/actions/runs/123456',
         output: {
