@@ -35,38 +35,53 @@ async function run() {
     const { owner, repo } = github.context.repo;
     const eventName = github.context.eventName;
     const runId = github.context.runId;
+    const runNumber = github.context.runNumber;
+    const workflow = github.context.workflow;
+    const job = github.context.job || 'unknown';
     const actor = github.context.actor || 'unknown';
     const ref = github.context.ref || 'unknown';
+    const serverUrl = github.context.serverUrl || 'https://github.com';
+    const repository =
+      github.context.payload.repository?.full_name || `${owner}/${repo}`;
 
     let status;
     let conclusion;
     let summary;
+    let text;
+
+    const workflowRunUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
+    const detailsUrl = workflowRunUrl;
 
     if (state === 'pending') {
       status = 'in_progress';
       conclusion = null;
-      summary = `**Workflow**: ${workflowFile}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\nCheck is currently in progress...`;
+      summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\nCheck is currently in progress...`;
+      text = `### 🔄 Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check is currently running. Results will be available once the job completes.`;
     } else if (state === 'outcome') {
       status = 'completed';
       if (jobStatus === 'success') {
         conclusion = 'success';
-        summary = `**Workflow**: ${workflowFile}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n✅ Check completed successfully!`;
+        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n✅ Check completed successfully!`;
+        text = `### ✅ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nAll checks passed successfully.`;
       } else if (jobStatus === 'cancelled') {
         conclusion = 'cancelled';
-        summary = `**Workflow**: ${workflowFile}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n🚫 Check was cancelled.`;
+        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n🚫 Check was cancelled.`;
+        text = `### 🚫 Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check was cancelled before completion.`;
       } else if (jobStatus === 'skipped') {
         conclusion = 'skipped';
-        summary = `**Workflow**: ${workflowFile}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n⏭️ Check was skipped.`;
+        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n⏭️ Check was skipped.`;
+        text = `### ⏭️ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check was skipped based on workflow conditions.`;
       } else {
         conclusion = 'failure';
-        summary = `**Workflow**: ${workflowFile}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n❌ Check failed.`;
+        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n❌ Check failed.`;
+        text = `### ❌ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check failed. Please review the [workflow run](${workflowRunUrl}) for details.`;
       }
     } else {
       core.setFailed(`Invalid state: ${state}. Must be 'pending' or 'outcome'`);
       return;
     }
 
-    const targetUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+    const targetUrl = detailsUrl;
 
     // Check if we already created a check run for this check name
     const existingCheckRunId = checkRunIds.get(checkName);
@@ -83,6 +98,7 @@ async function run() {
         output: {
           title: checkName,
           summary: summary,
+          text: text,
         },
       });
 
@@ -104,6 +120,7 @@ async function run() {
           output: {
             title: checkName,
             summary: summary,
+            text: text,
           },
         });
 
@@ -124,6 +141,7 @@ async function run() {
           output: {
             title: checkName,
             summary: summary,
+            text: text,
           },
         });
 
@@ -143,6 +161,7 @@ async function run() {
         output: {
           title: checkName,
           summary: summary,
+          text: text,
         },
       });
 

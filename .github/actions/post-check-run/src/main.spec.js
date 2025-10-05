@@ -51,8 +51,17 @@ describe('post-check-run action', () => {
         repo: 'test-repo',
       },
       runId: 123456,
+      runNumber: 42,
+      workflow: 'CI',
+      job: 'test',
       actor: 'test-user',
       ref: 'refs/heads/main',
+      serverUrl: 'https://github.com',
+      payload: {
+        repository: {
+          full_name: 'test-owner/test-repo',
+        },
+      },
     };
 
     // Default inputs
@@ -114,6 +123,7 @@ describe('post-check-run action', () => {
         output: {
           title: 'ci/build',
           summary: expect.stringContaining('Check is currently in progress'),
+          text: expect.stringContaining('Check Run Details'),
         },
       });
       expect(mockUpdateCheckRun).not.toHaveBeenCalled();
@@ -138,6 +148,7 @@ describe('post-check-run action', () => {
           output: {
             title: 'ci/lint',
             summary: expect.stringMatching(/Workflow.*ci\.yml/),
+            text: expect.stringContaining('Check Run Details'),
           },
         }),
       );
@@ -191,6 +202,7 @@ describe('post-check-run action', () => {
         output: {
           title: 'ci/build',
           summary: expect.stringContaining('✅ Check completed successfully'),
+          text: expect.stringContaining('Check Run Details'),
         },
       });
       expect(core.setFailed).not.toHaveBeenCalled();
@@ -224,6 +236,7 @@ describe('post-check-run action', () => {
         output: {
           title: 'ci/test',
           summary: expect.stringContaining('❌ Check failed'),
+          text: expect.stringContaining('Check Run Details'),
         },
       });
       expect(core.setFailed).not.toHaveBeenCalled();
@@ -305,6 +318,7 @@ describe('post-check-run action', () => {
         output: {
           title: 'ci/test',
           summary: expect.stringContaining('✅'),
+          text: expect.stringContaining('Check Run Details'),
         },
       });
       expect(mockUpdateCheckRun).not.toHaveBeenCalled();
@@ -475,6 +489,7 @@ describe('post-check-run action', () => {
           output: {
             title: 'ci/lint',
             summary: expect.stringMatching(/Actor.*octocat/),
+            text: expect.stringContaining('Check Run Details'),
           },
         }),
       );
@@ -483,6 +498,7 @@ describe('post-check-run action', () => {
           output: {
             title: 'ci/lint',
             summary: expect.stringMatching(/Ref.*refs\/heads\/feature-branch/),
+            text: expect.stringContaining('Check Run Details'),
           },
         }),
       );
