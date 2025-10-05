@@ -236,6 +236,15 @@ jobs:
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - uses: ./.github/actions/post-check-run
+        id: test-summary-check-pending
+        with:
+          state: pending
+          name: ci/test
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+          token: ${{ github.token }}
+
       - name: Determine overall status
         id: overall-status
         run: |
@@ -264,6 +273,7 @@ jobs:
           EOF
 
       - uses: ./.github/actions/post-check-run
+        if: always()
         with:
           state: outcome
           name: ci/test
@@ -271,6 +281,7 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
+          check-run-id: ${{ steps.test-summary-check-pending.outputs.check-run-id }}
           matrix-info: ${{ steps.matrix-info.outputs.info }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
@@ -426,6 +437,15 @@ jobs:
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - uses: ./.github/actions/post-check-run
+        id: e2e-summary-check-pending
+        with:
+          state: pending
+          name: ci/e2e
+          workflow-file: ci.yml
+          sha: ${{ steps.commit-sha.outputs.sha }}
+          token: ${{ github.token }}
+
       - name: Determine overall status
         id: overall-status
         run: |
@@ -439,7 +459,7 @@ jobs:
         id: matrix-info
         shell: bash
         run: |
-          # Parse the matrix JSON to extract OS values
+          # Parse the matrix JSON to extract OS values using Node.js
           MATRIX_JSON='${{ needs.set-e2e-matrix.outputs.matrix }}'
 
           # Create markdown table header
@@ -451,12 +471,18 @@ jobs:
           |---|
           EOF
 
-          # Extract OS values and add to table
-          echo "$MATRIX_JSON" | npx --yes jq -r '.include[].os | "| \(.) |"' >> "$GITHUB_OUTPUT"
+          # Extract OS values and add to table using Node.js
+          node -e "
+            const matrix = JSON.parse(process.env.MATRIX_JSON);
+            matrix.include.forEach(item => {
+              console.log(\`| \${item.os} |\`);
+            });
+          " >> "$GITHUB_OUTPUT"
 
           echo "MATRIX_EOF" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/post-check-run
+        if: always()
         with:
           state: outcome
           name: ci/e2e
@@ -464,4 +490,5 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
+          check-run-id: ${{ steps.e2e-summary-check-pending.outputs.check-run-id }}
           matrix-info: ${{ steps.matrix-info.outputs.info }}
