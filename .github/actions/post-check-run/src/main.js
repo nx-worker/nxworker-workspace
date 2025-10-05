@@ -6,6 +6,41 @@ const github = require('@actions/github');
  * This allows us to update the same check run when moving from pending to completed.
  */
 const checkRunIds = new Map();
+let identityReported = false;
+
+async function reportAuthenticationIdentity(octokit) {
+  if (identityReported) {
+    return;
+  }
+
+  identityReported = true;
+
+  try {
+    const { data } = await octokit.rest.apps.getAuthenticated();
+    const appName = data?.name || data?.slug || 'unknown';
+    const appSlug = data?.slug;
+
+    core.info(
+      `Using GitHub App token '${appName}' (slug: ${appSlug || 'n/a'}).`,
+    );
+
+    if (appSlug && appSlug !== 'github-actions') {
+      core.warning(
+        `Check runs created with this token will appear under '${appName}' in the Checks UI. Pass the workflow's GITHUB_TOKEN to display them under GitHub Actions instead.`,
+      );
+    }
+  } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      core.info(
+        'Using a user or OAuth token for the Checks API. Check runs will appear under that user in the Checks UI.',
+      );
+    } else {
+      core.debug(
+        `Unable to resolve authenticated app identity: ${error.message}`,
+      );
+    }
+  }
+}
 
 function buildSummaryHeader(metadata) {
   return `**Workflow**: ${metadata.workflow} (${metadata.workflowFile})\n**Job**: ${metadata.job}\n**Run**: #${metadata.runNumber}\n**Event**: ${metadata.eventName}\n**Actor**: ${metadata.actor}\n**Ref**: ${metadata.ref}`;
@@ -134,6 +169,8 @@ async function run() {
       core.setFailed(`Invalid state: ${state}. Must be 'pending' or 'outcome'`);
       return;
     }
+
+    await reportAuthenticationIdentity(octokit);
 
     const targetUrl = detailsUrl;
     const existingCheckRunId = checkRunIdInput || checkRunIds.get(checkName);

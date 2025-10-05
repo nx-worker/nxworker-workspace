@@ -55,6 +55,7 @@ jobs:
           name: ci/build
           workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Run your build
       - run: npm run build
@@ -68,6 +69,7 @@ jobs:
           job-status: ${{ job.status }}
           workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Matrix Job Example
@@ -109,6 +111,7 @@ jobs:
           name: ci/test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - run: npm test
 
@@ -120,6 +123,7 @@ jobs:
           job-status: ${{ job.status }}
           workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Inputs
@@ -131,7 +135,7 @@ jobs:
 | `job-status` | Job status for outcome checks: `success`, `failure`, `cancelled`, `skipped` | No (required for `outcome`) | - |
 | `workflow-file` | Workflow file name for metadata (e.g., `ci.yml`) | Yes | - |
 | `sha` | Commit SHA to attach check run to | Yes | - |
-| `token` | GitHub token with `checks:write` permission | No | `GITHUB_TOKEN` from environment |
+| `token` | GitHub token with `checks:write` permission (pass `secrets.GITHUB_TOKEN` to keep the "GitHub Actions" label in the PR UI) | No | `GITHUB_TOKEN` from environment |
 
 ## Outputs
 
