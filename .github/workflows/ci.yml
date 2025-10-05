@@ -82,6 +82,8 @@ jobs:
     permissions:
       checks: write
     runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.test-check-pending.outputs.check-run-id }}
     steps:
       - name: Determine checkout ref
         id: checkout-ref
@@ -129,13 +131,16 @@ jobs:
         with:
           state: pending
           name: ci/test
+          workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   create-e2e-check:
     permissions:
       checks: write
     runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.e2e-check-pending.outputs.check-run-id }}
     steps:
       - name: Determine checkout ref
         id: checkout-ref
@@ -183,8 +188,9 @@ jobs:
         with:
           state: pending
           name: ci/e2e
+          workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   lint:
     permissions:
@@ -353,8 +359,10 @@ jobs:
           state: outcome
           name: ci/test
           job-status: ${{ steps.overall-status.outputs.status }}
+          workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-test-check.outputs.check-run-id }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
   # and branch.
@@ -549,5 +557,7 @@ jobs:
           state: outcome
           name: ci/e2e
           job-status: ${{ steps.overall-status.outputs.status }}
+          workflow-file: ci.yml
           sha: ${{ steps.head-sha.outputs.sha }}
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-e2e-check.outputs.check-run-id }}
