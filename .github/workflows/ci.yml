@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Git ref to run against'
+        description: "Git ref to run against"
         required: false
 
 permissions:
@@ -209,7 +209,7 @@ jobs:
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
 
-      - name: '[PR] Check formatting'
+      - name: "[PR] Check formatting"
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
@@ -356,47 +356,6 @@ jobs:
           token: ${{ github.token }}
           check-run-id: ${{ needs.create-test-check.outputs.check-run-id }}
           matrix-info: ${{ steps.matrix-info.outputs.info }}
-
-  create-test-check:
-    runs-on: ubuntu-24.04-arm
-    outputs:
-      check-run-id: ${{ steps.test-check-pending.outputs.check-run-id }}
-    permissions:
-      checks: write
-    steps:
-      - name: Determine checkout ref
-        id: checkout-ref
-        shell: bash
-        env:
-          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
-          DEFAULT_REF: ${{ github.ref }}
-        run: |
-          if [ -n "${EVENT_INPUT_REF}" ]; then
-            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-          ref: ${{ steps.checkout-ref.outputs.ref }}
-
-      - uses: ./.github/actions/setup-node-and-install
-
-      - name: Get commit SHA
-        id: commit-sha
-        shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - uses: ./.github/actions/post-check-run
-        id: test-check-pending
-        with:
-          state: pending
-          name: ci/test
-          workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
-          token: ${{ github.token }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
   # and branch.
