@@ -7,10 +7,11 @@ const github = require('@actions/github');
  */
 const checkRunIds = new Map();
 let identityReported = false;
+let cachedIdentity = null;
 
 async function reportAuthenticationIdentity(octokit) {
   if (identityReported) {
-    return;
+    return cachedIdentity;
   }
 
   identityReported = true;
@@ -29,21 +30,88 @@ async function reportAuthenticationIdentity(octokit) {
         `Check runs created with this token will appear under '${appName}' in the Checks UI. Pass the workflow's GITHUB_TOKEN to display them under GitHub Actions instead.`,
       );
     }
+
+    cachedIdentity = {
+      source: 'app',
+      appName,
+      appSlug,
+    };
+
+    return cachedIdentity;
   } catch (error) {
     if (error.status === 403 || error.status === 404) {
+      try {
+        const { data } = await octokit.rest.users.getAuthenticated();
+        const login = data?.login || 'unknown';
+        const name = data?.name || login;
+
+        core.info(
+          `Using user token '${name}' (login: ${login}). Check runs will appear under this user in the Checks UI.`,
+        );
+
+        cachedIdentity = {
+          source: 'user',
+          userLogin: login,
+          userName: name,
+        };
+
+        return cachedIdentity;
+      } catch (userError) {
+        core.debug(
+          `Unable to resolve token identity via users.getAuthenticated: ${userError.message}`,
+        );
+      }
+
       core.info(
-        'Using a user or OAuth token for the Checks API. Check runs will appear under that user in the Checks UI.',
+        'Using a token that does not identify as a GitHub App or user. Check runs may appear under a fallback identity.',
       );
+
+      cachedIdentity = {
+        source: 'unknown',
+      };
+
+      return cachedIdentity;
     } else {
       core.debug(
         `Unable to resolve authenticated app identity: ${error.message}`,
       );
     }
   }
+
+  cachedIdentity = {
+    source: 'unknown',
+  };
+
+  return cachedIdentity;
+}
+
+function describeIdentity(identity) {
+  if (!identity) {
+    return null;
+  }
+
+  if (identity.source === 'app' && identity.appSlug) {
+    return `GitHub App (${identity.appName || identity.appSlug})`;
+  }
+
+  if (identity.source === 'user' && identity.userLogin) {
+    return `User token (${identity.userName || identity.userLogin})`;
+  }
+
+  if (identity.source === 'unknown') {
+    return 'Unknown token identity';
+  }
+
+  return null;
 }
 
 function buildSummaryHeader(metadata) {
-  return `**Workflow**: ${metadata.workflow} (${metadata.workflowFile})\n**Job**: ${metadata.job}\n**Run**: #${metadata.runNumber}\n**Event**: ${metadata.eventName}\n**Actor**: ${metadata.actor}\n**Ref**: ${metadata.ref}`;
+  const identityDescription = describeIdentity(metadata.identity);
+  const identityLine = identityDescription
+    ? `\n**Token Identity**: ${identityDescription}`
+    : '';
+
+  return `**Workflow**: ${metadata.workflow} (${metadata.workflowFile})\n**Job**: ${metadata.job}\n**Run**: #${metadata.runNumber}\n**Event**: ${metadata.eventName}\n**Actor**: ${metadata.actor}\n**Ref**: ${metadata.ref}${identityLine}`;
 }
 
 function buildDetailsList(metadata) {

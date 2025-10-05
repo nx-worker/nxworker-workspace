@@ -41,6 +41,17 @@ describe('post-check-run action', () => {
           create: mockCreateCheckRun,
           update: mockUpdateCheckRun,
         },
+        apps: {
+          getAuthenticated: jest.fn().mockResolvedValue({
+            data: {
+              name: 'GitHub Actions',
+              slug: 'github-actions',
+            },
+          }),
+        },
+        users: {
+          getAuthenticated: jest.fn(),
+        },
       },
     };
 
