@@ -1,5 +1,6 @@
 const mockCore = {
   getInput: jest.fn(),
+  setOutput: jest.fn(),
   setFailed: jest.fn(),
   info: jest.fn(),
 };
@@ -322,6 +323,38 @@ describe('post-check-run action', () => {
         },
       });
       expect(mockUpdateCheckRun).not.toHaveBeenCalled();
+    });
+
+    it('should use provided check-run-id input to update existing check run', async () => {
+      // Arrange - providing check-run-id from a previous pending call
+      getInputValues = {
+        state: 'outcome',
+        name: 'ci/test',
+        'job-status': 'success',
+        'workflow-file': 'ci.yml',
+        sha: 'abc123def456',
+        'check-run-id': '99999', // ID from previous pending step
+      };
+
+      // Act
+      await runAction();
+
+      // Assert - should update the check run with the provided ID
+      expect(mockUpdateCheckRun).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        check_run_id: '99999',
+        status: 'completed',
+        conclusion: 'success',
+        details_url:
+          'https://github.com/test-owner/test-repo/actions/runs/123456',
+        output: {
+          title: 'ci/test',
+          summary: expect.stringContaining('✅'),
+          text: expect.stringContaining('Check Run Details'),
+        },
+      });
+      expect(mockCreateCheckRun).not.toHaveBeenCalled();
     });
   });
 

@@ -16,6 +16,7 @@ async function run() {
     const workflowFile = core.getInput('workflow-file', { required: true });
     const sha = core.getInput('sha', { required: true });
     const matrixInfo = core.getInput('matrix-info', { required: false });
+    const checkRunIdInput = core.getInput('check-run-id', { required: false });
 
     // Get GitHub token from input, context, or environment (in order of preference)
     let token = core.getInput('token', { required: false });
@@ -104,8 +105,8 @@ async function run() {
 
     const targetUrl = detailsUrl;
 
-    // Check if we already created a check run for this check name
-    const existingCheckRunId = checkRunIds.get(checkName);
+    // Use provided check run ID if available (from a previous pending call)
+    const existingCheckRunId = checkRunIdInput || checkRunIds.get(checkName);
 
     if (state === 'pending' && !existingCheckRunId) {
       // Create a new check run
@@ -125,6 +126,7 @@ async function run() {
 
       // Store the check run ID for later updates
       checkRunIds.set(checkName, createResponse.data.id);
+      core.setOutput('check-run-id', createResponse.data.id);
       core.info(
         `Created check run ${checkName} with ID ${createResponse.data.id}`,
       );
@@ -145,13 +147,14 @@ async function run() {
           },
         });
 
+        core.setOutput('check-run-id', existingCheckRunId);
         core.info(
           `Updated check run ${checkName} (ID ${existingCheckRunId}) to ${conclusion}`,
         );
       } else {
         // No existing check run found, create one directly in completed state
         // This can happen if the pending state was skipped or the action is run independently
-        await octokit.rest.checks.create({
+        const createResponse = await octokit.rest.checks.create({
           owner,
           repo,
           name: checkName,
@@ -166,6 +169,7 @@ async function run() {
           },
         });
 
+        core.setOutput('check-run-id', createResponse.data.id);
         core.info(
           `Created completed check run ${checkName} with ${conclusion}`,
         );
@@ -186,6 +190,7 @@ async function run() {
         },
       });
 
+      core.setOutput('check-run-id', existingCheckRunId);
       core.info(
         `Updated existing check run ${checkName} (ID ${existingCheckRunId}) to in_progress`,
       );

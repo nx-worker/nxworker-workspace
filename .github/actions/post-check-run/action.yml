@@ -23,6 +23,13 @@ inputs:
   matrix-info:
     description: 'Optional matrix configuration details (JSON string or text) to include in the check run'
     required: false
+  check-run-id:
+    description: 'Existing check run ID to update (for outcome state)'
+    required: false
+
+outputs:
+  check-run-id:
+    description: 'The ID of the check run that was created or updated'
 
 runs:
   using: node24
