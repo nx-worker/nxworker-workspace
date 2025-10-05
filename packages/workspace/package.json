@@ -24,8 +24,7 @@
   },
   "homepage": "https://github.com/nx-worker/nxworker-workspace#readme",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=10.0.0"
+    "node": ">=18.0.0"
   },
   "peerDependencies": {
     "@nx/devkit": "^19.8.0"

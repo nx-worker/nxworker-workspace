@@ -26,6 +26,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Nx 19.8 or later
 - Node.js 18.0.0 or later
-- npm 10.0.0 or later
 
 [19.0.0-alpha.0]: https://github.com/nx-worker/nxworker-workspace/releases/tag/19.0.0-alpha.0
