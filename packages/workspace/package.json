@@ -1,8 +1,36 @@
 {
   "name": "@nxworker/workspace",
-  "version": "0.0.1",
+  "version": "19.0.0-alpha.0",
+  "description": "Nx plugin providing generators for managing workspace files, including the move-file generator for safely moving files between projects while updating all imports",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "monorepo",
+    "workspace",
+    "generator",
+    "move-file",
+    "refactor",
+    "import-management"
+  ],
+  "author": "Lars Gyrup Brink Nielsen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-worker/nxworker-workspace.git",
+    "directory": "packages/workspace"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-worker/nxworker-workspace/issues"
+  },
+  "homepage": "https://github.com/nx-worker/nxworker-workspace#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=10.0.0"
+  },
+  "peerDependencies": {
+    "@nx/devkit": "^19.8.0"
+  },
   "dependencies": {
-    "@nx/devkit": "^19.8.14",
     "@swc/helpers": "~0.5.11",
     "core-js-pure": "^3.41.0"
   },
