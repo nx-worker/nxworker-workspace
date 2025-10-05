@@ -218,6 +218,8 @@ jobs:
           fetch-depth: 1
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
+      - uses: ./.github/actions/setup-node-and-install
+
       - name: Get commit SHA
         id: commit-sha
         shell: bash
@@ -377,6 +379,8 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
 
       - name: Get commit SHA
         id: commit-sha
