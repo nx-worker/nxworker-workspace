@@ -20,9 +20,6 @@ inputs:
   token:
     description: GitHub token with checks:write permission
     required: false
-  matrix-info:
-    description: 'Optional matrix configuration details (JSON string or text) to include in the check run'
-    required: false
   check-run-id:
     description: 'Existing check run ID to update (for outcome state)'
     required: false

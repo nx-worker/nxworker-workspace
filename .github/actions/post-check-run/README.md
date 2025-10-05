@@ -103,7 +103,9 @@ jobs:
 
 ## Outputs
 
-None. The action creates/updates check runs via the GitHub API.
+| Output         | Description                                     |
+| -------------- | ----------------------------------------------- |
+| `check-run-id` | ID of the check run that was created or updated |
 
 ## Permissions
 

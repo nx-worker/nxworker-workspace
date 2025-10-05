@@ -7,18 +7,76 @@ const github = require('@actions/github');
  */
 const checkRunIds = new Map();
 
+function buildSummaryHeader(metadata) {
+  return `**Workflow**: ${metadata.workflow} (${metadata.workflowFile})\n**Job**: ${metadata.job}\n**Run**: #${metadata.runNumber}\n**Event**: ${metadata.eventName}\n**Actor**: ${metadata.actor}\n**Ref**: ${metadata.ref}`;
+}
+
+function buildDetailsList(metadata) {
+  return `- **Workflow Run**: [#${metadata.runNumber}](${metadata.workflowRunUrl})\n- **Job**: ${metadata.job}\n- **Triggered by**: ${metadata.actor}\n- **Event**: ${metadata.eventName}\n- **Branch/Tag**: ${metadata.ref}`;
+}
+
+function buildPendingOutput(metadata) {
+  const summary = `${buildSummaryHeader(metadata)}\n\nCheck is currently in progress...`;
+  const text = `### 🔄 Check Run Details\n\n${buildDetailsList(metadata)}\n\nThe check is currently running. Results will be available once the job completes.`;
+
+  return {
+    status: 'in_progress',
+    conclusion: null,
+    summary,
+    text,
+  };
+}
+
+function buildOutcomeOutput(jobStatus, metadata) {
+  const outcomeConfig = {
+    success: {
+      conclusion: 'success',
+      summarySuffix: '✅ Check completed successfully!',
+      textHeader: '### ✅ Check Run Details',
+      textMessage: () => 'All checks passed successfully.',
+    },
+    cancelled: {
+      conclusion: 'cancelled',
+      summarySuffix: '🚫 Check was cancelled.',
+      textHeader: '### 🚫 Check Run Details',
+      textMessage: () => 'The check was cancelled before completion.',
+    },
+    skipped: {
+      conclusion: 'skipped',
+      summarySuffix: '⏭️ Check was skipped.',
+      textHeader: '### ⏭️ Check Run Details',
+      textMessage: () => 'The check was skipped based on workflow conditions.',
+    },
+    failure: {
+      conclusion: 'failure',
+      summarySuffix: '❌ Check failed.',
+      textHeader: '### ❌ Check Run Details',
+      textMessage: (meta) =>
+        `The check failed. Please review the [workflow run](${meta.workflowRunUrl}) for details.`,
+    },
+  };
+
+  const config = outcomeConfig[jobStatus] || outcomeConfig.failure;
+  const summary = `${buildSummaryHeader(metadata)}\n\n${config.summarySuffix}`;
+  const text = `${config.textHeader}\n\n${buildDetailsList(metadata)}\n\n${config.textMessage(metadata)}`;
+
+  return {
+    status: 'completed',
+    conclusion: config.conclusion,
+    summary,
+    text,
+  };
+}
+
 async function run() {
   try {
-    // Get inputs
     const state = core.getInput('state', { required: true });
     const checkName = core.getInput('name', { required: true });
     const jobStatus = core.getInput('job-status', { required: false });
     const workflowFile = core.getInput('workflow-file', { required: true });
     const sha = core.getInput('sha', { required: true });
-    const matrixInfo = core.getInput('matrix-info', { required: false });
     const checkRunIdInput = core.getInput('check-run-id', { required: false });
 
-    // Get GitHub token from input, context, or environment (in order of preference)
     let token = core.getInput('token', { required: false });
     if (!token) {
       token = github.context.token;
@@ -46,104 +104,73 @@ async function run() {
     const repository =
       github.context.payload.repository?.full_name || `${owner}/${repo}`;
 
+    const workflowRunUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
+    const detailsUrl = workflowRunUrl;
+
+    const metadata = {
+      workflow,
+      workflowFile,
+      job,
+      runNumber,
+      eventName,
+      actor,
+      ref,
+      workflowRunUrl,
+    };
+
     let status;
     let conclusion;
     let summary;
     let text;
 
-    const workflowRunUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
-    const detailsUrl = workflowRunUrl;
-
     if (state === 'pending') {
-      status = 'in_progress';
-      conclusion = null;
-      summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\nCheck is currently in progress...`;
-      text = `### 🔄 Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check is currently running. Results will be available once the job completes.`;
-
-      if (matrixInfo) {
-        text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
-      }
+      ({ status, conclusion, summary, text } = buildPendingOutput(metadata));
     } else if (state === 'outcome') {
-      status = 'completed';
-      if (jobStatus === 'success') {
-        conclusion = 'success';
-        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n✅ Check completed successfully!`;
-        text = `### ✅ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nAll checks passed successfully.`;
-
-        if (matrixInfo) {
-          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
-        }
-      } else if (jobStatus === 'cancelled') {
-        conclusion = 'cancelled';
-        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n🚫 Check was cancelled.`;
-        text = `### 🚫 Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check was cancelled before completion.`;
-
-        if (matrixInfo) {
-          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
-        }
-      } else if (jobStatus === 'skipped') {
-        conclusion = 'skipped';
-        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n⏭️ Check was skipped.`;
-        text = `### ⏭️ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check was skipped based on workflow conditions.`;
-
-        if (matrixInfo) {
-          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
-        }
-      } else {
-        conclusion = 'failure';
-        summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n❌ Check failed.`;
-        text = `### ❌ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check failed. Please review the [workflow run](${workflowRunUrl}) for details.`;
-
-        if (matrixInfo) {
-          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
-        }
-      }
+      ({ status, conclusion, summary, text } = buildOutcomeOutput(
+        jobStatus,
+        metadata,
+      ));
     } else {
       core.setFailed(`Invalid state: ${state}. Must be 'pending' or 'outcome'`);
       return;
     }
 
     const targetUrl = detailsUrl;
-
-    // Use provided check run ID if available (from a previous pending call)
     const existingCheckRunId = checkRunIdInput || checkRunIds.get(checkName);
 
     if (state === 'pending' && !existingCheckRunId) {
-      // Create a new check run
       const createResponse = await octokit.rest.checks.create({
         owner,
         repo,
         name: checkName,
         head_sha: sha,
-        status: status,
+        status,
         details_url: targetUrl,
         output: {
           title: checkName,
-          summary: summary,
-          text: text,
+          summary,
+          text,
         },
       });
 
-      // Store the check run ID for later updates
       checkRunIds.set(checkName, createResponse.data.id);
       core.setOutput('check-run-id', createResponse.data.id);
       core.info(
         `Created check run ${checkName} with ID ${createResponse.data.id}`,
       );
     } else if (state === 'outcome') {
-      // Update existing check run to completed
       if (existingCheckRunId) {
         await octokit.rest.checks.update({
           owner,
           repo,
           check_run_id: existingCheckRunId,
-          status: status,
-          conclusion: conclusion,
+          status,
+          conclusion,
           details_url: targetUrl,
           output: {
             title: checkName,
-            summary: summary,
-            text: text,
+            summary,
+            text,
           },
         });
 
@@ -152,20 +179,18 @@ async function run() {
           `Updated check run ${checkName} (ID ${existingCheckRunId}) to ${conclusion}`,
         );
       } else {
-        // No existing check run found, create one directly in completed state
-        // This can happen if the pending state was skipped or the action is run independently
         const createResponse = await octokit.rest.checks.create({
           owner,
           repo,
           name: checkName,
           head_sha: sha,
-          status: status,
-          conclusion: conclusion,
+          status,
+          conclusion,
           details_url: targetUrl,
           output: {
             title: checkName,
-            summary: summary,
-            text: text,
+            summary,
+            text,
           },
         });
 
@@ -175,18 +200,16 @@ async function run() {
         );
       }
     } else {
-      // state is 'pending' but we already have a check run ID
-      // This shouldn't normally happen, but we can update it to in_progress
       await octokit.rest.checks.update({
         owner,
         repo,
         check_run_id: existingCheckRunId,
-        status: status,
+        status,
         details_url: targetUrl,
         output: {
           title: checkName,
-          summary: summary,
-          text: text,
+          summary,
+          text,
         },
       });
 
@@ -199,7 +222,6 @@ async function run() {
     core.setFailed(error.message);
   }
 }
-
 // Only run if not in test environment
 if (process.env.NODE_ENV !== 'test') {
   run();
