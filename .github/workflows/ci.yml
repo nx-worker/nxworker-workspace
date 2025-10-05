@@ -40,10 +40,26 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -89,10 +105,26 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/post-check-run
         id: test-check-pending
@@ -100,7 +132,7 @@ jobs:
           state: pending
           name: ci/test
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
           token: ${{ github.token }}
 
   create-e2e-check:
@@ -130,10 +162,26 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/post-check-run
         id: e2e-check-pending
@@ -141,7 +189,7 @@ jobs:
           state: pending
           name: ci/e2e
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
           token: ${{ github.token }}
 
   lint:
@@ -169,10 +217,26 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -222,11 +286,6 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
-        shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
       - uses: ./.github/actions/set-nx-shas
 
       - uses: ./.github/actions/setup-node-and-install
@@ -264,10 +323,26 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Determine overall status
         id: overall-status
@@ -285,7 +360,7 @@ jobs:
           name: ci/test
           job-status: ${{ steps.overall-status.outputs.status }}
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
           token: ${{ github.token }}
           check-run-id: ${{ needs.create-test-check.outputs.check-run-id }}
 
@@ -374,10 +449,26 @@ jobs:
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ steps.checkout-ref.outputs.ref }}
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -430,10 +521,26 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - name: Get commit SHA
-        id: commit-sha
+      - name: Determine head SHA
+        id: head-sha
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Determine overall status
         id: overall-status
@@ -451,6 +558,6 @@ jobs:
           name: ci/e2e
           job-status: ${{ steps.overall-status.outputs.status }}
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
           token: ${{ github.token }}
           check-run-id: ${{ needs.create-e2e-check.outputs.check-run-id }}

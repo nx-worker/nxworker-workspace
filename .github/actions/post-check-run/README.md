@@ -28,9 +28,25 @@ jobs:
     permissions:
       checks: write # Required for Checks API
     steps:
-      - name: Get commit SHA
-        id: commit-sha
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Determine head SHA
+        id: head-sha
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       # Start the check run
       - uses: ./.github/actions/post-check-run
@@ -38,7 +54,7 @@ jobs:
           state: pending
           name: ci/build
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
 
       # Run your build
       - run: npm run build
@@ -51,7 +67,7 @@ jobs:
           name: ci/build
           job-status: ${{ job.status }}
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
 ```
 
 ### Matrix Job Example
@@ -67,16 +83,32 @@ jobs:
         node-version: [18, 20, 22]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Get commit SHA
-        id: commit-sha
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Determine head SHA
+        id: head-sha
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/actions/post-check-run
         with:
           state: pending
           name: ci/test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
 
       - run: npm test
 
@@ -87,7 +119,7 @@ jobs:
           name: ci/test (${{ matrix.os }}, Node.js ${{ matrix.node-version }})
           job-status: ${{ job.status }}
           workflow-file: ci.yml
-          sha: ${{ steps.commit-sha.outputs.sha }}
+          sha: ${{ steps.head-sha.outputs.sha }}
 ```
 
 ## Inputs
