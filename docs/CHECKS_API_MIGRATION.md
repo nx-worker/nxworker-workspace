@@ -129,16 +129,11 @@ The summary checks (`ci/test` and `ci/e2e`) aggregate results from all matrix jo
 - [x] Document stable check names
 - [ ] Update branch protection rules to use new check names
 - [ ] Verify check-runs appear in PRs (requires live workflow run)
-- [ ] Optional: Keep `post-status-check` for backward compatibility
+- [x] Remove `post-status-check` once the Checks API rollout is stable
 
-## Backward Compatibility
+## Legacy Cleanup
 
-The old `post-status-check` action remains in the repository for now. Both actions can coexist:
-
-- `post-check-run`: Uses Checks API (recommended)
-- `post-status-check`: Uses Statuses API (legacy)
-
-Currently, both `checks: write` and `statuses: write` permissions are set in workflows for a smooth transition period.
+The legacy `post-status-check` action has been removed from the repository. The CI workflow now relies exclusively on the Checks API and only requests `checks: write` permissions.
 
 ## Differences from Statuses API
 

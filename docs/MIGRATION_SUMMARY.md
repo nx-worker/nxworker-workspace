@@ -29,14 +29,13 @@ A new composite action that uses the GitHub Checks API:
 
 ### Permissions Updated
 
-All jobs now have `checks: write` permission (keeping `statuses: write` for backward compatibility):
+All jobs now have `checks: write` permission for the Checks API:
 
 ```yaml
 jobs:
   build:
     permissions:
-      checks: write # New: for Checks API
-      statuses: write # Kept for backward compat
+      checks: write # Required for Checks API
 ```
 
 ### Action Calls Updated
@@ -82,7 +81,6 @@ All tests pass:
 
 ```bash
 ✅ 16/16 tests passing for post-check-run action
-✅ 9/9 tests passing for post-status-check action (backward compat)
 ✅ Workflow YAML syntax validated
 ✅ Formatting checks pass
 ```
@@ -144,18 +142,17 @@ Check run summaries include:
 - Git ref (branch/tag)
 - Status indicators (✅ ❌ 🚫 ⏭️)
 
-## Backward Compatibility
+## Legacy Cleanup
 
-- The old `post-status-check` action remains available
-- Both `checks: write` and `statuses: write` permissions are set
-- No breaking changes to existing workflows
+- The `post-status-check` action and its workspace wiring have been removed
+- CI jobs now rely solely on the Checks API via `post-check-run`
+- `statuses: write` permissions were dropped from the workflow
 
 ## Next Steps
 
 1. ✅ Merge this PR
 2. 🔄 Run workflow to verify check-runs appear correctly
 3. 📋 Update branch protection rules to require new check names
-4. 🧹 Optional: Remove `post-status-check` after stabilization
 
 ## Benefits
 

@@ -18,7 +18,6 @@ jobs:
   build:
     permissions:
       checks: write # Create and update check runs via Checks API
-      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -148,7 +147,6 @@ jobs:
   lint:
     permissions:
       checks: write # Create and update check runs via Checks API
-      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - name: Determine checkout ref
@@ -352,7 +350,6 @@ jobs:
       - set-e2e-matrix
     permissions:
       checks: write # Create and update check runs via Checks API
-      statuses: write # workflow_dispatch runs post commit status updates via gh api (backward compat)
     strategy:
       matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
