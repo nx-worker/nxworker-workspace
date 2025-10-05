@@ -26,7 +26,7 @@ This action provides a simple interface to create and update GitHub check runs f
 jobs:
   build:
     permissions:
-      checks: write  # Required for Checks API
+      checks: write # Required for Checks API
     steps:
       - name: Get commit SHA
         id: commit-sha
@@ -93,7 +93,7 @@ jobs:
 ## Inputs
 
 | Input | Description | Required | Default |
-|-------|-------------|----------|---------|
+| --- | --- | --- | --- |
 | `state` | Check run state: `pending` or `outcome` | Yes | - |
 | `name` | Check run name (e.g., `ci/build`, `ci/lint`) | Yes | - |
 | `job-status` | Job status for outcome checks: `success`, `failure`, `cancelled`, `skipped` | No (required for `outcome`) | - |
@@ -138,7 +138,6 @@ ci/test (windows-latest, Node.js 18)
 1. **Pending state**: Creates a new check run with status `in_progress`
    - Stores the check-run ID internally for later updates
    - Sets summary with workflow metadata
-   
 2. **Outcome state**: Updates the check run to `completed` status
    - Uses stored check-run ID if available
    - Creates new check run if no pending check exists
@@ -158,7 +157,7 @@ To require these checks in branch protection:
 ## Differences from `post-status-check`
 
 | Feature | `post-status-check` (Statuses API) | `post-check-run` (Checks API) |
-|---------|-----------------------------------|------------------------------|
+| --- | --- | --- |
 | API | Statuses API | Checks API |
 | Permission | `statuses: write` | `checks: write` |
 | Rich output | No | Yes (markdown summary) |
@@ -177,6 +176,7 @@ npx jest src/main.spec.js
 ### Test Coverage
 
 The action includes comprehensive unit tests covering:
+
 - Pending check run creation
 - Outcome check run updates
 - Matrix job support
