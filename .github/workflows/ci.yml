@@ -483,10 +483,14 @@ jobs:
       - name: Generate matrix info
         id: matrix-info
         shell: bash
+        env:
+          MATRIX_JSON: ${{ needs.set-e2e-matrix.outputs.matrix }}
         run: |
           # Parse the matrix JSON to extract OS values using Node.js
-          MATRIX_JSON='${{ needs.set-e2e-matrix.outputs.matrix }}'
-
+          if [ -z "$MATRIX_JSON" ]; then
+            echo "info=Matrix configuration unavailable." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # Create markdown table header
           cat << 'EOF' >> "$GITHUB_OUTPUT"
           info<<MATRIX_EOF
@@ -498,9 +502,24 @@ jobs:
 
           # Extract OS values and add to table using Node.js
           node -e "
-            const matrix = JSON.parse(process.env.MATRIX_JSON);
+            const raw = process.env.MATRIX_JSON;
+            if (!raw) {
+              process.exit(0);
+            }
+            let matrix;
+            try {
+              matrix = JSON.parse(raw);
+            } catch (error) {
+              console.error('Failed to parse matrix JSON:', error);
+              process.exit(1);
+            }
+            if (!Array.isArray(matrix.include)) {
+              process.exit(0);
+            }
             matrix.include.forEach(item => {
-              console.log(\`| \${item.os} |\`);
+              if (item && item.os) {
+                console.log('| ' + item.os + ' |');
+              }
             });
           " >> "$GITHUB_OUTPUT"
 
