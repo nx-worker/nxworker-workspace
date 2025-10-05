@@ -157,7 +157,14 @@ jobs:
           - os: macos-latest # macOS
             node-version: 22
     runs-on: ${{ matrix.os }}
+    outputs:
+      matrix-config: ${{ steps.matrix-config.outputs.config }}
     steps:
+      - name: Output matrix configuration
+        id: matrix-config
+        run: |
+          echo "config={\"os\":\"${{ matrix.os}}\",\"node-version\":\"${{ matrix.node-version }}\"}" >> "$GITHUB_OUTPUT"
+
       - name: Determine checkout ref
         id: checkout-ref
         shell: bash
@@ -234,6 +241,24 @@ jobs:
             echo "status=failure" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Generate matrix info
+        id: matrix-info
+        shell: bash
+        run: |
+          cat << 'EOF' >> "$GITHUB_OUTPUT"
+          info<<MATRIX_EOF
+          Tested across the following configurations:
+
+          | OS | Node.js Version |
+          |---|---|
+          | ubuntu-latest | 18 |
+          | ubuntu-latest | 20 |
+          | ubuntu-24.04-arm | 22 |
+          | windows-latest | 22 |
+          | macos-latest | 22 |
+          MATRIX_EOF
+          EOF
+
       - uses: ./.github/actions/post-check-run
         with:
           state: outcome
@@ -242,6 +267,7 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
+          matrix-info: ${{ steps.matrix-info.outputs.info }}
 
   # Determine the GitHub runner image matrix for the e2e job based on event type
   # and branch.
@@ -308,7 +334,14 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
+    outputs:
+      matrix-json: ${{ steps.matrix-output.outputs.json }}
     steps:
+      - name: Output matrix configuration
+        id: matrix-output
+        run: |
+          echo "json={\"os\":\"${{ matrix.os }}\"}" >> "$GITHUB_OUTPUT"
+
       - name: Determine checkout ref
         id: checkout-ref
         shell: bash
@@ -356,7 +389,9 @@ jobs:
 
   # Summary check that aggregates all e2e matrix results into a single check for branch protection
   e2e-summary:
-    needs: e2e
+    needs:
+      - e2e
+      - set-e2e-matrix
     if: always()
     permissions:
       checks: write # Create and update check runs via Checks API
@@ -396,6 +431,27 @@ jobs:
             echo "status=failure" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Generate matrix info
+        id: matrix-info
+        shell: bash
+        run: |
+          # Parse the matrix JSON to extract OS values
+          MATRIX_JSON='${{ needs.set-e2e-matrix.outputs.matrix }}'
+
+          # Create markdown table header
+          cat << 'EOF' >> "$GITHUB_OUTPUT"
+          info<<MATRIX_EOF
+          Tested across the following configurations:
+
+          | OS |
+          |---|
+          EOF
+
+          # Extract OS values and add to table
+          echo "$MATRIX_JSON" | npx --yes jq -r '.include[].os | "| \(.) |"' >> "$GITHUB_OUTPUT"
+
+          echo "MATRIX_EOF" >> "$GITHUB_OUTPUT"
+
       - uses: ./.github/actions/post-check-run
         with:
           state: outcome
@@ -404,3 +460,4 @@ jobs:
           workflow-file: ci.yml
           sha: ${{ steps.commit-sha.outputs.sha }}
           token: ${{ github.token }}
+          matrix-info: ${{ steps.matrix-info.outputs.info }}

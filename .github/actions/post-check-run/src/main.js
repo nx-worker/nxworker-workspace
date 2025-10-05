@@ -15,6 +15,7 @@ async function run() {
     const jobStatus = core.getInput('job-status', { required: false });
     const workflowFile = core.getInput('workflow-file', { required: true });
     const sha = core.getInput('sha', { required: true });
+    const matrixInfo = core.getInput('matrix-info', { required: false });
 
     // Get GitHub token from input, context, or environment (in order of preference)
     let token = core.getInput('token', { required: false });
@@ -57,24 +58,44 @@ async function run() {
       conclusion = null;
       summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\nCheck is currently in progress...`;
       text = `### 🔄 Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check is currently running. Results will be available once the job completes.`;
+
+      if (matrixInfo) {
+        text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
+      }
     } else if (state === 'outcome') {
       status = 'completed';
       if (jobStatus === 'success') {
         conclusion = 'success';
         summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n✅ Check completed successfully!`;
         text = `### ✅ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nAll checks passed successfully.`;
+
+        if (matrixInfo) {
+          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
+        }
       } else if (jobStatus === 'cancelled') {
         conclusion = 'cancelled';
         summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n🚫 Check was cancelled.`;
         text = `### 🚫 Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check was cancelled before completion.`;
+
+        if (matrixInfo) {
+          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
+        }
       } else if (jobStatus === 'skipped') {
         conclusion = 'skipped';
         summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n⏭️ Check was skipped.`;
         text = `### ⏭️ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check was skipped based on workflow conditions.`;
+
+        if (matrixInfo) {
+          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
+        }
       } else {
         conclusion = 'failure';
         summary = `**Workflow**: ${workflow} (${workflowFile})\n**Job**: ${job}\n**Run**: #${runNumber}\n**Event**: ${eventName}\n**Actor**: ${actor}\n**Ref**: ${ref}\n\n❌ Check failed.`;
         text = `### ❌ Check Run Details\n\n- **Workflow Run**: [#${runNumber}](${workflowRunUrl})\n- **Job**: ${job}\n- **Triggered by**: ${actor}\n- **Event**: ${eventName}\n- **Branch/Tag**: ${ref}\n\nThe check failed. Please review the [workflow run](${workflowRunUrl}) for details.`;
+
+        if (matrixInfo) {
+          text += `\n\n### Matrix Configuration\n\n${matrixInfo}`;
+        }
       }
     } else {
       core.setFailed(`Invalid state: ${state}. Must be 'pending' or 'outcome'`);

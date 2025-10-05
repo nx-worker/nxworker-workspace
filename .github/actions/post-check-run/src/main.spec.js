@@ -504,4 +504,72 @@ describe('post-check-run action', () => {
       );
     });
   });
+
+  describe('matrix metadata', () => {
+    it('should include matrix-info in check run text when provided', async () => {
+      // Arrange
+      const matrixInfo = `| OS | Node.js |
+|---|---|
+| ubuntu-latest | 18 |
+| ubuntu-latest | 20 |`;
+
+      getInputValues = {
+        state: 'outcome',
+        name: 'ci/test',
+        'job-status': 'success',
+        'workflow-file': 'ci.yml',
+        sha: 'abc123def456',
+        'matrix-info': matrixInfo,
+      };
+
+      // Act
+      await runAction();
+
+      // Assert
+      expect(mockCreateCheckRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          output: {
+            title: 'ci/test',
+            summary: expect.any(String),
+            text: expect.stringContaining('Matrix Configuration'),
+          },
+        }),
+      );
+      expect(mockCreateCheckRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          output: {
+            title: 'ci/test',
+            summary: expect.any(String),
+            text: expect.stringContaining(matrixInfo),
+          },
+        }),
+      );
+    });
+
+    it('should not include matrix section when matrix-info is not provided', async () => {
+      // Arrange
+      getInputValues = {
+        state: 'outcome',
+        name: 'ci/build',
+        'job-status': 'success',
+        'workflow-file': 'ci.yml',
+        sha: 'abc123def456',
+        'matrix-info': '',
+      };
+
+      // Act
+      await runAction();
+
+      // Assert
+      expect(mockCreateCheckRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          output: {
+            title: 'ci/build',
+            summary: expect.any(String),
+            text: expect.not.stringContaining('Matrix Configuration'),
+          },
+        }),
+      );
+    });
+  });
 });
