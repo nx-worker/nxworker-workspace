@@ -5,6 +5,7 @@ import {
   updateJson,
   createProjectGraphAsync,
   formatFiles,
+  logger,
 } from '@nx/devkit';
 
 import { moveFileGenerator } from './generator';
@@ -692,6 +693,43 @@ describe('move-file generator', () => {
       );
       expect(movedContent).toContain("from '../utils/shared'");
       expect(movedContent).not.toContain("from '@test/lib1'");
+    });
+
+    it('should log warning when converting relative import to alias for non-exported file', async () => {
+      // Create a shared utility that is NOT exported
+      tree.write(
+        'packages/lib1/src/utils/shared.ts',
+        'export function shared() { return "shared"; }',
+      );
+
+      // lib1 index does NOT export shared
+      tree.write('packages/lib1/src/index.ts', '');
+
+      // Create helper file that imports shared relatively
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        "import { shared } from './shared';\nexport function helper() { return shared(); }",
+      );
+
+      // Spy on logger.warn
+      const warnSpy = jest.spyOn(logger, 'warn');
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Should have logged a warning about the non-exported file
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "is being converted to '@test/lib1', but the file is not exported from the source project's entrypoint",
+        ),
+      );
+
+      warnSpy.mockRestore();
     });
   });
 });

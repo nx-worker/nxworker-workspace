@@ -374,6 +374,20 @@ function updateRelativeImportsToAliasInMovedFile(
 
       // Check if this import points to a file in the source project
       if (resolvedPath.startsWith(sourceRoot + '/')) {
+        // Check if the resolved file is exported from the source project's entrypoint
+        const relativeFilePathInSource = path.relative(sourceRoot, resolvedPath);
+        const isExported = isFileExported(
+          tree,
+          sourceProject,
+          relativeFilePathInSource,
+        );
+
+        if (!isExported) {
+          logger.warn(
+            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the file is not exported from the source project's entrypoint. This may result in an invalid import.`,
+          );
+        }
+
         hasChanges = true;
         return `from '${sourceImportPath}'`;
       }
@@ -392,6 +406,20 @@ function updateRelativeImportsToAliasInMovedFile(
 
       // Check if this import points to a file in the source project
       if (resolvedPath.startsWith(sourceRoot + '/')) {
+        // Check if the resolved file is exported from the source project's entrypoint
+        const relativeFilePathInSource = path.relative(sourceRoot, resolvedPath);
+        const isExported = isFileExported(
+          tree,
+          sourceProject,
+          relativeFilePathInSource,
+        );
+
+        if (!isExported) {
+          logger.warn(
+            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the file is not exported from the source project's entrypoint. This may result in an invalid import.`,
+          );
+        }
+
         hasChanges = true;
         return `import('${sourceImportPath}')`;
       }
