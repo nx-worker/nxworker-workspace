@@ -15,13 +15,6 @@ import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
 
 /**
- * Logging Policy:
- * - Use logger.debug() for all operational logs by default
- * - Only use logger.info() or higher levels when explicitly instructed
- * - This keeps the generator output clean, showing only Nx's standard file operations
- */
-
-/**
  * Generator to move a file from one Nx project to another
  * and update import paths throughout the workspace.
  *
