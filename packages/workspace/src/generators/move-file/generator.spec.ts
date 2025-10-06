@@ -492,6 +492,22 @@ describe('move-file generator', () => {
       );
     });
 
+    it('should reject unicode when allowUnicode is not set (defaults to false)', async () => {
+      // Setup: Create a file with ASCII name but try to move to unicode name
+      tree.write('packages/lib1/src/helper.ts', 'export const a = 1;');
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/helper.ts',
+        to: 'packages/lib2/src/файл.ts',
+        skipFormat: true,
+        // allowUnicode not set, should default to false
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        /Invalid path input for 'to': contains disallowed characters/,
+      );
+    });
+
     it('should allow unicode when allowUnicode option is true', async () => {
       // Setup: Create a file with unicode name in lib1
       tree.write('packages/lib1/src/файл.ts', 'export const a = 1;');
