@@ -80,8 +80,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib1/src/features/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
         skipFormat: true,
       };
 
@@ -103,8 +104,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib1/src/features/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
         skipFormat: true,
       };
 
@@ -132,8 +134,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -165,8 +168,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -189,8 +193,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -215,8 +220,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -256,8 +262,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -287,8 +294,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -313,8 +321,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -350,8 +359,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -370,8 +380,8 @@ describe('move-file generator', () => {
   describe('error handling', () => {
     it('should throw error if source file does not exist', async () => {
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/non-existent.ts',
-        to: 'packages/lib2/src/utils/non-existent.ts',
+        file: 'packages/lib1/src/utils/non-existent.ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
@@ -388,8 +398,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'unknown/path/helper.ts',
-        to: 'packages/lib2/src/helper.ts',
+        file: 'unknown/path/helper.ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
@@ -398,20 +408,20 @@ describe('move-file generator', () => {
       );
     });
 
-    it('should throw error if target project cannot be determined', async () => {
+    it('should throw error if target project does not exist', async () => {
       tree.write(
         'packages/lib1/src/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'unknown/path/helper.ts',
+        file: 'packages/lib1/src/helper.ts',
+        project: 'unknown-project',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Could not determine target project for file',
+        'Target project "unknown-project" not found in workspace',
       );
     });
 
@@ -421,25 +431,25 @@ describe('move-file generator', () => {
         'export function helper() { return "hello"; }',
       );
       tree.write(
-        'packages/lib2/src/helper.ts',
+        'packages/lib2/src/lib/helper.ts',
         'export function existingHelper() { return "exists"; }',
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'packages/lib2/src/helper.ts',
+        file: 'packages/lib1/src/helper.ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Target file "packages/lib2/src/helper.ts" already exists',
+        'Target file "packages/lib2/src/lib/helper.ts" already exists',
       );
     });
 
     it('should throw error for path traversal in source', async () => {
       const options: MoveFileGeneratorSchema = {
-        from: '../../../etc/passwd',
-        to: 'packages/lib2/src/helper.ts',
+        file: '../../../etc/passwd',
+        project: 'lib2',
         skipFormat: true,
       };
 
@@ -448,15 +458,16 @@ describe('move-file generator', () => {
       );
     });
 
-    it('should throw error for path traversal in target', async () => {
+    it('should throw error for path traversal in projectDirectory', async () => {
       tree.write(
         'packages/lib1/src/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: '../../etc/passwd',
+        file: 'packages/lib1/src/helper.ts',
+        project: 'lib2',
+        projectDirectory: '../../etc',
         skipFormat: true,
       };
 
@@ -468,44 +479,46 @@ describe('move-file generator', () => {
     it('should reject source containing disallowed characters', async () => {
       // user attempts to pass a regex-like string
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/[evil*].ts',
-        to: 'packages/lib2/src/helper.ts',
+        file: 'packages/lib1/src/[evil*].ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        /Invalid path input for 'from': contains disallowed characters/,
+        /Invalid path input for 'file': contains disallowed characters/,
       );
     });
 
-    it('should reject target containing disallowed characters', async () => {
+    it('should reject projectDirectory containing disallowed characters', async () => {
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'packages/lib2/src/(bad).ts',
+        file: 'packages/lib1/src/helper.ts',
+        project: 'lib2',
+        projectDirectory: '(bad)',
         skipFormat: true,
       };
 
-      // Ensure source exists to reach the validation of target
+      // Ensure source exists to reach the validation of projectDirectory
       tree.write('packages/lib1/src/helper.ts', 'export const a = 1;');
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        /Invalid path input for 'to': contains disallowed characters/,
+        /Invalid path input for 'projectDirectory': contains disallowed characters/,
       );
     });
 
     it('should reject unicode when allowUnicode is not set (defaults to false)', async () => {
-      // Setup: Create a file with ASCII name but try to move to unicode name
+      // Setup: Create a file with ASCII name but try to move to unicode directory
       tree.write('packages/lib1/src/helper.ts', 'export const a = 1;');
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'packages/lib2/src/файл.ts',
+        file: 'packages/lib1/src/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'файл',
         skipFormat: true,
         // allowUnicode not set, should default to false
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        /Invalid path input for 'to': contains disallowed characters/,
+        /Invalid path input for 'projectDirectory': contains disallowed characters/,
       );
     });
 
@@ -514,15 +527,16 @@ describe('move-file generator', () => {
       tree.write('packages/lib1/src/файл.ts', 'export const a = 1;');
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/файл.ts',
-        to: 'packages/lib2/src/файл.ts',
+        file: 'packages/lib1/src/файл.ts',
+        project: 'lib2',
+        projectDirectory: 'файл',
         skipFormat: true,
         allowUnicode: true,
       } as MoveFileGeneratorSchema;
 
       await moveFileGenerator(tree, options);
 
-      expect(tree.exists('packages/lib2/src/файл.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/файл/файл.ts')).toBe(true);
       expect(tree.exists('packages/lib1/src/файл.ts')).toBe(false);
     });
   });
@@ -542,8 +556,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -578,8 +593,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -617,8 +633,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -650,8 +667,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -679,8 +697,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib1/src/features/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
         skipFormat: true,
       };
 
@@ -715,8 +734,9 @@ describe('move-file generator', () => {
       const warnSpy = jest.spyOn(logger, 'warn');
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 

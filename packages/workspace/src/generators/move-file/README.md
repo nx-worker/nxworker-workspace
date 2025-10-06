@@ -11,49 +11,62 @@ The `@nxworker/workspace:move-file` generator safely moves a file between Nx pro
 ## Usage
 
 ```bash
-nx generate @nxworker/workspace:move-file <from-file-path> <to-file-path>
+nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
 ```
 
-The generator infers source and target projects from the provided paths, creating any missing destination folders.
+The generator moves the specified file to the target project, creating any missing destination folders.
 
 ## Options
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `from` | `string` | – | Source file path relative to the workspace root. |
-| `to` | `string` | – | Target file path relative to the workspace root. Missing directories are auto-created. |
+| `file` | `string` | – | Source file path relative to the workspace root. Can be right-clicked in VS Code for context menu generation. |
+| `project` | `string` | – | Name of the target Nx project. Provides a dropdown in Nx Console. |
+| `projectDirectory` | `string` | `lib` | Optional directory within the target project (e.g., `utils` or `features/auth`). Defaults to `lib` within the project's sourceRoot or `src/lib` if sourceRoot is not defined. |
 | `skipExport` | `boolean` | `false` | Skip adding the moved file to the target project's entrypoint if you plan to manage exports manually. |
-| `allowUnicode` | `boolean` | `false` | Permit Unicode characters in the `from`/`to` paths (less restrictive; use with caution). |
+| `allowUnicode` | `boolean` | `false` | Permit Unicode characters in file paths (less restrictive; use with caution). |
 
 ### Examples
 
 ```shell
-# Move a utility within the same project and keep defaults
-nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts packages/lib1/src/features/helper.ts
+# Move a utility to another project using default directory (lib)
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2
 
-# Move an exported file to another project without re-exporting it automatically
+# Move a file to a specific directory within the target project
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2 --projectDirectory utils
+
+# Move a file within the same project to a different directory
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib1 --projectDirectory features
+
+# Move an exported file without re-exporting it automatically
 nx generate @nxworker/workspace:move-file \
   packages/lib1/src/utils/helper.ts \
-  packages/lib2/src/utils/helper.ts \
+  --project lib2 \
+  --projectDirectory utils \
   --skip-export
 
 # Allow Unicode filenames when moving between projects
 nx generate @nxworker/workspace:move-file \
   packages/lib1/src/файл.ts \
-  packages/lib2/src/файл.ts \
+  --project lib2 \
+  --projectDirectory files \
   --allow-unicode
+
+# Right-click a file in VS Code and select "Generate" to use the context menu
+# (requires Nx Console extension)
 ```
 
 ## Behaviour
 
 - Detects the source and target Nx projects as well as their TypeScript path aliases
-- Uses the Nx project graph to resolve dependencyies for optimal performance
+- Uses the Nx project graph to resolve dependencies for optimal performance
 - Rewrites imports automatically, covering
   - Relative paths inside the source project
   - Project alias imports across projects
   - Dynamic `import()` expressions, including chained `.then()` access
 - Updates dependent projects when exported files move, ensuring they resolve the target project's import alias
 - Removes stale exports from the source entrypoint and adds exports to the target entrypoint unless `--skip-export` is set
+- Places files in the target project at `sourceRoot/<projectDirectory>` or `projectRoot/src/<projectDirectory>` with a default of `lib` when `projectDirectory` is not specified
 
 ## Security Hardening
 
