@@ -76,6 +76,11 @@ function resolveAndValidate(
     throw new Error(`Source file "${normalizedSource}" not found`);
   }
 
+  // Verify target file does not exist
+  if (tree.exists(normalizedTarget)) {
+    throw new Error(`Target file "${normalizedTarget}" already exists`);
+  }
+
   // Find which project the source file belongs to
   const sourceProjectInfo = findProjectForFile(projects, normalizedSource);
 
