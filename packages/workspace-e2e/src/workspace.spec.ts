@@ -412,10 +412,11 @@ describe('workspace', () => {
         );
 
         // Use backslashes in paths (Windows-style)
+        // Note: Paths must be quoted to prevent shell from interpreting backslashes as escape sequences
         const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
         const winStyleTarget = `${testLibName}\\src\\lib\\utilities\\util.ts`;
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${winStyleSource} ${winStyleTarget} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" "${winStyleTarget}" --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
