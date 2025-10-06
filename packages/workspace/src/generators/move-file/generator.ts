@@ -7,6 +7,7 @@ import {
   visitNotIgnoredFiles,
   logger,
   createProjectGraphAsync,
+  normalizePath,
 } from '@nx/devkit';
 import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
@@ -970,7 +971,7 @@ function updateImportPathsToPackageAlias(
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
-    const normalizedFilePath = filePath.replace(/\\/g, '/');
+    const normalizedFilePath = normalizePath(filePath);
 
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
@@ -1046,7 +1047,7 @@ function updateImportPathsInProject(
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
-    const normalizedFilePath = filePath.replace(/\\/g, '/');
+    const normalizedFilePath = normalizePath(filePath);
 
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
@@ -1167,7 +1168,7 @@ function updateImportsToRelative(
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
-    const normalizedFilePath = filePath.replace(/\\/g, '/');
+    const normalizedFilePath = normalizePath(filePath);
 
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
@@ -1327,7 +1328,7 @@ function getDependentProjectNames(
 }
 
 function toAbsoluteWorkspacePath(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/');
+  const normalized = normalizePath(filePath);
   return path.join('/', normalized);
 }
 
@@ -1349,8 +1350,8 @@ function getRelativeImportSpecifier(
   fromFilePath: string,
   toFilePath: string,
 ): string {
-  const normalizedFrom = fromFilePath.replace(/\\/g, '/');
-  const normalizedTo = toFilePath.replace(/\\/g, '/');
+  const normalizedFrom = normalizePath(fromFilePath);
+  const normalizedTo = normalizePath(toFilePath);
   const absoluteFromDir = path.dirname(toAbsoluteWorkspacePath(normalizedFrom));
   const absoluteTarget = toAbsoluteWorkspacePath(normalizedTo);
   let relativePath = path.relative(absoluteFromDir, absoluteTarget);
@@ -1359,7 +1360,7 @@ function getRelativeImportSpecifier(
     relativePath = `./${relativePath}`;
   }
 
-  relativePath = relativePath.replace(/\\/g, '/');
+  relativePath = normalizePath(relativePath);
   return stripFileExtension(relativePath);
 }
 
