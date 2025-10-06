@@ -189,7 +189,7 @@ async function executeMove(
     sourceImportPath,
   } = ctx;
 
-  logger.info(
+  logger.debug(
     `Moving ${normalizedSource} (project: ${sourceProjectName}) to ${normalizedTarget} (project: ${targetProjectName})`,
   );
 
@@ -256,7 +256,9 @@ async function handleMoveStrategy(
 function handleSameProjectMove(tree: Tree, ctx: MoveContext): void {
   const { sourceProject, normalizedSource, normalizedTarget } = ctx;
 
-  logger.info(`Moving within same project, updating imports to relative paths`);
+  logger.debug(
+    `Moving within same project, updating imports to relative paths`,
+  );
 
   updateImportPathsInProject(
     tree,
@@ -293,7 +295,7 @@ async function handleExportedMove(
     return;
   }
 
-  logger.info(
+  logger.debug(
     `File is exported from ${sourceImportPath}, updating dependent projects`,
   );
 
@@ -332,7 +334,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
     return;
   }
 
-  logger.info(
+  logger.debug(
     `File is not exported, updating imports within source project to use target import path`,
   );
 
@@ -353,7 +355,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
 function handleDefaultMove(tree: Tree, ctx: MoveContext): void {
   const { sourceProject, normalizedSource, normalizedTarget } = ctx;
 
-  logger.info(`Updating imports within source project to relative paths`);
+  logger.debug(`Updating imports within source project to relative paths`);
 
   updateImportPathsInProject(
     tree,
@@ -387,7 +389,7 @@ function updateTargetProjectImportsIfNeeded(
     return;
   }
 
-  logger.info(`Updating imports in target project to relative imports`);
+  logger.debug(`Updating imports in target project to relative imports`);
 
   const targetRoot = targetProject.sourceRoot || targetProject.root;
   const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
@@ -699,7 +701,7 @@ async function updateImportPathsInDependentProjects(
       return;
     }
 
-    logger.info(`Checking project ${dependentName} for imports`);
+    logger.debug(`Checking project ${dependentName} for imports`);
     updateImportsByAliasInProject(
       tree,
       dependentProject,
@@ -776,7 +778,7 @@ function updateImportPathsToPackageAlias(
 
       if (hasChanges) {
         tree.write(filePath, updatedContent);
-        logger.info(`Updated imports to use package alias in ${filePath}`);
+        logger.debug(`Updated imports to use package alias in ${filePath}`);
       }
     }
   });
@@ -855,7 +857,7 @@ function updateImportPathsInProject(
 
       if (hasChanges) {
         tree.write(filePath, updatedContent);
-        logger.info(`Updated relative imports in ${filePath}`);
+        logger.debug(`Updated relative imports in ${filePath}`);
       }
     }
   });
@@ -953,7 +955,7 @@ function updateImportsToRelative(
 
       if (hasChanges) {
         tree.write(filePath, updatedContent);
-        logger.info(`Updated imports to relative path in ${filePath}`);
+        logger.debug(`Updated imports to relative path in ${filePath}`);
       }
     }
   });
@@ -1008,7 +1010,7 @@ function updateImportsByAliasInProject(
 
       if (hasChanges && updatedContent !== originalContent) {
         tree.write(filePath, updatedContent);
-        logger.info(`Updated imports in ${filePath}`);
+        logger.debug(`Updated imports in ${filePath}`);
       }
     }
   });
@@ -1133,7 +1135,7 @@ function ensureFileExported(
   if (!content.includes(exportStatement.trim())) {
     content += exportStatement;
     tree.write(indexPath, content);
-    logger.info(`Added export to ${indexPath}`);
+    logger.debug(`Added export to ${indexPath}`);
   }
 }
 
@@ -1195,7 +1197,7 @@ function removeFileExport(
       }
 
       tree.write(indexPath, updatedContent);
-      logger.info(`Removed export from ${indexPath}`);
+      logger.debug(`Removed export from ${indexPath}`);
     }
   });
 }

@@ -138,6 +138,19 @@ Short rules (for agents and humans):
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
+## Development Standards for @nxworker/workspace
+
+### Logging Policy
+
+When developing generators, executors, or other tools in the `@nxworker/workspace` package:
+
+- **Use `logger.debug()` for all operational logs by default**
+- **Only use `logger.info()` or higher levels when explicitly instructed**
+- This keeps generator/executor output clean, showing only Nx's standard file operations (UPDATE, CREATE, DELETE, etc.)
+- Debug logs are still available when needed via `NX_VERBOSE_LOGGING=true`
+
+**Rationale:** Generators should produce minimal output to avoid cluttering the user experience. Users primarily care about what files changed, not the internal mechanics of how the generator works.
+
 ## File Inventory Cheat Sheet
 
 - **Repo root:** `.editorconfig`, `.eslintrc.json`, `.eslintignore`, `.prettierrc`, `.prettierignore`, `.node-version`, `.verdaccio/`, `.github/workflows/ci.yml`, `jest.config.ts`, `jest.preset.js`, `nx.json`, `package.json`, `package-lock.json`, `project.json`, `README.md`, `tsconfig.base.json`, `tools/`, `packages/`.
