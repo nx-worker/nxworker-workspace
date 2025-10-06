@@ -221,10 +221,7 @@ function createTargetFile(
  * @param tree - The virtual file system tree.
  * @param ctx - Resolved move context.
  */
-function updateMovedFileImportsIfNeeded(
-  tree: Tree,
-  ctx: MoveContext,
-): void {
+function updateMovedFileImportsIfNeeded(tree: Tree, ctx: MoveContext): void {
   const {
     isSameProject,
     normalizedSource,
@@ -265,11 +262,14 @@ function updateRelativeImportsInMovedFile(
     return;
   }
 
-  logger.info(`Updating relative imports in moved file to maintain correct paths`);
+  logger.debug(
+    `Updating relative imports in moved file to maintain correct paths`,
+  );
 
   // Pattern to match relative imports (./something or ../something)
   const relativeImportPattern = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
-  const dynamicRelativeImportPattern = /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
+  const dynamicRelativeImportPattern =
+    /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
 
   let updatedContent = content;
   let hasChanges = false;
@@ -280,21 +280,21 @@ function updateRelativeImportsInMovedFile(
     (match, importPath: string) => {
       // Calculate the new relative path from target to the imported file
       const sourceDir = path.dirname(normalizedSource);
-      
+
       // Resolve the import path relative to the original location
       const absoluteImportPath = path.join(sourceDir, importPath);
-      
+
       // Calculate the new relative path from the target location
       const newRelativePath = getRelativeImportSpecifier(
         normalizedTarget,
         absoluteImportPath,
       );
-      
+
       if (newRelativePath !== importPath) {
         hasChanges = true;
         return `from '${newRelativePath}'`;
       }
-      
+
       return match;
     },
   );
@@ -305,21 +305,21 @@ function updateRelativeImportsInMovedFile(
     (match, importPath: string) => {
       // Calculate the new relative path from target to the imported file
       const sourceDir = path.dirname(normalizedSource);
-      
+
       // Resolve the import path relative to the original location
       const absoluteImportPath = path.join(sourceDir, importPath);
-      
+
       // Calculate the new relative path from the target location
       const newRelativePath = getRelativeImportSpecifier(
         normalizedTarget,
         absoluteImportPath,
       );
-      
+
       if (newRelativePath !== importPath) {
         hasChanges = true;
         return `import('${newRelativePath}')`;
       }
-      
+
       return match;
     },
   );
@@ -351,7 +351,7 @@ function updateRelativeImportsToAliasInMovedFile(
     return;
   }
 
-  logger.info(
+  logger.debug(
     `Updating relative imports in moved file to use alias imports to source project`,
   );
 
@@ -359,7 +359,8 @@ function updateRelativeImportsToAliasInMovedFile(
 
   // Pattern to match relative imports (./something or ../something)
   const relativeImportPattern = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
-  const dynamicRelativeImportPattern = /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
+  const dynamicRelativeImportPattern =
+    /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
 
   let updatedContent = content;
   let hasChanges = false;
@@ -375,7 +376,10 @@ function updateRelativeImportsToAliasInMovedFile(
       // Check if this import points to a file in the source project
       if (resolvedPath.startsWith(sourceRoot + '/')) {
         // Check if the resolved file is exported from the source project's entrypoint
-        const relativeFilePathInSource = path.relative(sourceRoot, resolvedPath);
+        const relativeFilePathInSource = path.relative(
+          sourceRoot,
+          resolvedPath,
+        );
         const isExported = isFileExported(
           tree,
           sourceProject,
@@ -384,7 +388,7 @@ function updateRelativeImportsToAliasInMovedFile(
 
         if (!isExported) {
           logger.warn(
-            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the file is not exported from the source project's entrypoint. This may result in an invalid import.`,
+            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the imported file is not exported from the source project's entrypoint. This may result in an invalid import.`,
           );
         }
 
@@ -407,7 +411,10 @@ function updateRelativeImportsToAliasInMovedFile(
       // Check if this import points to a file in the source project
       if (resolvedPath.startsWith(sourceRoot + '/')) {
         // Check if the resolved file is exported from the source project's entrypoint
-        const relativeFilePathInSource = path.relative(sourceRoot, resolvedPath);
+        const relativeFilePathInSource = path.relative(
+          sourceRoot,
+          resolvedPath,
+        );
         const isExported = isFileExported(
           tree,
           sourceProject,
@@ -416,7 +423,7 @@ function updateRelativeImportsToAliasInMovedFile(
 
         if (!isExported) {
           logger.warn(
-            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the file is not exported from the source project's entrypoint. This may result in an invalid import.`,
+            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the imported file is not exported from the source project's entrypoint. This may result in an invalid import.`,
           );
         }
 
@@ -430,7 +437,7 @@ function updateRelativeImportsToAliasInMovedFile(
 
   if (hasChanges) {
     tree.write(normalizedTarget, updatedContent);
-    logger.info(`Updated imports in moved file to use source project alias`);
+    logger.debug(`Updated imports in moved file to use source project alias`);
   }
 }
 
@@ -558,8 +565,12 @@ async function handleExportedMove(
  * @param ctx - Resolved move context.
  */
 function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
-  const { sourceProject, normalizedSource, normalizedTarget, targetImportPath } =
-    ctx;
+  const {
+    sourceProject,
+    normalizedSource,
+    normalizedTarget,
+    targetImportPath,
+  } = ctx;
 
   if (!targetImportPath) {
     return;

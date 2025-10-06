@@ -725,7 +725,7 @@ describe('move-file generator', () => {
       // Should have logged a warning about the non-exported file
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          "is being converted to '@test/lib1', but the file is not exported from the source project's entrypoint",
+          "is being converted to '@test/lib1', but the imported file is not exported from the source project's entrypoint",
         ),
       );
 
