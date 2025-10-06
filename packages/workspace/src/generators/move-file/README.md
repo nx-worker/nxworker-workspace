@@ -22,29 +22,35 @@ The generator moves the specified file to the target project, creating any missi
 | --- | --- | --- | --- |
 | `file` | `string` | – | Source file path relative to the workspace root. Can be right-clicked in VS Code for context menu generation. |
 | `project` | `string` | – | Name of the target Nx project. Provides a dropdown in Nx Console. |
-| `projectDirectory` | `string` | – | Optional directory within the target project's `lib` folder (e.g., `utils` or `features/auth`). Files are placed at `sourceRoot/lib/<projectDirectory>` or `projectRoot/src/lib/<projectDirectory>`. When not specified, files go directly to `sourceRoot/lib` or `projectRoot/src/lib`. |
+| `projectDirectory` | `string` | – | Optional subdirectory within the target project's base folder (e.g., `utils` or `features/auth`). For library projects, files are placed at `sourceRoot/lib/<projectDirectory>`. For application projects, files are placed at `sourceRoot/app/<projectDirectory>`. When not specified, files go to `sourceRoot/lib` for libraries or `sourceRoot/app` for applications. |
 | `skipExport` | `boolean` | `false` | Skip adding the moved file to the target project's entrypoint if you plan to manage exports manually. |
 | `allowUnicode` | `boolean` | `false` | Permit Unicode characters in file paths (less restrictive; use with caution). |
 
 ### Examples
 
 ```shell
-# Move a utility to a library project using default directory (lib)
+# Move a utility to a library project using default directory
+# Target: packages/lib2/src/lib/helper.ts
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2
 
 # Move a file to a specific subdirectory within a library's lib folder
+# Target: packages/lib2/src/lib/utils/helper.ts
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2 --projectDirectory utils
 
-# Move a file to an application project (uses app directory)
+# Move a file to an application project
+# Target: packages/app1/src/app/helper.ts
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project app1
 
 # Move a file to a specific subdirectory within an application's app folder
+# Target: packages/app1/src/app/utils/helper.ts
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project app1 --projectDirectory utils
 
-# Move a file within the same project to a different directory
+# Move a file within the same library to a different directory
+# Target: packages/lib1/src/lib/features/helper.ts
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib1 --projectDirectory features
 
 # Move an exported file without re-exporting it automatically
+# Target: packages/lib2/src/lib/utils/helper.ts
 nx generate @nxworker/workspace:move-file \
   packages/lib1/src/utils/helper.ts \
   --project lib2 \
@@ -52,6 +58,7 @@ nx generate @nxworker/workspace:move-file \
   --skip-export
 
 # Allow Unicode filenames when moving between projects
+# Target: packages/lib2/src/lib/files/файл.ts
 nx generate @nxworker/workspace:move-file \
   packages/lib1/src/файл.ts \
   --project lib2 \

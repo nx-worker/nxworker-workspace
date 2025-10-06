@@ -168,7 +168,7 @@ describe('move-file generator', () => {
 
       await moveFileGenerator(tree, options);
 
-      // File should be moved to lib directory by default
+      // Target: packages/lib2/src/lib/helper.ts
       expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
       expect(tree.exists('packages/lib2/src/lib/helper.ts')).toBe(true);
 
@@ -200,7 +200,7 @@ describe('move-file generator', () => {
 
       await moveFileGenerator(tree, options);
 
-      // File should be moved to app directory for application projects
+      // Target: packages/app1/src/app/helper.ts
       expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
       expect(tree.exists('packages/app1/src/app/helper.ts')).toBe(true);
 
@@ -233,7 +233,7 @@ describe('move-file generator', () => {
 
       await moveFileGenerator(tree, options);
 
-      // File should be moved to app/utils directory for application projects
+      // Target: packages/app1/src/app/utils/helper.ts
       expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
       expect(tree.exists('packages/app1/src/app/utils/helper.ts')).toBe(true);
 
