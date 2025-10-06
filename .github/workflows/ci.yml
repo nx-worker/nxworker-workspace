@@ -34,7 +34,7 @@ jobs:
           name: build-artifacts
           path: dist/
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   lint:
     runs-on: ubuntu-24.04-arm # Linux arm64
@@ -197,9 +197,7 @@ jobs:
 
   # Summary check that aggregates all e2e matrix results for branch protection
   check-e2e:
-    needs:
-      - e2e
-      - set-e2e-matrix
+    needs: e2e
     if: always()
     runs-on: ubuntu-24.04-arm
     steps:
