@@ -5,8 +5,8 @@
   "scripts": {},
   "private": true,
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=10.0.0"
+    "node": ">=18.0.0 <23.0.0",
+    "npm": "^10.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -39,7 +39,7 @@
     "ts-jest": "^29.4.4",
     "ts-node": "~10.9.2",
     "tslib": "^2.8.1",
-    "typescript": "^5.5.4",
+    "typescript": "~5.5.4",
     "typescript-eslint": "^8.45.0",
     "verdaccio": "^5.33.0"
   },
