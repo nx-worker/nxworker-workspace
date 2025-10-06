@@ -414,6 +414,27 @@ describe('move-file generator', () => {
       );
     });
 
+    it('should throw error if target file already exists', async () => {
+      tree.write(
+        'packages/lib1/src/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+      tree.write(
+        'packages/lib2/src/helper.ts',
+        'export function existingHelper() { return "exists"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/helper.ts',
+        to: 'packages/lib2/src/helper.ts',
+        skipFormat: true,
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'Target file "packages/lib2/src/helper.ts" already exists',
+      );
+    });
+
     it('should throw error for path traversal in source', async () => {
       const options: MoveFileGeneratorSchema = {
         from: '../../../etc/passwd',
