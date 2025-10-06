@@ -189,7 +189,7 @@ async function executeMove(
     sourceImportPath,
   } = ctx;
 
-  logger.info(
+  logger.debug(
     `Moving ${normalizedSource} (project: ${sourceProjectName}) to ${normalizedTarget} (project: ${targetProjectName})`,
   );
 
@@ -256,7 +256,7 @@ async function handleMoveStrategy(
 function handleSameProjectMove(tree: Tree, ctx: MoveContext): void {
   const { sourceProject, normalizedSource, normalizedTarget } = ctx;
 
-  logger.info(`Moving within same project, updating imports to relative paths`);
+  logger.debug(`Moving within same project, updating imports to relative paths`);
 
   updateImportPathsInProject(
     tree,
@@ -293,7 +293,7 @@ async function handleExportedMove(
     return;
   }
 
-  logger.info(
+  logger.debug(
     `File is exported from ${sourceImportPath}, updating dependent projects`,
   );
 
@@ -332,7 +332,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
     return;
   }
 
-  logger.info(
+  logger.debug(
     `File is not exported, updating imports within source project to use target import path`,
   );
 
@@ -353,7 +353,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
 function handleDefaultMove(tree: Tree, ctx: MoveContext): void {
   const { sourceProject, normalizedSource, normalizedTarget } = ctx;
 
-  logger.info(`Updating imports within source project to relative paths`);
+  logger.debug(`Updating imports within source project to relative paths`);
 
   updateImportPathsInProject(
     tree,
@@ -387,7 +387,7 @@ function updateTargetProjectImportsIfNeeded(
     return;
   }
 
-  logger.info(`Updating imports in target project to relative imports`);
+  logger.debug(`Updating imports in target project to relative imports`);
 
   const targetRoot = targetProject.sourceRoot || targetProject.root;
   const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
