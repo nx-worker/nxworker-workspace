@@ -969,9 +969,12 @@ function updateImportPathsToPackageAlias(
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    // Normalize path separators for cross-platform compatibility
+    const normalizedFilePath = filePath.replace(/\\/g, '/');
+
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      !filesToExclude.includes(filePath)
+      !filesToExclude.includes(normalizedFilePath)
     ) {
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
@@ -1042,10 +1045,13 @@ function updateImportPathsInProject(
   const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    // Normalize path separators for cross-platform compatibility
+    const normalizedFilePath = filePath.replace(/\\/g, '/');
+
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      filePath !== sourceFilePath &&
-      filePath !== targetFilePath
+      normalizedFilePath !== sourceFilePath &&
+      normalizedFilePath !== targetFilePath
     ) {
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
@@ -1160,9 +1166,12 @@ function updateImportsToRelative(
   const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
+    // Normalize path separators for cross-platform compatibility
+    const normalizedFilePath = filePath.replace(/\\/g, '/');
+
     if (
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      !excludeFilePaths.includes(filePath)
+      !excludeFilePaths.includes(normalizedFilePath)
     ) {
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
