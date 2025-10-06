@@ -3,14 +3,12 @@
   "version": "19.0.0-alpha.0",
   "description": "Nx plugin providing generators for managing workspace files, including the move-file generator for safely moving files between projects while updating all imports",
   "keywords": [
-    "nx",
-    "nx-plugin",
     "monorepo",
-    "workspace",
-    "generator",
+    "move",
     "move-file",
+    "nx",
     "refactor",
-    "import-management"
+    "workspace"
   ],
   "author": "Lars Gyrup Brink Nielsen",
   "license": "MIT",
@@ -28,10 +26,10 @@
     "url": "https://github.com/sponsors/LayZeeDK"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0 <23.0.0"
   },
   "peerDependencies": {
-    "@nx/devkit": ">=19.0.0 <22.0.0"
+    "@nx/devkit": ">=19.8.5 <22.0.0"
   },
   "dependencies": {
     "@swc/helpers": "~0.5.11",

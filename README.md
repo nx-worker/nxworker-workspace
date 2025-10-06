@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- **Node.js** ≥18 (development uses Node.js 22 LTS "Jod")
+- **Node.js** 18.x-22.x
 - **npm** 10.x
 
 Install dependencies with:

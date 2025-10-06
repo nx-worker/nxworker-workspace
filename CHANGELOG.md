@@ -1,6 +1,6 @@
 # Changelog
 
-## 19.0.0-alpha.0 (2024-10-05)
+## 19.0.0-dev
 
 ### Features
 
@@ -14,11 +14,11 @@
   - Updates dependent projects when exported files move
   - Removes stale exports from source entrypoint and adds exports to target entrypoint
   - Security hardening with path sanitization, regex escaping, and traversal blocking
-  - Optional Unicode filename support via `--allowUnicode` flag
-  - Platform support: Linux (x64/arm64), Windows (x64/arm64), macOS (x64/arm64)
-  - Node.js support: 18, 20, 22 (matching Nx 19 compatibility)
+  - Optional Unicode filename support via `--allow-unicode` flag
+  - Platform support: Linux, Windows, macOS, all x64/arm64
+  - ECMAScript Modules (ESM) only, no CommonJS (CJS) support
 
 ### Requirements
 
-- Nx 19 or later (up to Nx 21)
-- Node.js 18.0.0 or later
+- Nx 19.8-21.x with `@nx/devkit` installed
+- Node.js 18, 20, or 22 (same as Nx)
