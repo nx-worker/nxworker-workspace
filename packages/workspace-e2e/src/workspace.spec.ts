@@ -415,7 +415,7 @@ describe('workspace', () => {
         const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
         const winStyleTarget = `${testLibName}\\src\\lib\\utilities\\util.ts`;
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${winStyleSource} ${winStyleTarget} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" "${winStyleTarget}" --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
