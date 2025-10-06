@@ -154,6 +154,31 @@ describe('move-file generator', () => {
       expect(movedContent).toContain('export function helper()');
     });
 
+    it('should use default "lib" directory when projectDirectory is not specified', async () => {
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved to lib directory by default
+      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/helper.ts')).toBe(true);
+
+      const movedContent = tree.read(
+        'packages/lib2/src/lib/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain('export function helper()');
+    });
+
     it('should update imports in source project to use target import path', async () => {
       // Setup: Create a file in lib1
       tree.write(
