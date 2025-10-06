@@ -22,7 +22,7 @@
     },
     "projectDirectory": {
       "type": "string",
-      "description": "Optional directory within the target project (e.g., 'utils' or 'features/auth'). Defaults to 'lib' within sourceRoot or projectRoot/src"
+      "description": "Optional subdirectory within the target project's 'lib' folder (e.g., 'utils' or 'features/auth'). Files are placed at sourceRoot/lib/<projectDirectory>"
     },
     "skipExport": {
       "type": "boolean",

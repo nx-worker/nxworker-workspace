@@ -89,7 +89,7 @@ describe('move-file generator', () => {
       await moveFileGenerator(tree, options);
 
       const lazyContent = tree.read('packages/lib1/src/lazy.ts', 'utf-8');
-      expect(lazyContent).toContain("import('./features/helper')");
+      expect(lazyContent).toContain("import('./lib/features/helper')");
     });
 
     it('should update chained dynamic imports to new relative paths', async () => {
@@ -114,7 +114,7 @@ describe('move-file generator', () => {
 
       const lazyContent = tree.read('packages/lib1/src/lazy-route.ts', 'utf-8');
       expect(lazyContent).toContain(
-        "import('./features/helper').then(m => m.HelperModule)",
+        "import('./lib/features/helper').then(m => m.HelperModule)",
       );
     });
   });
@@ -144,11 +144,11 @@ describe('move-file generator', () => {
 
       // File should be moved
       expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
 
       // Content should be preserved
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain('export function helper()');
@@ -255,11 +255,11 @@ describe('move-file generator', () => {
 
       // File should be moved
       expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
 
       // Target index should export it
       const targetIndex = tree.read('packages/lib2/src/index.ts', 'utf-8');
-      expect(targetIndex).toContain("export * from './utils/helper'");
+      expect(targetIndex).toContain("export * from './lib/utils/helper'");
     });
 
     it('should update imports in dependent projects', async () => {
@@ -398,7 +398,7 @@ describe('move-file generator', () => {
 
       // Check that lib1's index was updated or file removed (depending on implementation)
       expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
     });
   });
 
@@ -561,7 +561,7 @@ describe('move-file generator', () => {
 
       await moveFileGenerator(tree, options);
 
-      expect(tree.exists('packages/lib2/src/файл/файл.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/файл/файл.ts')).toBe(true);
       expect(tree.exists('packages/lib1/src/файл.ts')).toBe(false);
     });
   });
@@ -591,7 +591,7 @@ describe('move-file generator', () => {
 
       // The moved file should now import shared using alias
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("from '@test/lib1'");
@@ -628,7 +628,7 @@ describe('move-file generator', () => {
 
       // The file in lib2 should now use relative import to helper
       const featureContent = tree.read('packages/lib2/src/feature.ts', 'utf-8');
-      expect(featureContent).toContain("from './utils/helper'");
+      expect(featureContent).toContain("from './lib/utils/helper'");
       expect(featureContent).not.toContain("from '@test/lib1'");
     });
 
@@ -668,14 +668,14 @@ describe('move-file generator', () => {
 
       // Moved file should import shared via alias
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("from '@test/lib1'");
 
       // Target project file should use relative import
       const featureContent = tree.read('packages/lib2/src/feature.ts', 'utf-8');
-      expect(featureContent).toContain("from './utils/helper'");
+      expect(featureContent).toContain("from './lib/utils/helper'");
     });
 
     it('should handle dynamic imports in the moved file', async () => {
@@ -702,7 +702,7 @@ describe('move-file generator', () => {
 
       // Dynamic import should be updated to alias
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("import('@test/lib1')");
@@ -732,10 +732,10 @@ describe('move-file generator', () => {
 
       // Imports should remain relative (not converted to alias)
       const movedContent = tree.read(
-        'packages/lib1/src/features/helper.ts',
+        'packages/lib1/src/lib/features/helper.ts',
         'utf-8',
       );
-      expect(movedContent).toContain("from '../utils/shared'");
+      expect(movedContent).toContain("from '../../utils/shared'");
       expect(movedContent).not.toContain("from '@test/lib1'");
     });
 

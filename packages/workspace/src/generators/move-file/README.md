@@ -22,7 +22,7 @@ The generator moves the specified file to the target project, creating any missi
 | --- | --- | --- | --- |
 | `file` | `string` | – | Source file path relative to the workspace root. Can be right-clicked in VS Code for context menu generation. |
 | `project` | `string` | – | Name of the target Nx project. Provides a dropdown in Nx Console. |
-| `projectDirectory` | `string` | `lib` | Optional directory within the target project (e.g., `utils` or `features/auth`). Defaults to `lib` within the project's sourceRoot or `src/lib` if sourceRoot is not defined. |
+| `projectDirectory` | `string` | – | Optional directory within the target project's `lib` folder (e.g., `utils` or `features/auth`). Files are placed at `sourceRoot/lib/<projectDirectory>` or `projectRoot/src/lib/<projectDirectory>`. When not specified, files go directly to `sourceRoot/lib` or `projectRoot/src/lib`. |
 | `skipExport` | `boolean` | `false` | Skip adding the moved file to the target project's entrypoint if you plan to manage exports manually. |
 | `allowUnicode` | `boolean` | `false` | Permit Unicode characters in file paths (less restrictive; use with caution). |
 
@@ -32,7 +32,7 @@ The generator moves the specified file to the target project, creating any missi
 # Move a utility to another project using default directory (lib)
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2
 
-# Move a file to a specific directory within the target project
+# Move a file to a specific subdirectory within the target project's lib folder
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2 --projectDirectory utils
 
 # Move a file within the same project to a different directory
@@ -66,7 +66,7 @@ nx generate @nxworker/workspace:move-file \
   - Dynamic `import()` expressions, including chained `.then()` access
 - Updates dependent projects when exported files move, ensuring they resolve the target project's import alias
 - Removes stale exports from the source entrypoint and adds exports to the target entrypoint unless `--skip-export` is set
-- Places files in the target project at `sourceRoot/<projectDirectory>` or `projectRoot/src/<projectDirectory>` with a default of `lib` when `projectDirectory` is not specified
+- Places files in the target project at `sourceRoot/lib/<projectDirectory>` with `lib` always included in the path
 
 ## Security Hardening
 
