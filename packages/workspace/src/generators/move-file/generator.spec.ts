@@ -179,6 +179,71 @@ describe('move-file generator', () => {
       expect(movedContent).toContain('export function helper()');
     });
 
+    it('should use "app" directory for application projects', async () => {
+      // Add an application project
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'app1',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved to app directory for application projects
+      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/app1/src/app/helper.ts')).toBe(true);
+
+      const movedContent = tree.read(
+        'packages/app1/src/app/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain('export function helper()');
+    });
+
+    it('should append projectDirectory to "app" for application projects', async () => {
+      // Add an application project
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/utils/helper.ts',
+        project: 'app1',
+        projectDirectory: 'utils',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved to app/utils directory for application projects
+      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/app1/src/app/utils/helper.ts')).toBe(true);
+
+      const movedContent = tree.read(
+        'packages/app1/src/app/utils/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain('export function helper()');
+    });
+
     it('should update imports in source project to use target import path', async () => {
       // Setup: Create a file in lib1
       tree.write(

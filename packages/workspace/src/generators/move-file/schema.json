@@ -22,7 +22,7 @@
     },
     "projectDirectory": {
       "type": "string",
-      "description": "Optional subdirectory within the target project's 'lib' folder (e.g., 'utils' or 'features/auth'). Files are placed at sourceRoot/lib/<projectDirectory>"
+      "description": "Optional subdirectory within the target project's base folder (e.g., 'utils' or 'features/auth'). For libraries, files are placed at sourceRoot/lib/<projectDirectory>. For applications, files are placed at sourceRoot/app/<projectDirectory>"
     },
     "skipExport": {
       "type": "boolean",

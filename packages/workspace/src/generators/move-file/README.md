@@ -29,11 +29,17 @@ The generator moves the specified file to the target project, creating any missi
 ### Examples
 
 ```shell
-# Move a utility to another project using default directory (lib)
+# Move a utility to a library project using default directory (lib)
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2
 
-# Move a file to a specific subdirectory within the target project's lib folder
+# Move a file to a specific subdirectory within a library's lib folder
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2 --projectDirectory utils
+
+# Move a file to an application project (uses app directory)
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project app1
+
+# Move a file to a specific subdirectory within an application's app folder
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project app1 --projectDirectory utils
 
 # Move a file within the same project to a different directory
 nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib1 --projectDirectory features
@@ -66,7 +72,7 @@ nx generate @nxworker/workspace:move-file \
   - Dynamic `import()` expressions, including chained `.then()` access
 - Updates dependent projects when exported files move, ensuring they resolve the target project's import alias
 - Removes stale exports from the source entrypoint and adds exports to the target entrypoint unless `--skip-export` is set
-- Places files in the target project at `sourceRoot/lib/<projectDirectory>` with `lib` always included in the path
+- Places files in the target project at `sourceRoot/lib/<projectDirectory>` for libraries or `sourceRoot/app/<projectDirectory>` for applications, with the base directory (`lib` or `app`) always included in the path
 
 ## Security Hardening
 

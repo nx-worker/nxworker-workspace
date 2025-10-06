@@ -40,7 +40,7 @@ export async function moveFileGenerator(
  *
  * @param targetProject - Target project configuration.
  * @param sourceFilePath - Original source file path (used to extract filename).
- * @param projectDirectory - Optional directory within the target project, appended to 'lib'.
+ * @param projectDirectory - Optional directory within the target project, appended to base directory.
  * @returns The full target file path.
  */
 function buildTargetPath(
@@ -54,11 +54,13 @@ function buildTargetPath(
   const baseRoot =
     targetProject.sourceRoot || path.join(targetProject.root, 'src');
 
-  // Always include 'lib' in the target path
-  // If projectDirectory is specified, append it to 'lib'
+  // Use 'app' for application projects, 'lib' for library projects
+  const baseDir = targetProject.projectType === 'application' ? 'app' : 'lib';
+
+  // If projectDirectory is specified, append it to the base directory
   const targetDir = projectDirectory
-    ? path.join('lib', projectDirectory)
-    : 'lib';
+    ? path.join(baseDir, projectDirectory)
+    : baseDir;
 
   return normalizePath(path.join(baseRoot, targetDir, fileName));
 }
