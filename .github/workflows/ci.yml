@@ -6,10 +6,6 @@ on:
       - main
   pull_request:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Git ref to run against'
-        required: false
 
 permissions:
   contents: read # default to read-only access for repository contents
@@ -18,25 +14,11 @@ jobs:
   build:
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
-      - name: Determine checkout ref
-        id: checkout-ref
-        shell: bash
-        env:
-          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
-          DEFAULT_REF: ${{ github.ref }}
-        run: |
-          if [ -n "${EVENT_INPUT_REF}" ]; then
-            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
-          ref: ${{ steps.checkout-ref.outputs.ref }}
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -57,25 +39,11 @@ jobs:
   lint:
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
-      - name: Determine checkout ref
-        id: checkout-ref
-        shell: bash
-        env:
-          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
-          DEFAULT_REF: ${{ github.ref }}
-        run: |
-          if [ -n "${EVENT_INPUT_REF}" ]; then
-            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
-          ref: ${{ steps.checkout-ref.outputs.ref }}
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -104,25 +72,11 @@ jobs:
             node-version: 22
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Determine checkout ref
-        id: checkout-ref
-        shell: bash
-        env:
-          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
-          DEFAULT_REF: ${{ github.ref }}
-        run: |
-          if [ -n "${EVENT_INPUT_REF}" ]; then
-            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
-          ref: ${{ steps.checkout-ref.outputs.ref }}
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -215,25 +169,11 @@ jobs:
       matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Determine checkout ref
-        id: checkout-ref
-        shell: bash
-        env:
-          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
-          DEFAULT_REF: ${{ github.ref }}
-        run: |
-          if [ -n "${EVENT_INPUT_REF}" ]; then
-            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v5
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
-          ref: ${{ steps.checkout-ref.outputs.ref }}
 
       - uses: ./.github/actions/set-nx-shas
 
