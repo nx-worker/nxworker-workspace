@@ -20,5 +20,5 @@
 
 ### Requirements
 
-- Nx 19.8 or later
+- Nx 19 or later (up to Nx 21)
 - Node.js 18.0.0 or later

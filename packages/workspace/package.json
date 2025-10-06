@@ -31,7 +31,7 @@
     "node": ">=18.0.0"
   },
   "peerDependencies": {
-    "@nx/devkit": "^19.8.0"
+    "@nx/devkit": ">=19.0.0 <22.0.0"
   },
   "dependencies": {
     "@swc/helpers": "~0.5.11",

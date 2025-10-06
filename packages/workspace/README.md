@@ -12,7 +12,7 @@
 
 ## Requirements
 
-- Nx 19.8
+- Nx 19 or later (up to Nx 21)
 - Node.js 18, 20, or 22 (same as Nx)
 
 ## Platform & Architecture Support
