@@ -49,14 +49,15 @@ function buildTargetPath(
   projectDirectory?: string,
 ): string {
   const fileName = path.basename(sourceFilePath);
-  
+
   // Determine base directory
-  const baseRoot = targetProject.sourceRoot || path.join(targetProject.root, 'src');
-  
+  const baseRoot =
+    targetProject.sourceRoot || path.join(targetProject.root, 'src');
+
   // If projectDirectory is specified, use it directly
   // Otherwise, default to 'lib' subdirectory
   const targetDir = projectDirectory ? projectDirectory : 'lib';
-  
+
   return normalizePath(path.join(baseRoot, targetDir, fileName));
 }
 
@@ -105,7 +106,7 @@ function resolveAndValidate(
   }
 
   const normalizedSource = sanitizePath(options.file);
-  
+
   // Sanitize projectDirectory to prevent path traversal
   const sanitizedProjectDirectory = options.projectDirectory
     ? sanitizePath(options.projectDirectory)
