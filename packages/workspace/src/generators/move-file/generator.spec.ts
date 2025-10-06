@@ -5,6 +5,7 @@ import {
   updateJson,
   createProjectGraphAsync,
   formatFiles,
+  logger,
 } from '@nx/devkit';
 
 import { moveFileGenerator } from './generator';
@@ -523,6 +524,212 @@ describe('move-file generator', () => {
 
       expect(tree.exists('packages/lib2/src/файл.ts')).toBe(true);
       expect(tree.exists('packages/lib1/src/файл.ts')).toBe(false);
+    });
+  });
+
+  describe('syncing imports after cross-project move', () => {
+    it('should update relative imports in the moved file to alias imports to source project', async () => {
+      // Create a shared utility in lib1
+      tree.write(
+        'packages/lib1/src/utils/shared.ts',
+        'export function shared() { return "shared"; }',
+      );
+
+      // Create helper file that imports shared relatively
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        "import { shared } from './shared';\nexport function helper() { return shared(); }",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The moved file should now import shared using alias
+      const movedContent = tree.read(
+        'packages/lib2/src/utils/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain("from '@test/lib1'");
+      expect(movedContent).not.toContain("from './shared'");
+    });
+
+    it('should update imports in target project files to relative imports to the moved file', async () => {
+      // Create a file that will be moved
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      // Export it from lib1
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export * from './utils/helper';",
+      );
+
+      // Create a file in lib2 that imports from lib1
+      tree.write(
+        'packages/lib2/src/feature.ts',
+        "import { helper } from '@test/lib1';\nexport const result = helper();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The file in lib2 should now use relative import to helper
+      const featureContent = tree.read('packages/lib2/src/feature.ts', 'utf-8');
+      expect(featureContent).toContain("from './utils/helper'");
+      expect(featureContent).not.toContain("from '@test/lib1'");
+    });
+
+    it('should update both moved file imports and target project imports together', async () => {
+      // Setup source project with shared utility
+      tree.write(
+        'packages/lib1/src/utils/shared.ts',
+        'export function shared() { return "shared"; }',
+      );
+
+      // Create helper that imports shared
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        "import { shared } from './shared';\nexport function helper() { return shared(); }",
+      );
+
+      // Export helper from lib1
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export * from './utils/helper';",
+      );
+
+      // Create target project file that imports helper via alias
+      tree.write(
+        'packages/lib2/src/feature.ts',
+        "import { helper } from '@test/lib1';\nexport const result = helper();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Moved file should import shared via alias
+      const movedContent = tree.read(
+        'packages/lib2/src/utils/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain("from '@test/lib1'");
+
+      // Target project file should use relative import
+      const featureContent = tree.read('packages/lib2/src/feature.ts', 'utf-8');
+      expect(featureContent).toContain("from './utils/helper'");
+    });
+
+    it('should handle dynamic imports in the moved file', async () => {
+      // Create shared utility
+      tree.write(
+        'packages/lib1/src/utils/shared.ts',
+        'export function shared() { return "shared"; }',
+      );
+
+      // Create helper with dynamic import
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        "export async function helper() { const m = await import('./shared'); return m.shared(); }",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Dynamic import should be updated to alias
+      const movedContent = tree.read(
+        'packages/lib2/src/utils/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain("import('@test/lib1')");
+    });
+
+    it('should not modify imports when moving within the same project', async () => {
+      // Create shared utility
+      tree.write(
+        'packages/lib1/src/utils/shared.ts',
+        'export function shared() { return "shared"; }',
+      );
+
+      // Create helper that imports shared relatively
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        "import { shared } from './shared';\nexport function helper() { return shared(); }",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib1/src/features/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Imports should remain relative (not converted to alias)
+      const movedContent = tree.read(
+        'packages/lib1/src/features/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain("from '../utils/shared'");
+      expect(movedContent).not.toContain("from '@test/lib1'");
+    });
+
+    it('should log warning when converting relative import to alias for non-exported file', async () => {
+      // Create a shared utility that is NOT exported
+      tree.write(
+        'packages/lib1/src/utils/shared.ts',
+        'export function shared() { return "shared"; }',
+      );
+
+      // lib1 index does NOT export shared
+      tree.write('packages/lib1/src/index.ts', '');
+
+      // Create helper file that imports shared relatively
+      tree.write(
+        'packages/lib1/src/utils/helper.ts',
+        "import { shared } from './shared';\nexport function helper() { return shared(); }",
+      );
+
+      // Spy on logger.warn
+      const warnSpy = jest.spyOn(logger, 'warn');
+
+      const options: MoveFileGeneratorSchema = {
+        from: 'packages/lib1/src/utils/helper.ts',
+        to: 'packages/lib2/src/utils/helper.ts',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Should have logged a warning about the non-exported file
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "is being converted to '@test/lib1', but the imported file is not exported from the source project's entrypoint",
+        ),
+      );
+
+      warnSpy.mockRestore();
     });
   });
 });

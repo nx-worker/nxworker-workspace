@@ -1,3 +1,4 @@
+import { normalizePath } from '@nx/devkit';
 import { posix as path } from 'node:path';
 
 /**
@@ -10,7 +11,7 @@ import { posix as path } from 'node:path';
  */
 export function sanitizePath(filePath: string): string {
   // Convert backslashes to forward slashes for Windows compatibility
-  let normalized = filePath.replace(/\\/g, '/');
+  let normalized = normalizePath(filePath);
 
   // Remove leading slash
   normalized = normalized.replace(/^\//, '');
