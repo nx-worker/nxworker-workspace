@@ -15,7 +15,66 @@ permissions:
   contents: read # default to read-only access for repository contents
 
 jobs:
+  # Create pending check for build (runs before build job)
+  create-build-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.build-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        id: build-check-pending
+        with:
+          state: pending
+          name: ci/build
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: create-build-check
     permissions:
       checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm # Linux arm64
@@ -76,6 +135,75 @@ jobs:
           path: dist/
           retention-days: 7
           if-no-files-found: ignore
+
+  # Summary check that aggregates build result into a single check for branch protection
+  build-summary:
+    needs: [create-build-check, build]
+    if: always()
+    permissions:
+      checks: write # Update check runs via Checks API
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine overall status
+        id: overall-status
+        run: |
+          if [ "${{ needs.build.result }}" == "success" ]; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        if: always()
+        with:
+          state: outcome
+          name: ci/build
+          job-status: ${{ steps.overall-status.outputs.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-build-check.outputs.check-run-id }}
 
   # Create pending check for test summary (runs before matrix jobs)
   create-test-check:
@@ -192,7 +320,66 @@ jobs:
           sha: ${{ steps.head-sha.outputs.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  # Create pending check for lint (runs before lint job)
+  create-lint-check:
+    permissions:
+      checks: write
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      check-run-id: ${{ steps.lint-check-pending.outputs.check-run-id }}
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        id: lint-check-pending
+        with:
+          state: pending
+          name: ci/lint
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   lint:
+    needs: create-lint-check
     permissions:
       checks: write # Create and update check runs via Checks API
     runs-on: ubuntu-24.04-arm # Linux arm64
@@ -247,6 +434,75 @@ jobs:
         run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint --output-style=static
+
+  # Summary check that aggregates lint result into a single check for branch protection
+  lint-summary:
+    needs: [create-lint-check, lint]
+    if: always()
+    permissions:
+      checks: write # Update check runs via Checks API
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Determine checkout ref
+        id: checkout-ref
+        shell: bash
+        env:
+          EVENT_INPUT_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_REF: ${{ github.ref }}
+        run: |
+          if [ -n "${EVENT_INPUT_REF}" ]; then
+            echo "ref=${EVENT_INPUT_REF}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Determine head SHA
+        id: head-sha
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DEFAULT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${PR_HEAD_SHA}" ]; then
+            echo "sha=${PR_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WORKFLOW_DISPATCH_REF}" ]; then
+            RESOLVED_SHA=$(git rev-parse --verify --quiet "${WORKFLOW_DISPATCH_REF}^{commit}" || true)
+            if [ -n "${RESOLVED_SHA}" ]; then
+              echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
+            else
+              echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "sha=${DEFAULT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine overall status
+        id: overall-status
+        run: |
+          if [ "${{ needs.lint.result }}" == "success" ]; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/post-check-run
+        if: always()
+        with:
+          state: outcome
+          name: ci/lint
+          job-status: ${{ steps.overall-status.outputs.status }}
+          workflow-file: ci.yml
+          sha: ${{ steps.head-sha.outputs.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ needs.create-lint-check.outputs.check-run-id }}
 
   test:
     needs: create-test-check
