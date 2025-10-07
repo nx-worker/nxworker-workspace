@@ -36,6 +36,36 @@ export async function moveFileGenerator(
 }
 
 /**
+ * Builds the target file path from the target project and optional directory.
+ *
+ * @param targetProject - Target project configuration.
+ * @param sourceFilePath - Original source file path (used to extract filename).
+ * @param projectDirectory - Optional directory within the target project, appended to base directory.
+ * @returns The full target file path.
+ */
+function buildTargetPath(
+  targetProject: ProjectConfiguration,
+  sourceFilePath: string,
+  projectDirectory?: string,
+): string {
+  const fileName = path.basename(sourceFilePath);
+
+  // Determine base directory
+  const baseRoot =
+    targetProject.sourceRoot || path.join(targetProject.root, 'src');
+
+  // Use 'app' for application projects, 'lib' for library projects
+  const baseDir = targetProject.projectType === 'application' ? 'app' : 'lib';
+
+  // If projectDirectory is specified, append it to the base directory
+  const targetDir = projectDirectory
+    ? path.join(baseDir, projectDirectory)
+    : baseDir;
+
+  return normalizePath(path.join(baseRoot, targetDir, fileName));
+}
+
+/**
  * Normalizes, validates, and gathers metadata about the source and target files.
  *
  * @param tree - The virtual file system tree.
@@ -50,27 +80,59 @@ function resolveAndValidate(
 ) {
   // Validate user input to avoid accepting regex-like patterns or dangerous characters
   if (
-    !isValidPathInput(options.from, {
+    !isValidPathInput(options.file, {
       allowUnicode: !!options.allowUnicode,
     })
   ) {
     throw new Error(
-      `Invalid path input for 'from': contains disallowed characters: "${options.from}"`,
+      `Invalid path input for 'file': contains disallowed characters: "${options.file}"`,
     );
   }
 
+  // Validate project name
   if (
-    !isValidPathInput(options.to, {
+    !isValidPathInput(options.project, {
       allowUnicode: !!options.allowUnicode,
     })
   ) {
     throw new Error(
-      `Invalid path input for 'to': contains disallowed characters: "${options.to}"`,
+      `Invalid project name: contains disallowed characters: "${options.project}"`,
     );
   }
 
-  const normalizedSource = sanitizePath(options.from);
-  const normalizedTarget = sanitizePath(options.to);
+  // Validate project name exists
+  const targetProject = projects.get(options.project);
+  if (!targetProject) {
+    throw new Error(
+      `Target project "${options.project}" not found in workspace`,
+    );
+  }
+
+  // Validate projectDirectory if provided
+  if (
+    options.projectDirectory &&
+    !isValidPathInput(options.projectDirectory, {
+      allowUnicode: !!options.allowUnicode,
+    })
+  ) {
+    throw new Error(
+      `Invalid path input for 'projectDirectory': contains disallowed characters: "${options.projectDirectory}"`,
+    );
+  }
+
+  const normalizedSource = sanitizePath(options.file);
+
+  // Sanitize projectDirectory to prevent path traversal
+  const sanitizedProjectDirectory = options.projectDirectory
+    ? sanitizePath(options.projectDirectory)
+    : undefined;
+
+  // Construct target path from project and optional directory
+  const normalizedTarget = buildTargetPath(
+    targetProject,
+    normalizedSource,
+    sanitizedProjectDirectory,
+  );
 
   // Verify source file exists
   if (!tree.exists(normalizedSource)) {
@@ -93,16 +155,7 @@ function resolveAndValidate(
 
   const { project: sourceProject, name: sourceProjectName } = sourceProjectInfo;
 
-  // Find which project the target file should belong to
-  const targetProjectInfo = findProjectForFile(projects, normalizedTarget);
-
-  if (!targetProjectInfo) {
-    throw new Error(
-      `Could not determine target project for file "${normalizedTarget}"`,
-    );
-  }
-
-  const { project: targetProject, name: targetProjectName } = targetProjectInfo;
+  const targetProjectName = options.project;
 
   // Read the file content
   const fileContent = tree.read(normalizedSource, 'utf-8');

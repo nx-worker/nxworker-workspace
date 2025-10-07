@@ -105,7 +105,7 @@ describe('workspace', () => {
 
       // Run the move-file generator
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${libNames.lib1}/src/lib/helper.ts ${libNames.lib2}/src/lib/helper.ts --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${libNames.lib1}/src/lib/helper.ts --project ${libNames.lib2} --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -209,7 +209,7 @@ describe('workspace', () => {
 
       // Run the move-file generator
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${libNames.lib3}/src/lib/util.ts ${libNames.lib4}/src/lib/util.ts --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${libNames.lib3}/src/lib/util.ts --project ${libNames.lib4} --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -290,7 +290,7 @@ describe('workspace', () => {
 
       // Move to subdirectory within same project
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${libNames.lib5}/src/lib/feature.ts ${libNames.lib5}/src/lib/features/feature.ts --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${libNames.lib5}/src/lib/feature.ts --project ${libNames.lib5} --project-directory features --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -367,7 +367,7 @@ describe('workspace', () => {
       // Test with POSIX-style paths (forward slashes)
       // This should work on all platforms
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts ${testLibName}/src/lib/utilities/util.ts --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts --project ${testLibName} --project-directory utilities --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -414,9 +414,8 @@ describe('workspace', () => {
         // Use backslashes in paths (Windows-style)
         // Note: Paths must be quoted to prevent shell from interpreting backslashes as escape sequences
         const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
-        const winStyleTarget = `${testLibName}\\src\\lib\\utilities\\util.ts`;
         execSync(
-          `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" "${winStyleTarget}" --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -481,7 +480,7 @@ describe('workspace', () => {
 
       // Move to deeply nested path
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/${deepPath}/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} --project ${testLibName} --project-directory "${deepPathSegments.join('/')}" --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -528,7 +527,7 @@ describe('workspace', () => {
       // This should fail with an OS error (ENAMETOOLONG on Unix, similar error on Windows)
       expect(() => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/${invalidSegmentName}/${fileName} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} --project ${testLibName} --project-directory "${invalidSegmentName}" --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe', // Capture error output
@@ -568,7 +567,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/special/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} --project ${testLibName} --project-directory special --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -627,7 +626,7 @@ describe('workspace', () => {
         );
 
         execSync(
-          `npx nx generate @nxworker/workspace:move-file "${testLibName}/src/lib/${fileName}" "${testLibName}/src/lib/unix-special/${fileName}" --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file "${testLibName}/src/lib/${fileName}" --project ${testLibName} --project-directory unix-special --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -682,7 +681,7 @@ describe('workspace', () => {
 
       // Note: Paths with spaces need proper quoting in shell commands
       execSync(
-        `npx nx generate @nxworker/workspace:move-file "${testLibName}/src/lib/${fileName}" "${testLibName}/src/lib/spaced/${fileName}" --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file "${testLibName}/src/lib/${fileName}" --project ${testLibName} --project-directory spaced --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -721,7 +720,7 @@ describe('workspace', () => {
 
       // Move files sequentially (simulating back-to-back operations)
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${file1} ${testLibName}/src/lib/moved/${file1} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${file1} --project ${testLibName} --project-directory moved --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -729,7 +728,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${file2} ${testLibName}/src/lib/moved/${file2} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${file2} --project ${testLibName} --project-directory moved --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -766,7 +765,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileNameLF} ${testLibName}/src/lib/moved/${fileNameLF} --skipFormat --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileNameLF} --project ${testLibName} --project-directory moved --skipFormat --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -796,7 +795,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileNameCRLF} ${testLibName}/src/lib/moved/${fileNameCRLF} --skipFormat --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileNameCRLF} --project ${testLibName} --project-directory moved --skipFormat --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -848,7 +847,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/${fileName} ${testLibName}/src/lib/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/${fileName} --project ${testLibName} --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -894,7 +893,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} ${testLibName}/src/lib/moved/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/${fileName} --project ${testLibName} --project-directory moved --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -958,7 +957,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} ${archLibName}/src/lib/modules/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} --project ${archLibName} --project-directory modules --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -1017,7 +1016,7 @@ describe('workspace', () => {
 
       // Move first file
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/module0.ts ${archLibName}/src/lib/modules/module0.ts --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/module0.ts --project ${archLibName} --project-directory modules --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -1057,7 +1056,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} ${archLibName}/src/lib/i18n/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} --project ${archLibName} --project-directory i18n --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -1094,7 +1093,7 @@ describe('workspace', () => {
       // This should fail consistently across all platforms
       expect(() => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/non-existent.ts ${failLibName}/src/lib/moved/non-existent.ts --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/non-existent.ts --project ${failLibName} --project-directory moved --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -1110,9 +1109,21 @@ describe('workspace', () => {
         'export const safe = true;\n',
       );
 
+      // Test invalid project name
       expect(() => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/safe.ts ../../../etc/passwd --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/safe.ts --project ../../../etc --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }).toThrow();
+
+      // Test invalid project-directory with path traversal
+      expect(() => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/safe.ts --project ${failLibName} --project-directory "../../../etc" --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -1125,7 +1136,7 @@ describe('workspace', () => {
       // Characters like [, ], *, (, ) should be rejected as they can be regex patterns
       expect(() => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file "${failLibName}/src/lib/[invalid].ts" "${failLibName}/src/lib/moved/file.ts" --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file "${failLibName}/src/lib/[invalid].ts" --project ${failLibName} --project-directory moved --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -1144,7 +1155,7 @@ describe('workspace', () => {
 
       // Move to a deeply nested directory that doesn't exist
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/${fileName} ${failLibName}/src/lib/a/b/c/d/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/${fileName} --project ${failLibName} --project-directory "a/b/c/d" --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -1195,7 +1206,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/versioned/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} --project ${nodeLibName} --project-directory versioned --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -1239,7 +1250,7 @@ describe('workspace', () => {
 
       // Move to parent directory and back down - tests path normalization
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/../lib/moved/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} --project ${nodeLibName} --project-directory moved --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -1290,7 +1301,7 @@ describe('workspace', () => {
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} ${nodeLibName}/src/lib/modules/${fileName} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${nodeLibName}/src/lib/${fileName} --project ${nodeLibName} --project-directory modules --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',

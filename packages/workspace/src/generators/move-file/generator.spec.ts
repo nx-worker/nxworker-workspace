@@ -70,47 +70,52 @@ describe('move-file generator', () => {
   describe('moving within the same project', () => {
     it('should update dynamic imports to new relative paths', async () => {
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
-        'packages/lib1/src/lazy.ts',
+        'packages/lib1/src/lib/lazy.ts',
         "export async function load() { return import('./utils/helper'); }\n",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib1/src/features/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
-      const lazyContent = tree.read('packages/lib1/src/lazy.ts', 'utf-8');
+      const lazyContent = tree.read('packages/lib1/src/lib/lazy.ts', 'utf-8');
       expect(lazyContent).toContain("import('./features/helper')");
     });
 
     it('should update chained dynamic imports to new relative paths', async () => {
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export const HelperModule = {};',
       );
 
       tree.write(
-        'packages/lib1/src/lazy-route.ts',
+        'packages/lib1/src/lib/lazy-route.ts',
         "export const loadModule = () => import('./utils/helper').then(m => m.HelperModule);\n",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib1/src/features/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
-      const lazyContent = tree.read('packages/lib1/src/lazy-route.ts', 'utf-8');
+      const lazyContent = tree.read(
+        'packages/lib1/src/lib/lazy-route.ts',
+        'utf-8',
+      );
       expect(lazyContent).toContain(
         "import('./features/helper').then(m => m.HelperModule)",
       );
@@ -121,31 +126,122 @@ describe('move-file generator', () => {
     it('should move the file and update relative imports', async () => {
       // Setup: Create a file in lib1
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       // Create another file that imports it
       tree.write(
-        'packages/lib1/src/main.ts',
+        'packages/lib1/src/lib/main.ts',
         "import { helper } from './utils/helper';\n\nexport const result = helper();",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
       // File should be moved
-      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
 
       // Content should be preserved
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain('export function helper()');
+    });
+
+    it('should use default "lib" directory when projectDirectory is not specified', async () => {
+      tree.write(
+        'packages/lib1/src/lib/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Target: packages/lib2/src/lib/helper.ts
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/helper.ts')).toBe(true);
+
+      const movedContent = tree.read(
+        'packages/lib2/src/lib/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain('export function helper()');
+    });
+
+    it('should use "app" directory for application projects', async () => {
+      // Add an application project
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/lib1/src/lib/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'app1',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Target: packages/app1/src/app/helper.ts
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/app1/src/app/helper.ts')).toBe(true);
+
+      const movedContent = tree.read(
+        'packages/app1/src/app/helper.ts',
+        'utf-8',
+      );
+      expect(movedContent).toContain('export function helper()');
+    });
+
+    it('should append projectDirectory to "app" for application projects', async () => {
+      // Add an application project
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/lib1/src/lib/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'app1',
+        projectDirectory: 'utils',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Target: packages/app1/src/app/utils/helper.ts
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/app1/src/app/utils/helper.ts')).toBe(true);
+
+      const movedContent = tree.read(
+        'packages/app1/src/app/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain('export function helper()');
@@ -154,49 +250,51 @@ describe('move-file generator', () => {
     it('should update imports in source project to use target import path', async () => {
       // Setup: Create a file in lib1
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       // Create another file that imports it
       tree.write(
-        'packages/lib1/src/main.ts',
+        'packages/lib1/src/lib/main.ts',
         "import { helper } from './utils/helper';\n\nexport const result = helper();",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
       // Imports should be updated to use target import path
-      const mainContent = tree.read('packages/lib1/src/main.ts', 'utf-8');
+      const mainContent = tree.read('packages/lib1/src/lib/main.ts', 'utf-8');
       expect(mainContent).toContain("from '@test/lib2'");
     });
 
     it('should update dynamic imports in source project to use target import path', async () => {
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
-        'packages/lib1/src/lazy.ts',
+        'packages/lib1/src/lib/lazy.ts',
         "export const load = () => import('./utils/helper').then(m => m.helper);\n",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
-      const lazyContent = tree.read('packages/lib1/src/lazy.ts', 'utf-8');
+      const lazyContent = tree.read('packages/lib1/src/lib/lazy.ts', 'utf-8');
       expect(lazyContent).toContain("import('@test/lib2').then(m => m.helper)");
     });
   });
@@ -205,42 +303,43 @@ describe('move-file generator', () => {
     it('should move the file and export it from target project', async () => {
       // Setup: Create a file and export it
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
         'packages/lib1/src/index.ts',
-        "export * from './utils/helper';",
+        "export * from './lib/utils/helper';",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
       // File should be moved
-      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
 
       // Target index should export it
       const targetIndex = tree.read('packages/lib2/src/index.ts', 'utf-8');
-      expect(targetIndex).toContain("export * from './utils/helper'");
+      expect(targetIndex).toContain("export * from './lib/utils/helper'");
     });
 
     it('should update imports in dependent projects', async () => {
       // Setup: Create a file and export it
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
         'packages/lib1/src/index.ts',
-        "export * from './utils/helper';",
+        "export * from './lib/utils/helper';",
       );
 
       // Create a third project that depends on lib1
@@ -256,8 +355,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -272,23 +372,24 @@ describe('move-file generator', () => {
     it('should remove export from source index when file is moved', async () => {
       // Setup: Create two files and export both
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
-        'packages/lib1/src/utils/other.ts',
+        'packages/lib1/src/lib/utils/other.ts',
         'export function other() { return "world"; }',
       );
 
       tree.write(
         'packages/lib1/src/index.ts',
-        "export * from './utils/helper';\nexport * from './utils/other';",
+        "export * from './lib/utils/helper';\nexport * from './lib/utils/other';",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -296,25 +397,26 @@ describe('move-file generator', () => {
 
       // Source index should have removed the helper export but kept other
       const sourceIndex = tree.read('packages/lib1/src/index.ts', 'utf-8');
-      expect(sourceIndex).not.toContain("export * from './utils/helper'");
-      expect(sourceIndex).toContain("export * from './utils/other'");
+      expect(sourceIndex).not.toContain("export * from './lib/utils/helper'");
+      expect(sourceIndex).toContain("export * from './lib/utils/other'");
     });
 
     it('should add empty export when removing last export from source index', async () => {
       // Setup: Create a file and export it (the only export)
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
         'packages/lib1/src/index.ts',
-        "export * from './utils/helper';",
+        "export * from './lib/utils/helper';",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -322,19 +424,19 @@ describe('move-file generator', () => {
 
       // Source index should have export {} to prevent runtime errors
       const sourceIndex = tree.read('packages/lib1/src/index.ts', 'utf-8');
-      expect(sourceIndex).not.toContain("export * from './utils/helper'");
+      expect(sourceIndex).not.toContain("export * from './lib/utils/helper'");
       expect(sourceIndex?.trim()).toBe('export {};');
     });
 
     it('should handle export { Named } from pattern', async () => {
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       tree.write(
         'packages/lib1/src/index.ts',
-        "export { helper } from './utils/helper';",
+        "export { helper } from './lib/utils/helper';",
       );
 
       // Create a third project that depends on lib1
@@ -350,8 +452,9 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -362,21 +465,21 @@ describe('move-file generator', () => {
       expect(appContent).toContain("from '@test/lib2'");
 
       // Check that lib1's index was updated or file removed (depending on implementation)
-      expect(tree.exists('packages/lib1/src/utils/helper.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/utils/helper.ts')).toBe(true);
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
     });
   });
 
   describe('error handling', () => {
     it('should throw error if source file does not exist', async () => {
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/non-existent.ts',
-        to: 'packages/lib2/src/utils/non-existent.ts',
+        file: 'packages/lib1/src/lib/utils/non-existent.ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Source file "packages/lib1/src/utils/non-existent.ts" not found',
+        'Source file "packages/lib1/src/lib/utils/non-existent.ts" not found',
       );
     });
 
@@ -388,8 +491,8 @@ describe('move-file generator', () => {
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'unknown/path/helper.ts',
-        to: 'packages/lib2/src/helper.ts',
+        file: 'unknown/path/helper.ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
@@ -398,48 +501,48 @@ describe('move-file generator', () => {
       );
     });
 
-    it('should throw error if target project cannot be determined', async () => {
+    it('should throw error if target project does not exist', async () => {
       tree.write(
-        'packages/lib1/src/helper.ts',
+        'packages/lib1/src/lib/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'unknown/path/helper.ts',
+        file: 'packages/lib1/src/lib/helper.ts',
+        project: 'unknown-project',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Could not determine target project for file',
+        'Target project "unknown-project" not found in workspace',
       );
     });
 
     it('should throw error if target file already exists', async () => {
       tree.write(
-        'packages/lib1/src/helper.ts',
+        'packages/lib1/src/lib/helper.ts',
         'export function helper() { return "hello"; }',
       );
       tree.write(
-        'packages/lib2/src/helper.ts',
+        'packages/lib2/src/lib/helper.ts',
         'export function existingHelper() { return "exists"; }',
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'packages/lib2/src/helper.ts',
+        file: 'packages/lib1/src/lib/helper.ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'Target file "packages/lib2/src/helper.ts" already exists',
+        'Target file "packages/lib2/src/lib/helper.ts" already exists',
       );
     });
 
     it('should throw error for path traversal in source', async () => {
       const options: MoveFileGeneratorSchema = {
-        from: '../../../etc/passwd',
-        to: 'packages/lib2/src/helper.ts',
+        file: '../../../etc/passwd',
+        project: 'lib2',
         skipFormat: true,
       };
 
@@ -448,15 +551,16 @@ describe('move-file generator', () => {
       );
     });
 
-    it('should throw error for path traversal in target', async () => {
+    it('should throw error for path traversal in projectDirectory', async () => {
       tree.write(
-        'packages/lib1/src/helper.ts',
+        'packages/lib1/src/lib/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: '../../etc/passwd',
+        file: 'packages/lib1/src/lib/helper.ts',
+        project: 'lib2',
+        projectDirectory: '../../etc',
         skipFormat: true,
       };
 
@@ -468,62 +572,65 @@ describe('move-file generator', () => {
     it('should reject source containing disallowed characters', async () => {
       // user attempts to pass a regex-like string
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/[evil*].ts',
-        to: 'packages/lib2/src/helper.ts',
+        file: 'packages/lib1/src/[evil*].ts',
+        project: 'lib2',
         skipFormat: true,
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        /Invalid path input for 'from': contains disallowed characters/,
+        /Invalid path input for 'file': contains disallowed characters/,
       );
     });
 
-    it('should reject target containing disallowed characters', async () => {
+    it('should reject projectDirectory containing disallowed characters', async () => {
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'packages/lib2/src/(bad).ts',
+        file: 'packages/lib1/src/lib/helper.ts',
+        project: 'lib2',
+        projectDirectory: '(bad)',
         skipFormat: true,
       };
 
-      // Ensure source exists to reach the validation of target
-      tree.write('packages/lib1/src/helper.ts', 'export const a = 1;');
+      // Ensure source exists to reach the validation of projectDirectory
+      tree.write('packages/lib1/src/lib/helper.ts', 'export const a = 1;');
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        /Invalid path input for 'to': contains disallowed characters/,
+        /Invalid path input for 'projectDirectory': contains disallowed characters/,
       );
     });
 
     it('should reject unicode when allowUnicode is not set (defaults to false)', async () => {
-      // Setup: Create a file with ASCII name but try to move to unicode name
-      tree.write('packages/lib1/src/helper.ts', 'export const a = 1;');
+      // Setup: Create a file with ASCII name but try to move to unicode directory
+      tree.write('packages/lib1/src/lib/helper.ts', 'export const a = 1;');
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/helper.ts',
-        to: 'packages/lib2/src/файл.ts',
+        file: 'packages/lib1/src/lib/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'файл',
         skipFormat: true,
         // allowUnicode not set, should default to false
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        /Invalid path input for 'to': contains disallowed characters/,
+        /Invalid path input for 'projectDirectory': contains disallowed characters/,
       );
     });
 
     it('should allow unicode when allowUnicode option is true', async () => {
       // Setup: Create a file with unicode name in lib1
-      tree.write('packages/lib1/src/файл.ts', 'export const a = 1;');
+      tree.write('packages/lib1/src/lib/файл.ts', 'export const a = 1;');
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/файл.ts',
-        to: 'packages/lib2/src/файл.ts',
+        file: 'packages/lib1/src/lib/файл.ts',
+        project: 'lib2',
+        projectDirectory: 'файл',
         skipFormat: true,
         allowUnicode: true,
       } as MoveFileGeneratorSchema;
 
       await moveFileGenerator(tree, options);
 
-      expect(tree.exists('packages/lib2/src/файл.ts')).toBe(true);
-      expect(tree.exists('packages/lib1/src/файл.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/файл/файл.ts')).toBe(true);
+      expect(tree.exists('packages/lib1/src/lib/файл.ts')).toBe(false);
     });
   });
 
@@ -531,19 +638,20 @@ describe('move-file generator', () => {
     it('should update relative imports in the moved file to alias imports to source project', async () => {
       // Create a shared utility in lib1
       tree.write(
-        'packages/lib1/src/utils/shared.ts',
+        'packages/lib1/src/lib/utils/shared.ts',
         'export function shared() { return "shared"; }',
       );
 
       // Create helper file that imports shared relatively
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         "import { shared } from './shared';\nexport function helper() { return shared(); }",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -551,7 +659,7 @@ describe('move-file generator', () => {
 
       // The moved file should now import shared using alias
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("from '@test/lib1'");
@@ -561,32 +669,36 @@ describe('move-file generator', () => {
     it('should update imports in target project files to relative imports to the moved file', async () => {
       // Create a file that will be moved
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         'export function helper() { return "hello"; }',
       );
 
       // Export it from lib1
       tree.write(
         'packages/lib1/src/index.ts',
-        "export * from './utils/helper';",
+        "export * from './lib/utils/helper';",
       );
 
       // Create a file in lib2 that imports from lib1
       tree.write(
-        'packages/lib2/src/feature.ts',
+        'packages/lib2/src/lib/feature.ts',
         "import { helper } from '@test/lib1';\nexport const result = helper();",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
       await moveFileGenerator(tree, options);
 
       // The file in lib2 should now use relative import to helper
-      const featureContent = tree.read('packages/lib2/src/feature.ts', 'utf-8');
+      const featureContent = tree.read(
+        'packages/lib2/src/lib/feature.ts',
+        'utf-8',
+      );
       expect(featureContent).toContain("from './utils/helper'");
       expect(featureContent).not.toContain("from '@test/lib1'");
     });
@@ -594,31 +706,32 @@ describe('move-file generator', () => {
     it('should update both moved file imports and target project imports together', async () => {
       // Setup source project with shared utility
       tree.write(
-        'packages/lib1/src/utils/shared.ts',
+        'packages/lib1/src/lib/utils/shared.ts',
         'export function shared() { return "shared"; }',
       );
 
       // Create helper that imports shared
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         "import { shared } from './shared';\nexport function helper() { return shared(); }",
       );
 
       // Export helper from lib1
       tree.write(
         'packages/lib1/src/index.ts',
-        "export * from './utils/helper';",
+        "export * from './lib/utils/helper';",
       );
 
       // Create target project file that imports helper via alias
       tree.write(
-        'packages/lib2/src/feature.ts',
+        'packages/lib2/src/lib/feature.ts',
         "import { helper } from '@test/lib1';\nexport const result = helper();",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -626,32 +739,36 @@ describe('move-file generator', () => {
 
       // Moved file should import shared via alias
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("from '@test/lib1'");
 
       // Target project file should use relative import
-      const featureContent = tree.read('packages/lib2/src/feature.ts', 'utf-8');
+      const featureContent = tree.read(
+        'packages/lib2/src/lib/feature.ts',
+        'utf-8',
+      );
       expect(featureContent).toContain("from './utils/helper'");
     });
 
     it('should handle dynamic imports in the moved file', async () => {
       // Create shared utility
       tree.write(
-        'packages/lib1/src/utils/shared.ts',
+        'packages/lib1/src/lib/utils/shared.ts',
         'export function shared() { return "shared"; }',
       );
 
       // Create helper with dynamic import
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         "export async function helper() { const m = await import('./shared'); return m.shared(); }",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
@@ -659,7 +776,7 @@ describe('move-file generator', () => {
 
       // Dynamic import should be updated to alias
       const movedContent = tree.read(
-        'packages/lib2/src/utils/helper.ts',
+        'packages/lib2/src/lib/utils/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("import('@test/lib1')");
@@ -668,19 +785,20 @@ describe('move-file generator', () => {
     it('should not modify imports when moving within the same project', async () => {
       // Create shared utility
       tree.write(
-        'packages/lib1/src/utils/shared.ts',
+        'packages/lib1/src/lib/utils/shared.ts',
         'export function shared() { return "shared"; }',
       );
 
       // Create helper that imports shared relatively
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         "import { shared } from './shared';\nexport function helper() { return shared(); }",
       );
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib1/src/features/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
         skipFormat: true,
       };
 
@@ -688,7 +806,7 @@ describe('move-file generator', () => {
 
       // Imports should remain relative (not converted to alias)
       const movedContent = tree.read(
-        'packages/lib1/src/features/helper.ts',
+        'packages/lib1/src/lib/features/helper.ts',
         'utf-8',
       );
       expect(movedContent).toContain("from '../utils/shared'");
@@ -698,7 +816,7 @@ describe('move-file generator', () => {
     it('should log warning when converting relative import to alias for non-exported file', async () => {
       // Create a shared utility that is NOT exported
       tree.write(
-        'packages/lib1/src/utils/shared.ts',
+        'packages/lib1/src/lib/utils/shared.ts',
         'export function shared() { return "shared"; }',
       );
 
@@ -707,7 +825,7 @@ describe('move-file generator', () => {
 
       // Create helper file that imports shared relatively
       tree.write(
-        'packages/lib1/src/utils/helper.ts',
+        'packages/lib1/src/lib/utils/helper.ts',
         "import { shared } from './shared';\nexport function helper() { return shared(); }",
       );
 
@@ -715,8 +833,9 @@ describe('move-file generator', () => {
       const warnSpy = jest.spyOn(logger, 'warn');
 
       const options: MoveFileGeneratorSchema = {
-        from: 'packages/lib1/src/utils/helper.ts',
-        to: 'packages/lib2/src/utils/helper.ts',
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
         skipFormat: true,
       };
 
