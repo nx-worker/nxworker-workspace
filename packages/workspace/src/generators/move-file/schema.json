@@ -7,7 +7,7 @@
   "properties": {
     "file": {
       "type": "string",
-      "description": "Path to the source file relative to workspace root",
+      "description": "Path to the source file relative to workspace root. Supports comma-separated list to move multiple files at once.",
       "$default": {
         "$source": "argv",
         "index": 0

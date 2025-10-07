@@ -30,9 +30,38 @@ export async function moveFileGenerator(
   const projects = getProjects(tree);
   const projectGraph = await createProjectGraphAsync();
 
-  const ctx = resolveAndValidate(tree, options, projects);
+  // Support comma-separated file paths
+  const filePaths = options.file
+    .split(',')
+    .map((f) => f.trim())
+    .filter((f) => f.length > 0);
 
-  await executeMove(tree, options, projects, projectGraph, ctx);
+  if (filePaths.length === 0) {
+    throw new Error('At least one file path must be provided');
+  }
+
+  // Validate and resolve all files upfront
+  const contexts = filePaths.map((filePath) => {
+    const fileOptions = { ...options, file: filePath };
+    return resolveAndValidate(tree, fileOptions, projects);
+  });
+
+  // Execute all moves without deleting sources yet
+  for (let i = 0; i < contexts.length; i++) {
+    const ctx = contexts[i];
+    const fileOptions = { ...options, file: filePaths[i] };
+    await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
+  }
+
+  // Delete all source files after all moves are complete
+  for (const ctx of contexts) {
+    tree.delete(ctx.normalizedSource);
+  }
+
+  // Format files once at the end
+  if (!options.skipFormat) {
+    await formatFiles(tree);
+  }
 }
 
 /**
@@ -226,6 +255,7 @@ type MoveContext = ReturnType<typeof resolveAndValidate>;
  * @param projects - Map of all projects in the workspace.
  * @param projectGraph - Dependency graph for the workspace.
  * @param ctx - Precomputed move context produced by {@link resolveAndValidate}.
+ * @param skipFinalization - Skip deletion and formatting (for batch operations).
  */
 async function executeMove(
   tree: Tree,
@@ -233,6 +263,7 @@ async function executeMove(
   projects: Map<string, ProjectConfiguration>,
   projectGraph: ProjectGraph,
   ctx: MoveContext,
+  skipFinalization = false,
 ) {
   const {
     normalizedSource,
@@ -258,7 +289,9 @@ async function executeMove(
 
   ensureExportIfNeeded(tree, ctx, options);
 
-  await finalizeMove(tree, normalizedSource, options);
+  if (!skipFinalization) {
+    await finalizeMove(tree, normalizedSource, options);
+  }
 }
 
 function createTargetFile(
