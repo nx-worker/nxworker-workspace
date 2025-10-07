@@ -1222,7 +1222,10 @@ describe('move-file generator', () => {
     });
 
     it('should combine direct paths and glob patterns', async () => {
-      tree.write('packages/lib1/src/lib/main.ts', 'export const main = "test";');
+      tree.write(
+        'packages/lib1/src/lib/main.ts',
+        'export const main = "test";',
+      );
       tree.write(
         'packages/lib1/src/lib/test1.spec.ts',
         'export const test1 = "test";',
@@ -1265,7 +1268,10 @@ describe('move-file generator', () => {
         'packages/lib1/src/lib/file.ts',
         'export const file = "test";',
       );
-      tree.write('packages/lib1/src/lib/file.js', 'export const file = "test";');
+      tree.write(
+        'packages/lib1/src/lib/file.js',
+        'export const file = "test";',
+      );
 
       const options: MoveFileGeneratorSchema = {
         file: 'packages/lib1/src/lib/file.{ts,js}',

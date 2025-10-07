@@ -45,7 +45,7 @@ export async function moveFileGenerator(
   for (const pattern of patterns) {
     // Check if pattern contains glob characters
     const isGlobPattern = /[*?[\]{}]/.test(pattern);
-    
+
     if (isGlobPattern) {
       // Use glob to find matching files
       const matches = glob(tree, [pattern]);
@@ -201,7 +201,7 @@ function resolveAndValidate(
 ) {
   // Check if the file input contains glob characters
   const isGlobPattern = /[*?[\]{}]/.test(options.file);
-  
+
   // Validate user input to avoid accepting regex-like patterns or dangerous characters
   if (
     !isValidPathInput(options.file, {
