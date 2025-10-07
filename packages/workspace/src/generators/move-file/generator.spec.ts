@@ -930,6 +930,36 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib2/src/lib/file2.ts')).toBe(true);
     });
 
+    it('should handle comma-separated files without spaces', async () => {
+      tree.write(
+        'packages/lib1/src/lib/file1.ts',
+        'export const file1 = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file2.ts',
+        'export const file2 = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file3.ts',
+        'export const file3 = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/file1.ts,packages/lib1/src/lib/file2.ts,packages/lib1/src/lib/file3.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/file1.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file2.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file3.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/file1.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file2.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file3.ts')).toBe(true);
+    });
+
     it('should update imports from one file to another in the same batch', async () => {
       // Create two files where one imports the other
       tree.write(
