@@ -1123,7 +1123,7 @@ describe('workspace', () => {
       // Test invalid project-directory with path traversal
       expect(() => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/safe.ts --project ${failLibName} --project-directory ../../../etc --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${failLibName}/src/lib/safe.ts --project ${failLibName} --project-directory "../../../etc" --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',

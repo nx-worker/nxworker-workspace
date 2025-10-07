@@ -20,10 +20,9 @@
       "x-dropdown": "projects",
       "x-prompt": "Which project should the file be moved to?"
     },
-    "project-directory": {
+    "projectDirectory": {
       "type": "string",
-      "description": "Optional subdirectory within the target project's base folder (e.g., 'utils' or 'features/auth'). For libraries, files are placed at sourceRoot/lib/<project-directory>. For applications, files are placed at sourceRoot/app/<project-directory>",
-      "alias": "projectDirectory"
+      "description": "Optional subdirectory within the target project's base folder (e.g., 'utils' or 'features/auth'). For libraries, files are placed at sourceRoot/lib/<projectDirectory>. For applications, files are placed at sourceRoot/app/<projectDirectory>"
     },
     "skipExport": {
       "type": "boolean",
