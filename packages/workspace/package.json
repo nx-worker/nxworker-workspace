@@ -29,7 +29,8 @@
     "node": ">=18.0.0 <23.0.0"
   },
   "peerDependencies": {
-    "@nx/devkit": ">=19.8.5 <22.0.0"
+    "@nx/devkit": ">=19.8.5 <22.0.0",
+    "@nx/workspace": ">=19.8.5 <22.0.0"
   },
   "dependencies": {
     "@swc/helpers": "~0.5.11",

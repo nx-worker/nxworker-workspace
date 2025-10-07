@@ -14,6 +14,7 @@ import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
 import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
+import { removeGenerator } from '@nx/workspace/src/generators/remove/remove';
 
 /**
  * Generator to move a file from one Nx project to another
@@ -46,6 +47,12 @@ export async function moveFileGenerator(
     return resolveAndValidate(tree, fileOptions, projects);
   });
 
+  // Track unique source projects for removal check
+  const sourceProjectNames = new Set<string>();
+  contexts.forEach((ctx) => {
+    sourceProjectNames.add(ctx.sourceProjectName);
+  });
+
   // Execute all moves without deleting sources yet
   for (let i = 0; i < contexts.length; i++) {
     const ctx = contexts[i];
@@ -56,6 +63,21 @@ export async function moveFileGenerator(
   // Delete all source files after all moves are complete
   for (const ctx of contexts) {
     tree.delete(ctx.normalizedSource);
+  }
+
+  // Check if any source projects should be removed
+  if (options.removeEmptyProject) {
+    for (const projectName of sourceProjectNames) {
+      const project = projects.get(projectName);
+      if (project && isProjectEmpty(tree, project)) {
+        logger.debug(`Project ${projectName} is empty, removing it`);
+        await removeGenerator(tree, {
+          projectName,
+          skipFormat: true,
+          forceRemove: false,
+        });
+      }
+    }
   }
 
   // Format files once at the end
@@ -1546,6 +1568,57 @@ function removeFileExport(
       logger.debug(`Removed export from ${indexPath}`);
     }
   });
+}
+
+/**
+ * Checks if a project is empty (contains only configuration files and index file).
+ * A project is considered empty if it has no source files other than the entrypoint.
+ *
+ * @param tree - The virtual file system tree
+ * @param project - Project configuration to check
+ * @returns True if the project is empty (only index file remains)
+ */
+function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
+  const sourceRoot = project.sourceRoot || project.root;
+
+  // List of allowed index file names
+  const indexFileNames = [
+    'index.ts',
+    'index.mts',
+    'index.mjs',
+    'index.js',
+    'index.tsx',
+    'index.jsx',
+  ];
+
+  let hasNonIndexSourceFiles = false;
+
+  visitNotIgnoredFiles(tree, sourceRoot, (filePath) => {
+    if (hasNonIndexSourceFiles) {
+      return; // Short-circuit if we already found a non-index file
+    }
+
+    const relativePath = path.relative(sourceRoot, filePath);
+    const fileName = path.basename(filePath);
+
+    // Check if this is a source file (not a config file)
+    const isSourceFile = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/.test(filePath);
+
+    // Skip if it's not a source file
+    if (!isSourceFile) {
+      return;
+    }
+
+    // Check if it's an index file at the root of sourceRoot
+    const isIndexAtRoot =
+      indexFileNames.includes(fileName) && path.dirname(relativePath) === '.';
+
+    if (!isIndexAtRoot) {
+      hasNonIndexSourceFiles = true;
+    }
+  });
+
+  return !hasNonIndexSourceFiles;
 }
 
 export default moveFileGenerator;
