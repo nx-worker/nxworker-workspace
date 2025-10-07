@@ -14,8 +14,14 @@ import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
-import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
+import {
+  findImports,
+  hasImportToPath,
+  updateImports,
+  updateImportsMatching,
+  clearCache,
+} from './ast-utils/import-ast';
 
 /**
  * Generator to move a file from one Nx project to another
@@ -432,7 +438,7 @@ function updateMovedFileImportsIfNeeded(tree: Tree, ctx: MoveContext): void {
 }
 
 /**
- * Updates relative imports within the moved file when moving within the same project.
+ * Updates relative imports within the moved file when moving within the same project using AST.
  *
  * @param tree - The virtual file system tree.
  * @param normalizedSource - Original file path.
@@ -452,72 +458,40 @@ function updateRelativeImportsInMovedFile(
     `Updating relative imports in moved file to maintain correct paths`,
   );
 
-  // Pattern to match relative imports (./something or ../something)
-  const relativeImportPattern = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
-  const dynamicRelativeImportPattern =
-    /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
+  const sourceDir = path.dirname(normalizedSource);
 
-  let updatedContent = content;
-  let hasChanges = false;
+  // Use AST-based update with a matcher function for relative imports
+  const updatedContent = updateImportsMatching(
+    content,
+    normalizedTarget,
+    (moduleSpecifier) => {
+      // Only update relative imports
+      if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+        // Resolve the import path relative to the original location
+        const absoluteImportPath = path.join(sourceDir, moduleSpecifier);
 
-  // Replace static imports
-  updatedContent = updatedContent.replace(
-    relativeImportPattern,
-    (match, importPath: string) => {
-      // Calculate the new relative path from target to the imported file
-      const sourceDir = path.dirname(normalizedSource);
+        // Calculate the new relative path from the target location
+        const newRelativePath = getRelativeImportSpecifier(
+          normalizedTarget,
+          absoluteImportPath,
+        );
 
-      // Resolve the import path relative to the original location
-      const absoluteImportPath = path.join(sourceDir, importPath);
-
-      // Calculate the new relative path from the target location
-      const newRelativePath = getRelativeImportSpecifier(
-        normalizedTarget,
-        absoluteImportPath,
-      );
-
-      if (newRelativePath !== importPath) {
-        hasChanges = true;
-        return `from '${newRelativePath}'`;
+        if (newRelativePath !== moduleSpecifier) {
+          return newRelativePath;
+        }
       }
-
-      return match;
-    },
+      return null;
+    }
   );
 
-  // Replace dynamic imports
-  updatedContent = updatedContent.replace(
-    dynamicRelativeImportPattern,
-    (match, importPath: string) => {
-      // Calculate the new relative path from target to the imported file
-      const sourceDir = path.dirname(normalizedSource);
-
-      // Resolve the import path relative to the original location
-      const absoluteImportPath = path.join(sourceDir, importPath);
-
-      // Calculate the new relative path from the target location
-      const newRelativePath = getRelativeImportSpecifier(
-        normalizedTarget,
-        absoluteImportPath,
-      );
-
-      if (newRelativePath !== importPath) {
-        hasChanges = true;
-        return `import('${newRelativePath}')`;
-      }
-
-      return match;
-    },
-  );
-
-  if (hasChanges) {
+  if (updatedContent !== null) {
     tree.write(normalizedTarget, updatedContent);
     logger.info(`Updated relative imports in moved file`);
   }
 }
 
 /**
- * Updates relative imports within the moved file to use alias imports when moving across projects.
+ * Updates relative imports within the moved file to use alias imports when moving across projects using AST.
  *
  * @param tree - The virtual file system tree.
  * @param normalizedSource - Original file path.
@@ -542,86 +516,45 @@ function updateRelativeImportsToAliasInMovedFile(
   );
 
   const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
+  const sourceDir = path.dirname(normalizedSource);
 
-  // Pattern to match relative imports (./something or ../something)
-  const relativeImportPattern = /from\s+['"](\.\.?\/[^'"]+)['"]/g;
-  const dynamicRelativeImportPattern =
-    /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
+  // Use AST-based update with a matcher function for relative imports
+  const updatedContent = updateImportsMatching(
+    content,
+    normalizedTarget,
+    (moduleSpecifier) => {
+      // Only update relative imports
+      if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+        // Resolve the import path relative to the ORIGINAL (source) file location
+        const resolvedPath = path.join(sourceDir, moduleSpecifier);
 
-  let updatedContent = content;
-  let hasChanges = false;
-
-  // Replace static imports
-  updatedContent = updatedContent.replace(
-    relativeImportPattern,
-    (match, importPath: string) => {
-      // Resolve the import path relative to the ORIGINAL (source) file location
-      const sourceDir = path.dirname(normalizedSource);
-      const resolvedPath = path.join(sourceDir, importPath);
-
-      // Check if this import points to a file in the source project
-      if (resolvedPath.startsWith(sourceRoot + '/')) {
-        // Check if the resolved file is exported from the source project's entrypoint
-        const relativeFilePathInSource = path.relative(
-          sourceRoot,
-          resolvedPath,
-        );
-        const isExported = isFileExported(
-          tree,
-          sourceProject,
-          relativeFilePathInSource,
-        );
-
-        if (!isExported) {
-          logger.warn(
-            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the imported file is not exported from the source project's entrypoint. This may result in an invalid import.`,
+        // Check if this import points to a file in the source project
+        if (resolvedPath.startsWith(sourceRoot + '/')) {
+          // Check if the resolved file is exported from the source project's entrypoint
+          const relativeFilePathInSource = path.relative(
+            sourceRoot,
+            resolvedPath,
           );
+          const isExported = isFileExported(
+            tree,
+            sourceProject,
+            relativeFilePathInSource,
+          );
+
+          if (!isExported) {
+            logger.warn(
+              `Import '${moduleSpecifier}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the imported file is not exported from the source project's entrypoint. This may result in an invalid import.`,
+            );
+          }
+
+          return sourceImportPath;
         }
-
-        hasChanges = true;
-        return `from '${sourceImportPath}'`;
       }
-
-      return match;
-    },
+      return null;
+    }
   );
 
-  // Replace dynamic imports
-  updatedContent = updatedContent.replace(
-    dynamicRelativeImportPattern,
-    (match, importPath: string) => {
-      // Resolve the import path relative to the ORIGINAL (source) file location
-      const sourceDir = path.dirname(normalizedSource);
-      const resolvedPath = path.join(sourceDir, importPath);
-
-      // Check if this import points to a file in the source project
-      if (resolvedPath.startsWith(sourceRoot + '/')) {
-        // Check if the resolved file is exported from the source project's entrypoint
-        const relativeFilePathInSource = path.relative(
-          sourceRoot,
-          resolvedPath,
-        );
-        const isExported = isFileExported(
-          tree,
-          sourceProject,
-          relativeFilePathInSource,
-        );
-
-        if (!isExported) {
-          logger.warn(
-            `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the imported file is not exported from the source project's entrypoint. This may result in an invalid import.`,
-          );
-        }
-
-        hasChanges = true;
-        return `import('${sourceImportPath}')`;
-      }
-
-      return match;
-    },
-  );
-
-  if (hasChanges) {
+  if (updatedContent !== null) {
     tree.write(normalizedTarget, updatedContent);
     logger.debug(`Updated imports in moved file to use source project alias`);
   }
@@ -946,7 +879,6 @@ function isFileExported(
   ];
 
   const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
-  const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
     if (!tree.exists(indexPath)) {
@@ -956,13 +888,13 @@ function isFileExported(
     if (!content) {
       return false;
     }
-    // Support: export ... from "path"
-    // Support: export * from "path"
-    // Support: export { Something } from "path"
-    const exportPattern = new RegExp(
-      `export\\s+(?:\\*|\\{[^}]+\\}|.+)\\s+from\\s+['"]\\.?\\.?/.*${escapedFile}['"]`,
-    );
-    return exportPattern.test(content);
+    
+    // Use AST to find export statements that reference the file
+    const imports = findImports(content, indexPath);
+    return imports.some((imp) => {
+      // Check if it's an export statement and the path contains the file
+      return imp.type === 'export' && imp.moduleSpecifier.includes(fileWithoutExt);
+    });
   });
 }
 
@@ -1157,7 +1089,7 @@ async function updateImportPathsInDependentProjects(
 }
 
 /**
- * Updates import paths within a single project to use a package alias
+ * Updates import paths within a single project to use a package alias using AST
  */
 function updateImportPathsToPackageAlias(
   tree: Tree,
@@ -1180,53 +1112,26 @@ function updateImportPathsToPackageAlias(
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
 
-      // Get file name without extension and escape for regex
-      const sourceFileName = escapeRegex(
-        path.basename(sourceFilePath, path.extname(sourceFilePath)),
+      // Get the filename to match against (without extension)
+      const sourceFileName = path.basename(sourceFilePath, path.extname(sourceFilePath));
+
+      // Use AST-based update with a matcher function for relative imports
+      const updatedContent = updateImportsMatching(
+        content,
+        filePath,
+        (moduleSpecifier) => {
+          // Only update relative imports that reference the source file
+          if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+            // Check if the import path contains the source filename
+            if (moduleSpecifier.includes(sourceFileName)) {
+              return targetPackageAlias;
+            }
+          }
+          return null;
+        }
       );
 
-      // Match import statements that reference the source file
-      // Pattern breakdown:
-      // - (from\\s+['"]) - Captures "from '" or 'from "'
-      // - (\\.{1,2}/[^'"]*${sourceFileName}[^'"]*) - Captures the import path:
-      //   * \\.{1,2}/ - Matches "./" or "../"
-      //   * [^'"]* - Matches any characters before the filename (e.g., "path/to/")
-      //   * ${sourceFileName} - The actual filename without extension
-      //   * [^'"]* - Matches any characters after the filename (e.g., ".mjs" for ESM files)
-      // - (['"]') - Captures the closing quote
-      // This allows matching imports like:
-      // - from './file'
-      // - from './path/to/file'
-      // - from './file.mjs' (ESM with extension)
-      const staticPattern = new RegExp(
-        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
-        'g',
-      );
-      const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"]\\s*\\))`,
-        'g',
-      );
-
-      let updatedContent = content;
-      let hasChanges = false;
-
-      updatedContent = updatedContent.replace(
-        staticPattern,
-        (_match, prefix: string, _pathMatch: string, suffix: string) => {
-          hasChanges = true;
-          return `${prefix}${targetPackageAlias}${suffix}`;
-        },
-      );
-
-      updatedContent = updatedContent.replace(
-        dynamicPattern,
-        (_match, prefix: string, _pathMatch: string, suffix: string) => {
-          hasChanges = true;
-          return `${prefix}${targetPackageAlias}${suffix}`;
-        },
-      );
-
-      if (hasChanges) {
+      if (updatedContent !== null) {
         tree.write(filePath, updatedContent);
         logger.debug(`Updated imports to use package alias in ${filePath}`);
       }
@@ -1235,7 +1140,7 @@ function updateImportPathsToPackageAlias(
 }
 
 /**
- * Updates import paths within a single project
+ * Updates import paths within a single project using AST
  */
 function updateImportPathsInProject(
   tree: Tree,
@@ -1257,58 +1162,31 @@ function updateImportPathsInProject(
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
 
-      // Get file name without extension and escape for regex
-      const sourceFileName = escapeRegex(
-        path.basename(sourceFilePath, path.extname(sourceFilePath)),
-      );
-
-      // Match import statements that reference the source file
-      // Pattern breakdown:
-      // - (from\\s+['"]) - Captures "from '" or 'from "'
-      // - (\\.{1,2}/[^'"]*${sourceFileName}[^'"]*) - Captures the import path:
-      //   * \\.{1,2}/ - Matches "./" or "../"
-      //   * [^'"]* - Matches any characters before the filename (e.g., "path/to/")
-      //   * ${sourceFileName} - The actual filename without extension
-      //   * [^'"]* - Matches any characters after the filename (e.g., ".mjs" for ESM files)
-      // - (['"]') - Captures the closing quote
-      // This allows matching imports like:
-      // - from './file'
-      // - from './path/to/file'
-      // - from './file.mjs' (ESM with extension)
-      const staticPattern = new RegExp(
-        `(from\\s+['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"])`,
-        'g',
-      );
-      const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(\\.{1,2}/[^'"]*${sourceFileName}[^'"]*)(['"]\\s*\\))`,
-        'g',
-      );
-
       const relativeSpecifier = getRelativeImportSpecifier(
         filePath,
         targetFilePath,
       );
 
-      let updatedContent = content;
-      let hasChanges = false;
+      // Get the filename to match against (without extension)
+      const sourceFileName = path.basename(sourceFilePath, path.extname(sourceFilePath));
 
-      updatedContent = updatedContent.replace(
-        staticPattern,
-        (_match, prefix: string, _pathMatch: string, suffix: string) => {
-          hasChanges = true;
-          return `${prefix}${relativeSpecifier}${suffix}`;
-        },
+      // Use AST-based update with a matcher function for relative imports
+      const updatedContent = updateImportsMatching(
+        content,
+        filePath,
+        (moduleSpecifier) => {
+          // Only update relative imports that reference the source file
+          if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+            // Check if the import path contains the source filename
+            if (moduleSpecifier.includes(sourceFileName)) {
+              return relativeSpecifier;
+            }
+          }
+          return null;
+        }
       );
 
-      updatedContent = updatedContent.replace(
-        dynamicPattern,
-        (_match, prefix: string, _pathMatch: string, suffix: string) => {
-          hasChanges = true;
-          return `${prefix}${relativeSpecifier}${suffix}`;
-        },
-      );
-
-      if (hasChanges) {
+      if (updatedContent !== null) {
         tree.write(filePath, updatedContent);
         logger.debug(`Updated relative imports in ${filePath}`);
       }
@@ -1317,7 +1195,7 @@ function updateImportPathsInProject(
 }
 
 /**
- * Checks if a project has imports to a given file/path
+ * Checks if a project has imports to a given file/path using AST parsing
  */
 function checkForImportsInProject(
   tree: Tree,
@@ -1338,14 +1216,8 @@ function checkForImportsInProject(
         return;
       }
 
-      const escapedPath = escapeRegex(importPath);
-      const patterns = [
-        new RegExp(`from\\s+['"]${escapedPath}['"]`),
-        new RegExp(`import\\s*\\(\\s*['"]${escapedPath}['"]\\s*\\)`),
-        new RegExp(`require\\(\\s*['"]${escapedPath}['"]\\s*\\)`),
-      ];
-
-      if (patterns.some((pattern) => pattern.test(content))) {
+      // Use AST-based detection for accurate import checking
+      if (hasImportToPath(content, filePath, importPath)) {
         hasImports = true;
       }
     }
@@ -1355,7 +1227,7 @@ function checkForImportsInProject(
 }
 
 /**
- * Updates imports in target project from absolute import path to relative imports
+ * Updates imports in target project from absolute import path to relative imports using AST
  */
 function updateImportsToRelative(
   tree: Tree,
@@ -1377,16 +1249,6 @@ function updateImportsToRelative(
       const content = tree.read(filePath, 'utf-8');
       if (!content) return;
 
-      const escapedSourcePath = escapeRegex(sourceImportPath);
-      const staticPattern = new RegExp(
-        `(from\\s+['"])(?:${escapedSourcePath})(['"])`,
-        'g',
-      );
-      const dynamicPattern = new RegExp(
-        `(import\\s*\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
-        'g',
-      );
-
       const projectRoot = project.sourceRoot || project.root;
       const targetFilePath = path.join(projectRoot, targetRelativePath);
       const relativeSpecifier = getRelativeImportSpecifier(
@@ -1394,26 +1256,11 @@ function updateImportsToRelative(
         targetFilePath,
       );
 
-      let updatedContent = content;
-      let hasChanges = false;
+      // Use AST-based update for accurate replacement
+      const replacements = new Map([[sourceImportPath, relativeSpecifier]]);
+      const updatedContent = updateImports(content, filePath, replacements);
 
-      updatedContent = updatedContent.replace(
-        staticPattern,
-        (_match, prefix: string, suffix: string) => {
-          hasChanges = true;
-          return `${prefix}${relativeSpecifier}${suffix}`;
-        },
-      );
-
-      updatedContent = updatedContent.replace(
-        dynamicPattern,
-        (_match, prefix: string, suffix: string) => {
-          hasChanges = true;
-          return `${prefix}${relativeSpecifier}${suffix}`;
-        },
-      );
-
-      if (hasChanges) {
+      if (updatedContent !== null) {
         tree.write(filePath, updatedContent);
         logger.debug(`Updated imports to relative path in ${filePath}`);
       }
@@ -1428,27 +1275,6 @@ function updateImportsByAliasInProject(
   targetImportPath: string,
 ): void {
   const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
-  const escapedSourcePath = escapeRegex(sourceImportPath);
-  const replacementPatterns: Array<{ pattern: RegExp; replacement: string }> = [
-    {
-      pattern: new RegExp(`from\\s+['"]${escapedSourcePath}['"]`, 'g'),
-      replacement: `from '${targetImportPath}'`,
-    },
-    {
-      pattern: new RegExp(
-        `import\\s*\\(\\s*['"]${escapedSourcePath}['"]\\s*\\)`,
-        'g',
-      ),
-      replacement: `import('${targetImportPath}')`,
-    },
-    {
-      pattern: new RegExp(
-        `require\\(\\s*['"]${escapedSourcePath}['"]\\s*\\)`,
-        'g',
-      ),
-      replacement: `require('${targetImportPath}')`,
-    },
-  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
@@ -1457,18 +1283,11 @@ function updateImportsByAliasInProject(
         return;
       }
 
-      let updatedContent = originalContent;
-      let hasChanges = false;
+      // Use AST-based update for accurate replacement
+      const replacements = new Map([[sourceImportPath, targetImportPath]]);
+      const updatedContent = updateImports(originalContent, filePath, replacements);
 
-      replacementPatterns.forEach(({ pattern, replacement }) => {
-        const replacedContent = updatedContent.replace(pattern, replacement);
-        if (replacedContent !== updatedContent) {
-          updatedContent = replacedContent;
-          hasChanges = true;
-        }
-      });
-
-      if (hasChanges && updatedContent !== originalContent) {
+      if (updatedContent !== null) {
         tree.write(filePath, updatedContent);
         logger.debug(`Updated imports in ${filePath}`);
       }
@@ -1600,7 +1419,7 @@ function ensureFileExported(
 }
 
 /**
- * Removes the export for a file from the project's entrypoint
+ * Removes the export for a file from the project's entrypoint using AST
  */
 function removeFileExport(
   tree: Tree,
@@ -1614,6 +1433,11 @@ function removeFileExport(
     path.join(project.root, 'src', 'index.mts'),
   ];
 
+  const fileWithoutExt = file.replace(
+    /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
+    '',
+  );
+
   // Find existing index files
   indexPaths.forEach((indexPath) => {
     if (!tree.exists(indexPath)) {
@@ -1625,29 +1449,33 @@ function removeFileExport(
       return;
     }
 
-    // Remove export for the file
-    const fileWithoutExt = file.replace(
-      /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-      '',
+    // Use AST to find and remove export statements for this file
+    const imports = findImports(content, indexPath);
+    const exportsToRemove = imports.filter(
+      (imp) => imp.type === 'export' && imp.moduleSpecifier.includes(fileWithoutExt)
     );
-    const escapedFile = escapeRegex(fileWithoutExt);
 
-    // Match various export patterns
-    const exportPatterns = [
-      new RegExp(
-        `export\\s+\\*\\s+from\\s+['"]\\.\\.?/${escapedFile}['"];?\\s*\\n?`,
-        'g',
-      ),
-      new RegExp(
-        `export\\s+\\{[^}]+\\}\\s+from\\s+['"]\\.\\.?/${escapedFile}['"];?\\s*\\n?`,
-        'g',
-      ),
-    ];
+    if (exportsToRemove.length === 0) {
+      return;
+    }
 
+    // Remove exports by sorting in reverse order and removing from end to start
+    exportsToRemove.sort((a, b) => b.start - a.start);
+    
     let updatedContent = content;
-    exportPatterns.forEach((pattern) => {
-      updatedContent = updatedContent.replace(pattern, '');
-    });
+    for (const exp of exportsToRemove) {
+      // Find the end of the export statement (including semicolon and newline if present)
+      let end = exp.end;
+      // Check for optional semicolon and newline after the export
+      if (updatedContent[end] === ';') {
+        end++;
+      }
+      if (updatedContent[end] === '\n') {
+        end++;
+      }
+      
+      updatedContent = updatedContent.substring(0, exp.start) + updatedContent.substring(end);
+    }
 
     if (updatedContent !== content) {
       // If the file becomes empty or whitespace-only, add export {}
