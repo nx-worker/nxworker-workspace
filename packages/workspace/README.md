@@ -12,7 +12,7 @@
 
 ## Requirements
 
-- Nx 19.8-21.x with `@nx/devkit` installed
+- Nx 19.8-21.x with `@nx/devkit` and `@nx/workspace` installed
 - Node.js 18, 20, or 22 (same as Nx)
 
 ## Platform & Architecture Support
@@ -26,10 +26,18 @@ The generator has been validated through automated CI and e2e suites on multiple
 
 ## Installation and usage
 
-Install the plugin in your Nx workspace and run a plugin with an Nx Console editor extension or the Nx CLI:
+Install the plugin in your Nx workspace using `nx add`:
 
 ```shell
-npm install --save-dev @nxworker/workspace
+nx add @nxworker/workspace
+nx add @nx/devkit
+nx add @nx/workspace
 
 nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
+```
+
+Alternatively, you can install manually with npm:
+
+```shell
+npm install --save-dev @nxworker/workspace @nx/devkit @nx/workspace
 ```

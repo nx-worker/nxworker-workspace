@@ -4,7 +4,7 @@ The `@nxworker/workspace:move-file` generator safely moves a file between Nx pro
 
 ## Requirements
 
-- Nx 19.8-21.x with `@nx/devkit` installed
+- Nx 19.8-21.x with `@nx/devkit` and `@nx/workspace` installed
 - Node.js 18, 20, or 22 (same as Nx)
 - ECMAScript Modules (ESM) only, no CommonJS (CJS) support
 
@@ -24,6 +24,7 @@ The generator moves the specified file to the target project, creating any missi
 | `project` | `string` | – | Name of the target Nx project. Provides a dropdown in Nx Console. |
 | `projectDirectory` | `string` | – | Optional subdirectory within the target project's base folder (e.g., `utils` or `features/auth`). For library projects, files are placed at `sourceRoot/lib/<projectDirectory>`. For application projects, files are placed at `sourceRoot/app/<projectDirectory>`. When not specified, files go to `sourceRoot/lib` for libraries or `sourceRoot/app` for applications. |
 | `skipExport` | `boolean` | `false` | Skip adding the moved file to the target project's entrypoint if you plan to manage exports manually. |
+| `removeEmptyProject` | `boolean` | `false` | Automatically remove source projects that become empty after moving files (only index file and configuration files remain). Requires `@nx/workspace` peer dependency. |
 | `allowUnicode` | `boolean` | `false` | Permit Unicode characters in file paths (less restrictive; use with caution). |
 
 ### Examples
@@ -64,6 +65,13 @@ nx generate @nxworker/workspace:move-file \
   --project lib2 \
   --project-directory files \
   --allow-unicode
+
+# Move all files from lib1 to lib2 and remove lib1 if it becomes empty
+# Target: packages/lib2/src/lib/helper.ts (and lib1 is removed if empty)
+nx generate @nxworker/workspace:move-file \
+  packages/lib1/src/lib/helper.ts \
+  --project lib2 \
+  --remove-empty-project
 
 # Right-click a file in VS Code and select "Generate" to use the context menu
 # (requires Nx Console extension)

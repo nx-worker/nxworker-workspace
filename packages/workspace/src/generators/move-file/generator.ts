@@ -9,6 +9,7 @@ import {
   createProjectGraphAsync,
   normalizePath,
 } from '@nx/devkit';
+import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
@@ -46,6 +47,12 @@ export async function moveFileGenerator(
     return resolveAndValidate(tree, fileOptions, projects);
   });
 
+  // Track unique source projects for removal check
+  const sourceProjectNames = new Set<string>();
+  contexts.forEach((ctx) => {
+    sourceProjectNames.add(ctx.sourceProjectName);
+  });
+
   // Execute all moves without deleting sources yet
   for (let i = 0; i < contexts.length; i++) {
     const ctx = contexts[i];
@@ -56,6 +63,27 @@ export async function moveFileGenerator(
   // Delete all source files after all moves are complete
   for (const ctx of contexts) {
     tree.delete(ctx.normalizedSource);
+  }
+
+  // Check if any source projects should be removed
+  if (options.removeEmptyProject) {
+    for (const projectName of sourceProjectNames) {
+      const project = projects.get(projectName);
+      if (project && isProjectEmpty(tree, project)) {
+        logger.debug(`Project ${projectName} is empty, removing it`);
+        try {
+          await removeGenerator(tree, {
+            projectName,
+            skipFormat: true,
+            forceRemove: false,
+          });
+        } catch (error) {
+          logger.error(
+            `Failed to remove empty project ${projectName}: ${error}`,
+          );
+        }
+      }
+    }
   }
 
   // Format files once at the end
@@ -903,32 +931,47 @@ function getProjectImportPath(
 }
 
 /**
- * Reads the TypeScript compiler path mappings from `tsconfig.base.json`.
+ * Reads the TypeScript compiler path mappings from tsconfig files at the workspace root.
+ * Tries tsconfig.base.json, tsconfig.json, and any tsconfig.*.json files.
  *
  * @param tree - The virtual file system tree.
  * @returns The paths object or null if unavailable.
  */
 function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
-  const tsconfigPath = 'tsconfig.base.json';
+  // Try common tsconfig files in order of preference
+  const tsconfigFiles = ['tsconfig.base.json', 'tsconfig.json'];
 
-  if (!tree.exists(tsconfigPath)) {
-    return null;
-  }
+  // Add any tsconfig.*.json files found at the root
+  const rootFiles = tree.children('');
+  const additionalTsconfigFiles = rootFiles
+    .filter((file) => file.startsWith('tsconfig.') && file.endsWith('.json'))
+    .filter((file) => !tsconfigFiles.includes(file));
 
-  try {
-    const tsconfigContent = tree.read(tsconfigPath, 'utf-8');
-    if (!tsconfigContent) {
-      return null;
+  const allTsconfigFiles = [...tsconfigFiles, ...additionalTsconfigFiles];
+
+  for (const tsconfigPath of allTsconfigFiles) {
+    if (!tree.exists(tsconfigPath)) {
+      continue;
     }
 
-    const tsconfig = JSON.parse(tsconfigContent);
-    const paths = tsconfig.compilerOptions?.paths;
+    try {
+      const tsconfigContent = tree.read(tsconfigPath, 'utf-8');
+      if (!tsconfigContent) {
+        continue;
+      }
 
-    return typeof paths === 'object' && paths ? paths : null;
-  } catch (error) {
-    logger.warn(`Could not parse tsconfig.base.json: ${error}`);
-    return null;
+      const tsconfig = JSON.parse(tsconfigContent);
+      const paths = tsconfig.compilerOptions?.paths;
+
+      if (typeof paths === 'object' && paths) {
+        return paths;
+      }
+    } catch (error) {
+      logger.warn(`Could not parse ${tsconfigPath}: ${error}`);
+    }
   }
+
+  return null;
 }
 
 /**
@@ -1546,6 +1589,86 @@ function removeFileExport(
       logger.debug(`Removed export from ${indexPath}`);
     }
   });
+}
+
+/**
+ * Checks if a project is empty (contains only configuration files and index file).
+ * A project is considered empty if it has no source files other than the entrypoint.
+ *
+ * @param tree - The virtual file system tree
+ * @param project - Project configuration to check
+ * @returns True if the project is empty (only index file remains)
+ */
+function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
+  const sourceRoot = project.sourceRoot || project.root;
+
+  // Try to find the index file from tsconfig.base.json path mappings
+  const paths = readCompilerPaths(tree);
+  let indexFilePath: string | null = null;
+
+  if (paths) {
+    for (const [, pathEntry] of Object.entries(paths)) {
+      const pathStr = toFirstPath(pathEntry);
+      if (pathStr && pointsToProjectIndex(pathStr, sourceRoot)) {
+        // Extract just the filename from the path
+        indexFilePath = pathStr;
+        break;
+      }
+    }
+  }
+
+  // Fallback: list of common index file names if not found in tsconfig
+  const fallbackIndexFileNames = [
+    'index.ts',
+    'index.mts',
+    'index.mjs',
+    'index.js',
+    'index.tsx',
+    'index.jsx',
+  ];
+
+  let hasNonIndexSourceFiles = false;
+
+  visitNotIgnoredFiles(tree, sourceRoot, (filePath) => {
+    if (hasNonIndexSourceFiles) {
+      return; // Short-circuit if we already found a non-index file
+    }
+
+    // Check if this is a source file (not a config file)
+    const isSourceFile = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/.test(filePath);
+
+    // Skip if it's not a source file
+    if (!isSourceFile) {
+      return;
+    }
+
+    // Check if this file is the index file
+    let isIndexFile = false;
+
+    if (indexFilePath) {
+      // If we found the index path from tsconfig, use exact match
+      isIndexFile = normalizePath(filePath) === normalizePath(indexFilePath);
+    } else {
+      // Fallback to checking common index file names at sourceRoot
+      // Normalize paths to handle cross-platform differences (Windows backslashes)
+      const normalizedFilePath = normalizePath(filePath);
+      const normalizedSourceRoot = normalizePath(sourceRoot);
+      const relativePath = path.relative(
+        normalizedSourceRoot,
+        normalizedFilePath,
+      );
+      const fileName = path.basename(normalizedFilePath);
+      isIndexFile =
+        fallbackIndexFileNames.includes(fileName) &&
+        path.dirname(relativePath) === '.';
+    }
+
+    if (!isIndexFile) {
+      hasNonIndexSourceFiles = true;
+    }
+  });
+
+  return !hasNonIndexSourceFiles;
 }
 
 export default moveFileGenerator;

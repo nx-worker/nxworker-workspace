@@ -39,6 +39,11 @@
       "type": "boolean",
       "description": "Allow Unicode characters in file path inputs (less safe)",
       "default": false
+    },
+    "removeEmptyProject": {
+      "type": "boolean",
+      "description": "Remove source project(s) if they become empty after moving files (only index file remains)",
+      "default": false
     }
   },
   "required": ["file", "project"]

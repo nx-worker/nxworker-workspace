@@ -5,4 +5,5 @@ export interface MoveFileGeneratorSchema {
   skipExport?: boolean;
   skipFormat?: boolean;
   allowUnicode?: boolean;
+  removeEmptyProject?: boolean;
 }
