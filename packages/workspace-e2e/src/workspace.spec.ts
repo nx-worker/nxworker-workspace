@@ -319,6 +319,94 @@ describe('workspace', () => {
         "import('./features/feature').then((m) => m.feature)",
       );
     });
+
+    it('should move multiple files using glob patterns', () => {
+      // Create a new library with multiple spec files
+      const testLib = `lib-${uniqueId()}`;
+      execSync(
+        `npx nx generate @nx/js:library ${testLib} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Create multiple test files
+      const test1Path = join(
+        projectDirectory,
+        testLib,
+        'src',
+        'lib',
+        'test1.spec.ts',
+      );
+      writeFileSync(test1Path, 'export const test1 = "test";\n');
+
+      const test2Path = join(
+        projectDirectory,
+        testLib,
+        'src',
+        'lib',
+        'test2.spec.ts',
+      );
+      writeFileSync(test2Path, 'export const test2 = "test";\n');
+
+      const utilsDir = join(projectDirectory, testLib, 'src', 'lib', 'utils');
+      mkdirSync(utilsDir, { recursive: true });
+      const test3Path = join(utilsDir, 'test3.spec.ts');
+      writeFileSync(test3Path, 'export const test3 = "test";\n');
+
+      // Create a target library
+      const targetLib = `lib-${uniqueId()}`;
+      execSync(
+        `npx nx generate @nx/js:library ${targetLib} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Move all spec files using glob pattern
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file "${testLib}/**/*.spec.ts" --project ${targetLib} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+
+      // Verify all spec files were moved
+      const movedTest1Path = join(
+        projectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        'test1.spec.ts',
+      );
+      expect(readFileSync(movedTest1Path, 'utf-8')).toContain('test1');
+
+      const movedTest2Path = join(
+        projectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        'test2.spec.ts',
+      );
+      expect(readFileSync(movedTest2Path, 'utf-8')).toContain('test2');
+
+      const movedTest3Path = join(
+        projectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        'test3.spec.ts',
+      );
+      expect(readFileSync(movedTest3Path, 'utf-8')).toContain('test3');
+
+      // Verify original files are deleted
+      expect(() => readFileSync(test1Path, 'utf-8')).toThrow();
+      expect(() => readFileSync(test2Path, 'utf-8')).toThrow();
+      expect(() => readFileSync(test3Path, 'utf-8')).toThrow();
+    });
   });
 
   describe('OS-specific edge cases', () => {
