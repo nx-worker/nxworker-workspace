@@ -1,5 +1,9 @@
 import { escapeRegex } from './security-utils/escape-regex';
-import { findImports, hasImportToPath, updateImports } from './ast-utils/import-ast';
+import {
+  findImports,
+  hasImportToPath,
+  updateImports,
+} from './ast-utils/import-ast';
 import { benchmark, compareBenchmarks } from './benchmark-utils';
 
 describe('Import Detection Performance Benchmarks', () => {
@@ -24,7 +28,7 @@ describe('Import Detection Performance Benchmarks', () => {
     it('should benchmark regex-based detection', () => {
       const targetPath = '@scope/module1';
       const escapedPath = escapeRegex(targetPath);
-      
+
       const regexFn = () => {
         const patterns = [
           new RegExp(`from\\s+['"]${escapedPath}['"]`),
@@ -35,34 +39,38 @@ describe('Import Detection Performance Benchmarks', () => {
       };
 
       const result = benchmark('Regex Detection', regexFn, 1000);
-      
+
       console.log(`\nRegex Detection Benchmark:`);
       console.log(`  Average time: ${result.averageTimeMs.toFixed(3)}ms`);
-      console.log(`  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`);
-      
+      console.log(
+        `  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`,
+      );
+
       expect(result.averageTimeMs).toBeGreaterThan(0);
     });
 
     it('should benchmark AST-based detection', () => {
       const targetPath = '@scope/module1';
-      
+
       const astFn = () => {
         return hasImportToPath(sampleCode, 'test.ts', targetPath);
       };
 
       const result = benchmark('AST Detection', astFn, 1000);
-      
+
       console.log(`\nAST Detection Benchmark:`);
       console.log(`  Average time: ${result.averageTimeMs.toFixed(3)}ms`);
-      console.log(`  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`);
-      
+      console.log(
+        `  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`,
+      );
+
       expect(result.averageTimeMs).toBeGreaterThan(0);
     });
 
     it('should compare detection methods', () => {
       const targetPath = '@scope/module1';
       const escapedPath = escapeRegex(targetPath);
-      
+
       const regexFn = () => {
         const patterns = [
           new RegExp(`from\\s+['"]${escapedPath}['"]`),
@@ -78,10 +86,10 @@ describe('Import Detection Performance Benchmarks', () => {
 
       const regexResult = benchmark('Regex Detection', regexFn, 1000);
       const astResult = benchmark('AST Detection', astFn, 1000);
-      
+
       const comparison = compareBenchmarks(regexResult, astResult);
       console.log(comparison);
-      
+
       // Both should produce the same result
       expect(regexFn()).toBe(astFn());
     });
@@ -91,7 +99,7 @@ describe('Import Detection Performance Benchmarks', () => {
     it('should benchmark regex-based update', () => {
       const sourceImportPath = '@scope/module1';
       const targetImportPath = '@scope/new-module1';
-      
+
       const regexFn = () => {
         const escapedSourcePath = escapeRegex(sourceImportPath);
         const staticPattern = new RegExp(
@@ -102,7 +110,7 @@ describe('Import Detection Performance Benchmarks', () => {
           `(import\\s*\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
           'g',
         );
-        
+
         let updatedContent = sampleCode;
         updatedContent = updatedContent.replace(
           staticPattern,
@@ -120,36 +128,40 @@ describe('Import Detection Performance Benchmarks', () => {
       };
 
       const result = benchmark('Regex Update', regexFn, 1000);
-      
+
       console.log(`\nRegex Update Benchmark:`);
       console.log(`  Average time: ${result.averageTimeMs.toFixed(3)}ms`);
-      console.log(`  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`);
-      
+      console.log(
+        `  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`,
+      );
+
       expect(result.averageTimeMs).toBeGreaterThan(0);
     });
 
     it('should benchmark AST-based update', () => {
       const sourceImportPath = '@scope/module1';
       const targetImportPath = '@scope/new-module1';
-      
+
       const astFn = () => {
         const replacements = new Map([[sourceImportPath, targetImportPath]]);
         return updateImports(sampleCode, 'test.ts', replacements);
       };
 
       const result = benchmark('AST Update', astFn, 1000);
-      
+
       console.log(`\nAST Update Benchmark:`);
       console.log(`  Average time: ${result.averageTimeMs.toFixed(3)}ms`);
-      console.log(`  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`);
-      
+      console.log(
+        `  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`,
+      );
+
       expect(result.averageTimeMs).toBeGreaterThan(0);
     });
 
     it('should compare update methods', () => {
       const sourceImportPath = '@scope/module1';
       const targetImportPath = '@scope/new-module1';
-      
+
       const regexFn = () => {
         const escapedSourcePath = escapeRegex(sourceImportPath);
         const staticPattern = new RegExp(
@@ -160,7 +172,7 @@ describe('Import Detection Performance Benchmarks', () => {
           `(import\\s*\\(\\s*['"])(?:${escapedSourcePath})(['"]\\s*\\))`,
           'g',
         );
-        
+
         let updatedContent = sampleCode;
         updatedContent = updatedContent.replace(
           staticPattern,
@@ -184,10 +196,10 @@ describe('Import Detection Performance Benchmarks', () => {
 
       const regexResult = benchmark('Regex Update', regexFn, 1000);
       const astResult = benchmark('AST Update', astFn, 1000);
-      
+
       const comparison = compareBenchmarks(regexResult, astResult);
       console.log(comparison);
-      
+
       // Verify both produce similar results (AST may differ in whitespace/formatting)
       const regexOutput = regexFn();
       const astOutput = astFn();
@@ -207,7 +219,7 @@ describe('Import Detection Performance Benchmarks', () => {
     it('should benchmark regex-based relative import detection', () => {
       const sourceFileName = 'relative-file';
       const escapedFileName = escapeRegex(sourceFileName);
-      
+
       const regexFn = () => {
         const staticPattern = new RegExp(
           `(from\\s+['"])(\\.{1,2}/[^'"]*${escapedFileName}[^'"]*)(['"])`,
@@ -217,26 +229,32 @@ describe('Import Detection Performance Benchmarks', () => {
       };
 
       const result = benchmark('Regex Relative Detection', regexFn, 1000);
-      
+
       console.log(`\nRegex Relative Detection Benchmark:`);
       console.log(`  Average time: ${result.averageTimeMs.toFixed(3)}ms`);
-      console.log(`  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`);
-      
+      console.log(
+        `  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`,
+      );
+
       expect(result.averageTimeMs).toBeGreaterThan(0);
     });
 
     it('should benchmark AST-based relative import detection', () => {
       const astFn = () => {
         const imports = findImports(relativeCode, 'test.ts');
-        return imports.some(imp => imp.moduleSpecifier.includes('relative-file'));
+        return imports.some((imp) =>
+          imp.moduleSpecifier.includes('relative-file'),
+        );
       };
 
       const result = benchmark('AST Relative Detection', astFn, 1000);
-      
+
       console.log(`\nAST Relative Detection Benchmark:`);
       console.log(`  Average time: ${result.averageTimeMs.toFixed(3)}ms`);
-      console.log(`  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`);
-      
+      console.log(
+        `  Total time: ${result.executionTimeMs.toFixed(2)}ms (${result.iterations} iterations)`,
+      );
+
       expect(result.averageTimeMs).toBeGreaterThan(0);
     });
   });

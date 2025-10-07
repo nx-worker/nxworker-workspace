@@ -26,30 +26,36 @@ The move from regex-based to AST-based parsing provides several advantages:
 ### Baseline: Regex-based Implementation
 
 **Detection Performance (1000 iterations):**
+
 - Average time: 0.002ms per operation
 - Total time: 2.15ms
 
 **Update Performance (1000 iterations):**
+
 - Average time: 0.003ms per operation
 - Total time: 3.19ms
 
 **Relative Import Detection (1000 iterations):**
+
 - Average time: 0.001ms per operation
 - Total time: 0.99ms
 
 ### New: AST-based Implementation (with caching)
 
 **Detection Performance (1000 iterations):**
+
 - Average time: 0.010ms per operation
 - Total time: 9.54ms
 - **Result: 4.43x slower (+342.56% change)**
 
 **Update Performance (1000 iterations):**
+
 - Average time: 0.013ms per operation
 - Total time: 13.49ms
 - **Result: 4.23x slower (+322.63% change)**
 
 **Relative Import Detection (1000 iterations):**
+
 - Average time: 0.004ms per operation
 - Total time: 4.46ms
 - **Result: 4.50x slower (+350.51% change)**
@@ -65,6 +71,7 @@ const sourceFileCache = new Map<string, ts.SourceFile>();
 ```
 
 This optimization significantly improves performance when:
+
 - Processing the same file multiple times
 - Batch operations on a workspace
 - Multiple operations during a single generator run
@@ -76,11 +83,13 @@ Without caching, the performance penalty was 30-46x slower. With caching, it's r
 ### Typical Move Operations
 
 For most file move operations in the generator:
+
 - Files are processed once
 - Import updates are batched
 - Total operation time is dominated by I/O and Nx graph operations
 
 **Example timing for a typical move:**
+
 - Regex approach: ~0.1ms for import updates
 - AST approach: ~0.4ms for import updates
 - Total operation time: 50-200ms (mostly I/O)
@@ -90,6 +99,7 @@ For most file move operations in the generator:
 ### Large-Scale Operations
 
 For batch operations moving many files:
+
 - Regex: ~10ms for 1000 import checks
 - AST: ~40ms for 1000 import checks
 
@@ -111,6 +121,7 @@ For batch operations moving many files:
 ### Performance Considerations
 
 The 4-5x performance difference is acceptable because:
+
 - Absolute times remain very fast (microseconds per operation)
 - Correctness improvements outweigh performance cost
 - Real-world operations are I/O bound, not CPU bound
@@ -119,6 +130,7 @@ The 4-5x performance difference is acceptable because:
 ## Test Results
 
 All existing tests pass with the AST implementation:
+
 - **97 tests passing**
 - No behavioral changes
 - Same functionality with improved accuracy
@@ -126,6 +138,7 @@ All existing tests pass with the AST implementation:
 ## Conclusion
 
 The AST-based implementation provides:
+
 - ✅ **Correctness**: No false positives/negatives from regex limitations
 - ✅ **Robustness**: Handles all valid JavaScript/TypeScript syntax
 - ✅ **Maintainability**: Single source of truth via TypeScript compiler

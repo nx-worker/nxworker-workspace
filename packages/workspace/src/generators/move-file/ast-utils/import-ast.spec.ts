@@ -1,4 +1,9 @@
-import { findImports, hasImportToPath, updateImports, updateImportsMatching } from './import-ast';
+import {
+  findImports,
+  hasImportToPath,
+  updateImports,
+  updateImportsMatching,
+} from './import-ast';
 
 describe('AST Import Utilities', () => {
   describe('findImports', () => {
@@ -9,7 +14,7 @@ describe('AST Import Utilities', () => {
         import * as baz from 'module3';
       `;
       const imports = findImports(code, 'test.ts');
-      
+
       expect(imports).toHaveLength(3);
       expect(imports[0].moduleSpecifier).toBe('module1');
       expect(imports[0].type).toBe('import');
@@ -23,7 +28,7 @@ describe('AST Import Utilities', () => {
         import('another-module').then(m => m.default);
       `;
       const imports = findImports(code, 'test.ts');
-      
+
       expect(imports).toHaveLength(2);
       expect(imports[0].moduleSpecifier).toBe('dynamic-module');
       expect(imports[0].type).toBe('dynamic-import');
@@ -36,7 +41,7 @@ describe('AST Import Utilities', () => {
         const { foo } = require('another-required');
       `;
       const imports = findImports(code, 'test.js');
-      
+
       expect(imports).toHaveLength(2);
       expect(imports[0].moduleSpecifier).toBe('required-module');
       expect(imports[0].type).toBe('require');
@@ -49,7 +54,7 @@ describe('AST Import Utilities', () => {
         export * from 'another-export';
       `;
       const imports = findImports(code, 'test.ts');
-      
+
       expect(imports).toHaveLength(2);
       expect(imports[0].moduleSpecifier).toBe('export-module');
       expect(imports[0].type).toBe('export');
@@ -63,7 +68,7 @@ describe('AST Import Utilities', () => {
         import baz from '../../grandparent';
       `;
       const imports = findImports(code, 'test.ts');
-      
+
       expect(imports).toHaveLength(3);
       expect(imports[0].moduleSpecifier).toBe('./relative');
       expect(imports[1].moduleSpecifier).toBe('../parent');
@@ -78,9 +83,9 @@ describe('AST Import Utilities', () => {
         export { c } from 'module4';
       `;
       const imports = findImports(code, 'test.ts');
-      
+
       expect(imports).toHaveLength(4);
-      expect(imports.map(i => i.moduleSpecifier)).toEqual([
+      expect(imports.map((i) => i.moduleSpecifier)).toEqual([
         'module1',
         'module2',
         'module3',
@@ -96,7 +101,7 @@ describe('AST Import Utilities', () => {
         }
       `;
       const imports = findImports(code, 'test.ts');
-      
+
       expect(imports).toHaveLength(0);
     });
   });
@@ -107,7 +112,7 @@ describe('AST Import Utilities', () => {
         import { foo } from 'target-module';
         import bar from 'other-module';
       `;
-      
+
       expect(hasImportToPath(code, 'test.ts', 'target-module')).toBe(true);
     });
 
@@ -116,7 +121,7 @@ describe('AST Import Utilities', () => {
         import { foo } from 'other-module';
         import bar from 'another-module';
       `;
-      
+
       expect(hasImportToPath(code, 'test.ts', 'target-module')).toBe(false);
     });
 
@@ -125,7 +130,7 @@ describe('AST Import Utilities', () => {
         import { foo } from './relative';
         import bar from '../parent';
       `;
-      
+
       expect(hasImportToPath(code, 'test.ts', './relative')).toBe(true);
       expect(hasImportToPath(code, 'test.ts', '../parent')).toBe(true);
       expect(hasImportToPath(code, 'test.ts', './other')).toBe(false);
@@ -136,9 +141,9 @@ describe('AST Import Utilities', () => {
     it('should update import statements', () => {
       const code = `import { foo } from 'old-module';`;
       const replacements = new Map([['old-module', 'new-module']]);
-      
+
       const result = updateImports(code, 'test.ts', replacements);
-      
+
       expect(result).toBe(`import { foo } from 'new-module';`);
     });
 
@@ -152,9 +157,9 @@ describe('AST Import Utilities', () => {
         ['module1', 'new-module1'],
         ['module3', 'new-module3'],
       ]);
-      
+
       const result = updateImports(code, 'test.ts', replacements);
-      
+
       expect(result).toContain("from 'new-module1'");
       expect(result).toContain("from 'module2'"); // unchanged
       expect(result).toContain("from 'new-module3'");
@@ -163,18 +168,18 @@ describe('AST Import Utilities', () => {
     it('should update dynamic imports', () => {
       const code = `const module = import('old-module');`;
       const replacements = new Map([['old-module', 'new-module']]);
-      
+
       const result = updateImports(code, 'test.ts', replacements);
-      
+
       expect(result).toBe(`const module = import('new-module');`);
     });
 
     it('should update require statements', () => {
       const code = `const module = require('old-module');`;
       const replacements = new Map([['old-module', 'new-module']]);
-      
+
       const result = updateImports(code, 'test.js', replacements);
-      
+
       expect(result).toBe(`const module = require('new-module');`);
     });
 
@@ -182,29 +187,65 @@ describe('AST Import Utilities', () => {
       const codeDouble = `import { foo } from "old-module";`;
       const codeSingle = `import { foo } from 'old-module';`;
       const replacements = new Map([['old-module', 'new-module']]);
-      
+
       const resultDouble = updateImports(codeDouble, 'test.ts', replacements);
       const resultSingle = updateImports(codeSingle, 'test.ts', replacements);
-      
+
       expect(resultDouble).toBe(`import { foo } from "new-module";`);
       expect(resultSingle).toBe(`import { foo } from 'new-module';`);
+    });
+
+    it('should handle backticks (template literals)', () => {
+      const codeBackticks = 'import { foo } from `old-module`;';
+      const replacements = new Map([['old-module', 'new-module']]);
+
+      const result = updateImports(codeBackticks, 'test.ts', replacements);
+
+      expect(result).toBe('import { foo } from `new-module`;');
+    });
+
+    it('should handle template literals with interpolation in dynamic imports', () => {
+      const code = `
+        const moduleName = 'feature';
+        const module1 = import(\`./modules/\${moduleName}\`);
+        const module2 = import(\`./\${moduleName}/index\`);
+      `;
+
+      // Template literals with interpolation are not static strings,
+      // so they won't be detected as imports to update
+      const replacements = new Map([['./modules/feature', 'new-module']]);
+      const result = updateImports(code, 'test.ts', replacements);
+
+      // Should return null because template literals with interpolation
+      // are not StringLiteral nodes in the AST
+      expect(result).toBeNull();
+    });
+
+    it('should handle template literals without interpolation', () => {
+      // Template literals without interpolation are treated as NoSubstitutionTemplateLiteral
+      const code = 'const module = import(`old-module`);';
+      const replacements = new Map([['old-module', 'new-module']]);
+
+      const result = updateImports(code, 'test.ts', replacements);
+
+      expect(result).toBe('const module = import(`new-module`);');
     });
 
     it('should return null when no changes needed', () => {
       const code = `import { foo } from 'module';`;
       const replacements = new Map([['other-module', 'new-module']]);
-      
+
       const result = updateImports(code, 'test.ts', replacements);
-      
+
       expect(result).toBeNull();
     });
 
     it('should handle export from statements', () => {
       const code = `export { foo } from 'old-module';`;
       const replacements = new Map([['old-module', 'new-module']]);
-      
+
       const result = updateImports(code, 'test.ts', replacements);
-      
+
       expect(result).toBe(`export { foo } from 'new-module';`);
     });
   });
@@ -216,16 +257,16 @@ describe('AST Import Utilities', () => {
         import bar from '../parent';
         import baz from 'absolute';
       `;
-      
+
       const matcher = (spec: string) => {
         if (spec.startsWith('./')) {
           return spec.replace('./', '../new/');
         }
         return null;
       };
-      
+
       const result = updateImportsMatching(code, 'test.ts', matcher);
-      
+
       expect(result).toContain("from '../new/relative'");
       expect(result).toContain("from '../parent'"); // unchanged
       expect(result).toContain("from 'absolute'"); // unchanged
@@ -233,11 +274,11 @@ describe('AST Import Utilities', () => {
 
     it('should return null when no matches', () => {
       const code = `import { foo } from 'module';`;
-      
+
       const matcher = () => null;
-      
+
       const result = updateImportsMatching(code, 'test.ts', matcher);
-      
+
       expect(result).toBeNull();
     });
   });

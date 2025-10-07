@@ -1,6 +1,6 @@
 /**
  * AST-based utilities for detecting and updating imports in TypeScript/JavaScript files
- * 
+ *
  * Note: AST parsing is more accurate than regex but has higher overhead.
  * For optimal performance:
  * - Cache source files when processing multiple operations on the same file
@@ -9,6 +9,7 @@
  */
 
 import * as ts from 'typescript';
+import { createHash } from 'node:crypto';
 
 /**
  * Cache for parsed source files to avoid re-parsing
@@ -17,16 +18,10 @@ import * as ts from 'typescript';
 const sourceFileCache = new Map<string, ts.SourceFile>();
 
 /**
- * Simple hash function for cache keys
+ * Hash function for cache keys using Node.js crypto module
  */
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return hash;
+function hashCode(str: string): string {
+  return createHash('sha256').update(str).digest('hex');
 }
 
 /**
@@ -51,9 +46,12 @@ export interface ImportStatement {
  * Parses a source file and finds all import/require statements
  * Uses caching to avoid re-parsing the same file
  */
-export function findImports(sourceCode: string, filePath: string): ImportStatement[] {
+export function findImports(
+  sourceCode: string,
+  filePath: string,
+): ImportStatement[] {
   const cacheKey = `${filePath}:${hashCode(sourceCode)}`;
-  
+
   let sourceFile = sourceFileCache.get(cacheKey);
   if (!sourceFile) {
     sourceFile = ts.createSourceFile(
@@ -64,8 +62,8 @@ export function findImports(sourceCode: string, filePath: string): ImportStateme
       filePath.endsWith('.tsx') || filePath.endsWith('.jsx')
         ? ts.ScriptKind.TSX
         : filePath.endsWith('.ts') || filePath.endsWith('.mts')
-        ? ts.ScriptKind.TS
-        : ts.ScriptKind.JS,
+          ? ts.ScriptKind.TS
+          : ts.ScriptKind.JS,
     );
     sourceFileCache.set(cacheKey, sourceFile);
   }
@@ -76,7 +74,10 @@ export function findImports(sourceCode: string, filePath: string): ImportStateme
     // Import declarations: import { x } from 'module'
     if (ts.isImportDeclaration(node)) {
       const moduleSpecifier = node.moduleSpecifier;
-      if (ts.isStringLiteral(moduleSpecifier)) {
+      if (
+        ts.isStringLiteral(moduleSpecifier) ||
+        ts.isNoSubstitutionTemplateLiteral(moduleSpecifier)
+      ) {
         imports.push({
           moduleSpecifier: moduleSpecifier.text,
           type: 'import',
@@ -90,7 +91,11 @@ export function findImports(sourceCode: string, filePath: string): ImportStateme
     // Export declarations: export { x } from 'module'
     else if (ts.isExportDeclaration(node)) {
       const moduleSpecifier = node.moduleSpecifier;
-      if (moduleSpecifier && ts.isStringLiteral(moduleSpecifier)) {
+      if (
+        moduleSpecifier &&
+        (ts.isStringLiteral(moduleSpecifier) ||
+          ts.isNoSubstitutionTemplateLiteral(moduleSpecifier))
+      ) {
         imports.push({
           moduleSpecifier: moduleSpecifier.text,
           type: 'export',
@@ -105,7 +110,10 @@ export function findImports(sourceCode: string, filePath: string): ImportStateme
     else if (ts.isCallExpression(node)) {
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         const arg = node.arguments[0];
-        if (arg && ts.isStringLiteral(arg)) {
+        if (
+          arg &&
+          (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg))
+        ) {
           imports.push({
             moduleSpecifier: arg.text,
             type: 'dynamic-import',
@@ -122,7 +130,10 @@ export function findImports(sourceCode: string, filePath: string): ImportStateme
         node.expression.text === 'require'
       ) {
         const arg = node.arguments[0];
-        if (arg && ts.isStringLiteral(arg)) {
+        if (
+          arg &&
+          (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg))
+        ) {
           imports.push({
             moduleSpecifier: arg.text,
             type: 'require',
@@ -156,7 +167,7 @@ export function hasImportToPath(
 
 /**
  * Updates import statements in the source code
- * 
+ *
  * @param sourceCode - The source code to update
  * @param filePath - Path to the file (used for parsing context)
  * @param replacements - Map of old module specifier to new module specifier
@@ -172,7 +183,7 @@ export function updateImports(
   }
 
   const imports = findImports(sourceCode, filePath);
-  
+
   // Filter to only imports that need updating
   const importsToUpdate = imports.filter((imp) =>
     replacements.has(imp.moduleSpecifier),
@@ -213,7 +224,7 @@ export function clearCache(): void {
 
 /**
  * Updates imports matching a pattern (for relative imports)
- * 
+ *
  * @param sourceCode - The source code to update
  * @param filePath - Path to the file (used for parsing context)
  * @param matcher - Function that returns new specifier if import should be updated
@@ -225,7 +236,7 @@ export function updateImportsMatching(
   matcher: (moduleSpecifier: string) => string | null,
 ): string | null {
   const imports = findImports(sourceCode, filePath);
-  
+
   // Build replacements map
   const replacements = new Map<string, string>();
   for (const imp of imports) {
