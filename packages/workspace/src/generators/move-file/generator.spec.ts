@@ -1044,6 +1044,55 @@ describe('move-file generator', () => {
       );
     });
 
+    it('should move files from multiple source projects to one target project', async () => {
+      // Create files in different source projects
+      tree.write(
+        'packages/lib1/src/lib/file1.ts',
+        'export const file1 = "from lib1";',
+      );
+      tree.write(
+        'packages/lib2/src/lib/file2.ts',
+        'export const file2 = "from lib2";',
+      );
+
+      // Add a third project to move files to
+      addProjectConfiguration(tree, 'lib3', {
+        root: 'packages/lib3',
+        sourceRoot: 'packages/lib3/src',
+        projectType: 'library',
+      });
+      tree.write('packages/lib3/src/index.ts', '');
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/file1.ts,packages/lib2/src/lib/file2.ts',
+        project: 'lib3',
+        projectDirectory: 'shared',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Both files should be removed from their original locations
+      expect(tree.exists('packages/lib1/src/lib/file1.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/file2.ts')).toBe(false);
+
+      // Both files should exist in the target project
+      expect(tree.exists('packages/lib3/src/lib/shared/file1.ts')).toBe(true);
+      expect(tree.exists('packages/lib3/src/lib/shared/file2.ts')).toBe(true);
+
+      // Content should be preserved
+      const file1Content = tree.read(
+        'packages/lib3/src/lib/shared/file1.ts',
+        'utf-8',
+      );
+      const file2Content = tree.read(
+        'packages/lib3/src/lib/shared/file2.ts',
+        'utf-8',
+      );
+      expect(file1Content).toContain('from lib1');
+      expect(file2Content).toContain('from lib2');
+    });
+
     it('should throw error if empty file list is provided', async () => {
       const options: MoveFileGeneratorSchema = {
         file: '',
