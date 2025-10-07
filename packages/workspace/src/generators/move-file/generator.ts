@@ -925,32 +925,47 @@ function getProjectImportPath(
 }
 
 /**
- * Reads the TypeScript compiler path mappings from `tsconfig.base.json`.
+ * Reads the TypeScript compiler path mappings from tsconfig files at the workspace root.
+ * Tries tsconfig.base.json, tsconfig.json, and any tsconfig.*.json files.
  *
  * @param tree - The virtual file system tree.
  * @returns The paths object or null if unavailable.
  */
 function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
-  const tsconfigPath = 'tsconfig.base.json';
+  // Try common tsconfig files in order of preference
+  const tsconfigFiles = ['tsconfig.base.json', 'tsconfig.json'];
 
-  if (!tree.exists(tsconfigPath)) {
-    return null;
-  }
+  // Add any tsconfig.*.json files found at the root
+  const rootFiles = tree.children('');
+  const additionalTsconfigFiles = rootFiles
+    .filter((file) => file.startsWith('tsconfig.') && file.endsWith('.json'))
+    .filter((file) => !tsconfigFiles.includes(file));
 
-  try {
-    const tsconfigContent = tree.read(tsconfigPath, 'utf-8');
-    if (!tsconfigContent) {
-      return null;
+  const allTsconfigFiles = [...tsconfigFiles, ...additionalTsconfigFiles];
+
+  for (const tsconfigPath of allTsconfigFiles) {
+    if (!tree.exists(tsconfigPath)) {
+      continue;
     }
 
-    const tsconfig = JSON.parse(tsconfigContent);
-    const paths = tsconfig.compilerOptions?.paths;
+    try {
+      const tsconfigContent = tree.read(tsconfigPath, 'utf-8');
+      if (!tsconfigContent) {
+        continue;
+      }
 
-    return typeof paths === 'object' && paths ? paths : null;
-  } catch (error) {
-    logger.warn(`Could not parse tsconfig.base.json: ${error}`);
-    return null;
+      const tsconfig = JSON.parse(tsconfigContent);
+      const paths = tsconfig.compilerOptions?.paths;
+
+      if (typeof paths === 'object' && paths) {
+        return paths;
+      }
+    } catch (error) {
+      logger.warn(`Could not parse ${tsconfigPath}: ${error}`);
+    }
   }
+
+  return null;
 }
 
 /**
