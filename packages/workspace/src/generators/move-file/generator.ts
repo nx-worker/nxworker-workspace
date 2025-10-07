@@ -1650,8 +1650,14 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
       isIndexFile = normalizePath(filePath) === normalizePath(indexFilePath);
     } else {
       // Fallback to checking common index file names at sourceRoot
-      const relativePath = path.relative(sourceRoot, filePath);
-      const fileName = path.basename(filePath);
+      // Normalize paths to handle cross-platform differences (Windows backslashes)
+      const normalizedFilePath = normalizePath(filePath);
+      const normalizedSourceRoot = normalizePath(sourceRoot);
+      const relativePath = path.relative(
+        normalizedSourceRoot,
+        normalizedFilePath,
+      );
+      const fileName = path.basename(normalizedFilePath);
       isIndexFile =
         fallbackIndexFileNames.includes(fileName) &&
         path.dirname(relativePath) === '.';
