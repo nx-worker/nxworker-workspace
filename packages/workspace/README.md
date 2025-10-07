@@ -26,10 +26,16 @@ The generator has been validated through automated CI and e2e suites on multiple
 
 ## Installation and usage
 
-Install the plugin in your Nx workspace and run a plugin with an Nx Console editor extension or the Nx CLI:
+Install the plugin in your Nx workspace using `nx add` which automatically installs peer dependencies:
 
 ```shell
-npm install --save-dev @nxworker/workspace
+nx add @nxworker/workspace
 
 nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
+```
+
+Alternatively, you can install manually with npm:
+
+```shell
+npm install --save-dev @nxworker/workspace @nx/workspace
 ```
