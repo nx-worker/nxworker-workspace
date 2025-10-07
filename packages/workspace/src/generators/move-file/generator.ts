@@ -1581,8 +1581,23 @@ function removeFileExport(
 function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
   const sourceRoot = project.sourceRoot || project.root;
 
-  // List of allowed index file names
-  const indexFileNames = [
+  // Try to find the index file from tsconfig.base.json path mappings
+  const paths = readCompilerPaths(tree);
+  let indexFilePath: string | null = null;
+
+  if (paths) {
+    for (const [, pathEntry] of Object.entries(paths)) {
+      const pathStr = toFirstPath(pathEntry);
+      if (pathStr && pointsToProjectIndex(pathStr, sourceRoot)) {
+        // Extract just the filename from the path
+        indexFilePath = pathStr;
+        break;
+      }
+    }
+  }
+
+  // Fallback: list of common index file names if not found in tsconfig
+  const fallbackIndexFileNames = [
     'index.ts',
     'index.mts',
     'index.mjs',
@@ -1598,9 +1613,6 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
       return; // Short-circuit if we already found a non-index file
     }
 
-    const relativePath = path.relative(sourceRoot, filePath);
-    const fileName = path.basename(filePath);
-
     // Check if this is a source file (not a config file)
     const isSourceFile = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/.test(filePath);
 
@@ -1609,11 +1621,22 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
       return;
     }
 
-    // Check if it's an index file at the root of sourceRoot
-    const isIndexAtRoot =
-      indexFileNames.includes(fileName) && path.dirname(relativePath) === '.';
+    // Check if this file is the index file
+    let isIndexFile = false;
 
-    if (!isIndexAtRoot) {
+    if (indexFilePath) {
+      // If we found the index path from tsconfig, use exact match
+      isIndexFile = normalizePath(filePath) === normalizePath(indexFilePath);
+    } else {
+      // Fallback to checking common index file names at sourceRoot
+      const relativePath = path.relative(sourceRoot, filePath);
+      const fileName = path.basename(filePath);
+      isIndexFile =
+        fallbackIndexFileNames.includes(fileName) &&
+        path.dirname(relativePath) === '.';
+    }
+
+    if (!isIndexFile) {
       hasNonIndexSourceFiles = true;
     }
   });
