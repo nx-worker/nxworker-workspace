@@ -20,7 +20,7 @@ The generator moves the specified file to the target project, creating any missi
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `file` | `string` | – | Source file path relative to the workspace root. Can be right-clicked in VS Code for context menu generation. |
+| `file` | `string` | – | Source file path relative to the workspace root. Supports glob patterns (e.g., `packages/lib1/**/*.ts`) and comma-separated list of patterns to move multiple files at once. |
 | `project` | `string` | – | Name of the target Nx project. Provides a dropdown in Nx Console. |
 | `projectDirectory` | `string` | – | Optional subdirectory within the target project's base folder (e.g., `utils` or `features/auth`). For library projects, files are placed at `sourceRoot/lib/<projectDirectory>`. For application projects, files are placed at `sourceRoot/app/<projectDirectory>`. When not specified, files go to `sourceRoot/lib` for libraries or `sourceRoot/app` for applications. |
 | `skipExport` | `boolean` | `false` | Skip adding the moved file to the target project's entrypoint if you plan to manage exports manually. |
@@ -75,6 +75,30 @@ nx generate @nxworker/workspace:move-file \
 
 # Right-click a file in VS Code and select "Generate" to use the context menu
 # (requires Nx Console extension)
+
+# Move all TypeScript files from a directory using glob pattern
+# Target: packages/lib2/src/lib/file1.ts, packages/lib2/src/lib/file2.ts, etc.
+nx generate @nxworker/workspace:move-file \
+  'packages/lib1/src/lib/*.ts' \
+  --project lib2
+
+# Move all spec files using glob pattern
+# Target: packages/lib2/src/lib/component.spec.ts, packages/lib2/src/lib/service.spec.ts, etc.
+nx generate @nxworker/workspace:move-file \
+  'packages/lib1/**/*.spec.ts' \
+  --project lib2
+
+# Move multiple files using comma-separated glob patterns
+# Target: All .ts and .css files from lib1 to lib2
+nx generate @nxworker/workspace:move-file \
+  'packages/lib1/src/lib/*.ts,packages/lib1/src/lib/*.css' \
+  --project lib2
+
+# Combine direct paths and glob patterns
+# Target: Specific file and all spec files
+nx generate @nxworker/workspace:move-file \
+  'packages/lib1/src/lib/helper.ts,packages/lib1/**/*.spec.ts' \
+  --project lib2
 ```
 
 ## Behaviour

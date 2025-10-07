@@ -8,6 +8,7 @@ import {
   logger,
   createProjectGraphAsync,
   normalizePath,
+  glob,
 } from '@nx/devkit';
 import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
@@ -31,18 +32,42 @@ export async function moveFileGenerator(
   const projects = getProjects(tree);
   const projectGraph = await createProjectGraphAsync();
 
-  // Support comma-separated file paths
-  const filePaths = options.file
-    .split(',')
-    .map((f) => f.trim())
-    .filter((f) => f.length > 0);
+  // Support comma-separated file paths and glob patterns
+  // We need to be careful about commas inside brace expansions like {ts,js}
+  const patterns = splitPatterns(options.file);
 
-  if (filePaths.length === 0) {
+  if (patterns.length === 0) {
+    throw new Error('At least one file path or glob pattern must be provided');
+  }
+
+  // Expand glob patterns to actual file paths
+  const filePaths: string[] = [];
+  for (const pattern of patterns) {
+    // Check if pattern contains glob characters
+    const isGlobPattern = /[*?[\]{}]/.test(pattern);
+    
+    if (isGlobPattern) {
+      // Use glob to find matching files
+      const matches = glob(tree, [pattern]);
+      if (matches.length === 0) {
+        throw new Error(`No files found matching glob pattern: "${pattern}"`);
+      }
+      filePaths.push(...matches);
+    } else {
+      // Direct file path
+      filePaths.push(pattern);
+    }
+  }
+
+  // Remove duplicates (in case multiple patterns match the same file)
+  const uniqueFilePaths = Array.from(new Set(filePaths));
+
+  if (uniqueFilePaths.length === 0) {
     throw new Error('At least one file path must be provided');
   }
 
   // Validate and resolve all files upfront
-  const contexts = filePaths.map((filePath) => {
+  const contexts = uniqueFilePaths.map((filePath) => {
     const fileOptions = { ...options, file: filePath };
     return resolveAndValidate(tree, fileOptions, projects);
   });
@@ -56,7 +81,7 @@ export async function moveFileGenerator(
   // Execute all moves without deleting sources yet
   for (let i = 0; i < contexts.length; i++) {
     const ctx = contexts[i];
-    const fileOptions = { ...options, file: filePaths[i] };
+    const fileOptions = { ...options, file: uniqueFilePaths[i] };
     await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
   }
 
@@ -90,6 +115,45 @@ export async function moveFileGenerator(
   if (!options.skipFormat) {
     await formatFiles(tree);
   }
+}
+
+/**
+ * Split a string by commas, but ignore commas inside brace expansions.
+ * For example: "file1.ts,file.{ts,js}" => ["file1.ts", "file.{ts,js}"]
+ */
+function splitPatterns(input: string): string[] {
+  const patterns: string[] = [];
+  let current = '';
+  let braceDepth = 0;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+
+    if (char === '{') {
+      braceDepth++;
+      current += char;
+    } else if (char === '}') {
+      braceDepth--;
+      current += char;
+    } else if (char === ',' && braceDepth === 0) {
+      // This is a separator comma, not part of a brace expansion
+      const trimmed = current.trim();
+      if (trimmed.length > 0) {
+        patterns.push(trimmed);
+      }
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  // Don't forget the last pattern
+  const trimmed = current.trim();
+  if (trimmed.length > 0) {
+    patterns.push(trimmed);
+  }
+
+  return patterns;
 }
 
 /**
@@ -135,10 +199,14 @@ function resolveAndValidate(
   options: MoveFileGeneratorSchema,
   projects: Map<string, ProjectConfiguration>,
 ) {
+  // Check if the file input contains glob characters
+  const isGlobPattern = /[*?[\]{}]/.test(options.file);
+  
   // Validate user input to avoid accepting regex-like patterns or dangerous characters
   if (
     !isValidPathInput(options.file, {
       allowUnicode: !!options.allowUnicode,
+      allowGlobPatterns: isGlobPattern,
     })
   ) {
     throw new Error(

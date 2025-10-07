@@ -4,6 +4,7 @@ export interface PathValidationOptions {
   allowUnicode?: boolean;
   maxLength?: number;
   additionalAllowedChars?: string;
+  allowGlobPatterns?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export function isValidPathInput(
     allowUnicode = false,
     maxLength,
     additionalAllowedChars = '',
+    allowGlobPatterns = false,
   } = options || {};
 
   if (typeof str !== 'string') {
@@ -55,13 +57,22 @@ export function isValidPathInput(
   // Only allow backslash on Windows platforms
   const windowsChars = process.platform === 'win32' ? WINDOWS_ONLY_CHARS : '';
 
+  // When glob patterns are allowed, include glob-specific characters: * ? [ ] { } ,
+  // Note: comma is needed for brace expansion like {ts,js}
+  const globChars = allowGlobPatterns ? '*?[]{},!+@' : '';
+
   let pathRegex: RegExp;
 
   if (allowUnicode) {
-    const unicodePathPattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./${escapeRegexp(windowsChars)}${escapeRegexp(unixChars)} ${escapeRegexp(additionalAllowedChars)}-]*$`;
+    // In character class, we need to escape certain characters: ] - \
+    // Build the pattern with proper escaping
+    const escapedGlobChars = globChars.replace(/[\]\\-]/g, '\\$&');
+    const unicodePathPattern = `^[\\p{L}\\p{N}\\p{M}\\p{Pc}@./${escapeRegexp(windowsChars)}${escapeRegexp(unixChars)} ${escapeRegexp(additionalAllowedChars)}${escapedGlobChars}-]*$`;
     pathRegex = new RegExp(unicodePathPattern, 'u');
   } else {
-    const asciiPathPattern = `^[A-Za-z0-9_@./${escapeRegexp(windowsChars)}${escapeRegexp(unixChars)} ${escapeRegexp(additionalAllowedChars)}-]*$`;
+    // In character class, we need to escape certain characters: ] - \
+    const escapedGlobChars = globChars.replace(/[\]\\-]/g, '\\$&');
+    const asciiPathPattern = `^[A-Za-z0-9_@./${escapeRegexp(windowsChars)}${escapeRegexp(unixChars)} ${escapeRegexp(additionalAllowedChars)}${escapedGlobChars}-]*$`;
     pathRegex = new RegExp(asciiPathPattern);
   }
 
