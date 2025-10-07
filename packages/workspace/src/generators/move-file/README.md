@@ -35,7 +35,7 @@ nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --pr
 
 # Move a file to a specific subdirectory within a library's lib folder
 # Target: packages/lib2/src/lib/utils/helper.ts
-nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2 --projectDirectory utils
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib2 --project-directory utils
 
 # Move a file to an application project
 # Target: packages/app1/src/app/helper.ts
@@ -43,18 +43,18 @@ nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --pr
 
 # Move a file to a specific subdirectory within an application's app folder
 # Target: packages/app1/src/app/utils/helper.ts
-nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project app1 --projectDirectory utils
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project app1 --project-directory utils
 
 # Move a file within the same library to a different directory
 # Target: packages/lib1/src/lib/features/helper.ts
-nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib1 --projectDirectory features
+nx generate @nxworker/workspace:move-file packages/lib1/src/utils/helper.ts --project lib1 --project-directory features
 
 # Move an exported file without re-exporting it automatically
 # Target: packages/lib2/src/lib/utils/helper.ts
 nx generate @nxworker/workspace:move-file \
   packages/lib1/src/utils/helper.ts \
   --project lib2 \
-  --projectDirectory utils \
+  --project-directory utils \
   --skip-export
 
 # Allow Unicode filenames when moving between projects
@@ -62,7 +62,7 @@ nx generate @nxworker/workspace:move-file \
 nx generate @nxworker/workspace:move-file \
   packages/lib1/src/файл.ts \
   --project lib2 \
-  --projectDirectory files \
+  --project-directory files \
   --allow-unicode
 
 # Right-click a file in VS Code and select "Generate" to use the context menu

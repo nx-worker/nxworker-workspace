@@ -89,6 +89,17 @@ function resolveAndValidate(
     );
   }
 
+  // Validate project name
+  if (
+    !isValidPathInput(options.project, {
+      allowUnicode: !!options.allowUnicode,
+    })
+  ) {
+    throw new Error(
+      `Invalid project name: contains disallowed characters: "${options.project}"`,
+    );
+  }
+
   // Validate project name exists
   const targetProject = projects.get(options.project);
   if (!targetProject) {
