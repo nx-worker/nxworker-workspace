@@ -26,10 +26,12 @@ The generator has been validated through automated CI and e2e suites on multiple
 
 ## Installation and usage
 
-Install the plugin in your Nx workspace using `nx add` which automatically installs peer dependencies:
+Install the plugin in your Nx workspace using `nx add`:
 
 ```shell
 nx add @nxworker/workspace
+nx add @nx/devkit
+nx add @nx/workspace
 
 nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
 ```
@@ -37,5 +39,5 @@ nx generate @nxworker/workspace:move-file <source-file-path> --project <target-p
 Alternatively, you can install manually with npm:
 
 ```shell
-npm install --save-dev @nxworker/workspace @nx/workspace
+npm install --save-dev @nxworker/workspace @nx/devkit @nx/workspace
 ```
