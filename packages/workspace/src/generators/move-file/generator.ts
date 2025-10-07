@@ -9,7 +9,7 @@ import {
   createProjectGraphAsync,
   normalizePath,
 } from '@nx/devkit';
-import { removeGenerator } from '@nx/workspace/generators';
+import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';

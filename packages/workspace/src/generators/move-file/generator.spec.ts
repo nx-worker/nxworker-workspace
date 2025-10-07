@@ -20,15 +20,15 @@ jest.mock('@nx/devkit', () => {
   };
 });
 
-jest.mock('@nx/workspace/generators', () => ({
+jest.mock('@nx/workspace', () => ({
+  ...jest.requireActual('@nx/workspace'),
   removeGenerator: jest.fn(),
 }));
 
 const createProjectGraphAsyncMock = jest.mocked(createProjectGraphAsync);
 const formatFilesMock = jest.mocked(formatFiles);
-const { removeGenerator: removeGeneratorMock } = jest.requireMock(
-  '@nx/workspace/generators',
-);
+const { removeGenerator: removeGeneratorMock } =
+  jest.requireMock('@nx/workspace');
 
 describe('move-file generator', () => {
   let tree: Tree;
