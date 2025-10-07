@@ -12,7 +12,7 @@
 
 ## Requirements
 
-- Nx 19.8-21.x with `@nx/devkit` installed
+- Nx 19.8-21.x with `@nx/devkit` and `@nx/workspace` installed
 - Node.js 18, 20, or 22 (same as Nx)
 
 ## Platform & Architecture Support
