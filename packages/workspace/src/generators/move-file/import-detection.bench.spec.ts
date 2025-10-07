@@ -226,8 +226,6 @@ describe('Import Detection Performance Benchmarks', () => {
     });
 
     it('should benchmark AST-based relative import detection', () => {
-      const targetPath = './relative-file';
-      
       const astFn = () => {
         const imports = findImports(relativeCode, 'test.ts');
         return imports.some(imp => imp.moduleSpecifier.includes('relative-file'));

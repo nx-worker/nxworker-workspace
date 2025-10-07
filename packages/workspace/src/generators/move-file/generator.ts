@@ -20,7 +20,6 @@ import {
   hasImportToPath,
   updateImports,
   updateImportsMatching,
-  clearCache,
 } from './ast-utils/import-ast';
 
 /**
@@ -466,7 +465,10 @@ function updateRelativeImportsInMovedFile(
     normalizedTarget,
     (moduleSpecifier) => {
       // Only update relative imports
-      if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+      if (
+        moduleSpecifier.startsWith('./') ||
+        moduleSpecifier.startsWith('../')
+      ) {
         // Resolve the import path relative to the original location
         const absoluteImportPath = path.join(sourceDir, moduleSpecifier);
 
@@ -481,7 +483,7 @@ function updateRelativeImportsInMovedFile(
         }
       }
       return null;
-    }
+    },
   );
 
   if (updatedContent !== null) {
@@ -524,7 +526,10 @@ function updateRelativeImportsToAliasInMovedFile(
     normalizedTarget,
     (moduleSpecifier) => {
       // Only update relative imports
-      if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+      if (
+        moduleSpecifier.startsWith('./') ||
+        moduleSpecifier.startsWith('../')
+      ) {
         // Resolve the import path relative to the ORIGINAL (source) file location
         const resolvedPath = path.join(sourceDir, moduleSpecifier);
 
@@ -551,7 +556,7 @@ function updateRelativeImportsToAliasInMovedFile(
         }
       }
       return null;
-    }
+    },
   );
 
   if (updatedContent !== null) {
@@ -888,12 +893,14 @@ function isFileExported(
     if (!content) {
       return false;
     }
-    
+
     // Use AST to find export statements that reference the file
     const imports = findImports(content, indexPath);
     return imports.some((imp) => {
       // Check if it's an export statement and the path contains the file
-      return imp.type === 'export' && imp.moduleSpecifier.includes(fileWithoutExt);
+      return (
+        imp.type === 'export' && imp.moduleSpecifier.includes(fileWithoutExt)
+      );
     });
   });
 }
@@ -1113,7 +1120,10 @@ function updateImportPathsToPackageAlias(
       if (!content) return;
 
       // Get the filename to match against (without extension)
-      const sourceFileName = path.basename(sourceFilePath, path.extname(sourceFilePath));
+      const sourceFileName = path.basename(
+        sourceFilePath,
+        path.extname(sourceFilePath),
+      );
 
       // Use AST-based update with a matcher function for relative imports
       const updatedContent = updateImportsMatching(
@@ -1121,14 +1131,17 @@ function updateImportPathsToPackageAlias(
         filePath,
         (moduleSpecifier) => {
           // Only update relative imports that reference the source file
-          if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+          if (
+            moduleSpecifier.startsWith('./') ||
+            moduleSpecifier.startsWith('../')
+          ) {
             // Check if the import path contains the source filename
             if (moduleSpecifier.includes(sourceFileName)) {
               return targetPackageAlias;
             }
           }
           return null;
-        }
+        },
       );
 
       if (updatedContent !== null) {
@@ -1168,7 +1181,10 @@ function updateImportPathsInProject(
       );
 
       // Get the filename to match against (without extension)
-      const sourceFileName = path.basename(sourceFilePath, path.extname(sourceFilePath));
+      const sourceFileName = path.basename(
+        sourceFilePath,
+        path.extname(sourceFilePath),
+      );
 
       // Use AST-based update with a matcher function for relative imports
       const updatedContent = updateImportsMatching(
@@ -1176,14 +1192,17 @@ function updateImportPathsInProject(
         filePath,
         (moduleSpecifier) => {
           // Only update relative imports that reference the source file
-          if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+          if (
+            moduleSpecifier.startsWith('./') ||
+            moduleSpecifier.startsWith('../')
+          ) {
             // Check if the import path contains the source filename
             if (moduleSpecifier.includes(sourceFileName)) {
               return relativeSpecifier;
             }
           }
           return null;
-        }
+        },
       );
 
       if (updatedContent !== null) {
@@ -1285,7 +1304,11 @@ function updateImportsByAliasInProject(
 
       // Use AST-based update for accurate replacement
       const replacements = new Map([[sourceImportPath, targetImportPath]]);
-      const updatedContent = updateImports(originalContent, filePath, replacements);
+      const updatedContent = updateImports(
+        originalContent,
+        filePath,
+        replacements,
+      );
 
       if (updatedContent !== null) {
         tree.write(filePath, updatedContent);
@@ -1433,10 +1456,7 @@ function removeFileExport(
     path.join(project.root, 'src', 'index.mts'),
   ];
 
-  const fileWithoutExt = file.replace(
-    /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-    '',
-  );
+  const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
 
   // Find existing index files
   indexPaths.forEach((indexPath) => {
@@ -1452,7 +1472,8 @@ function removeFileExport(
     // Use AST to find and remove export statements for this file
     const imports = findImports(content, indexPath);
     const exportsToRemove = imports.filter(
-      (imp) => imp.type === 'export' && imp.moduleSpecifier.includes(fileWithoutExt)
+      (imp) =>
+        imp.type === 'export' && imp.moduleSpecifier.includes(fileWithoutExt),
     );
 
     if (exportsToRemove.length === 0) {
@@ -1461,7 +1482,7 @@ function removeFileExport(
 
     // Remove exports by sorting in reverse order and removing from end to start
     exportsToRemove.sort((a, b) => b.start - a.start);
-    
+
     let updatedContent = content;
     for (const exp of exportsToRemove) {
       // Find the end of the export statement (including semicolon and newline if present)
@@ -1473,8 +1494,9 @@ function removeFileExport(
       if (updatedContent[end] === '\n') {
         end++;
       }
-      
-      updatedContent = updatedContent.substring(0, exp.start) + updatedContent.substring(end);
+
+      updatedContent =
+        updatedContent.substring(0, exp.start) + updatedContent.substring(end);
     }
 
     if (updatedContent !== content) {
