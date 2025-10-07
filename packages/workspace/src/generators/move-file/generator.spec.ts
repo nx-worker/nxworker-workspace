@@ -1310,5 +1310,175 @@ describe('move-file generator', () => {
       // lib1 still has nested.ts, so it should NOT be removed
       expect(removeGeneratorMock).not.toHaveBeenCalled();
     });
+
+    it('should detect empty project with different tsconfig file (tsconfig.json)', async () => {
+      // Remove tsconfig.base.json and create tsconfig.json instead
+      tree.delete('tsconfig.base.json');
+      tree.write(
+        'tsconfig.json',
+        JSON.stringify({
+          compilerOptions: {
+            paths: {
+              '@test/lib1': ['packages/lib1/src/index.ts'],
+              '@test/lib2': ['packages/lib2/src/index.ts'],
+            },
+          },
+        }),
+      );
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should detect empty project with custom tsconfig file (tsconfig.paths.json)', async () => {
+      // Remove tsconfig.base.json and use tsconfig.paths.json instead
+      tree.delete('tsconfig.base.json');
+      tree.write(
+        'tsconfig.paths.json',
+        JSON.stringify({
+          compilerOptions: {
+            paths: {
+              '@test/lib1': ['packages/lib1/src/index.ts'],
+              '@test/lib2': ['packages/lib2/src/index.ts'],
+            },
+          },
+        }),
+      );
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should detect empty project with different index file name (index.mts)', async () => {
+      // Update tsconfig to use index.mts
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.mts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create index.mts file for lib1
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.mts', 'export {};');
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should fallback to common index names when tsconfig has no paths', async () => {
+      // Remove paths from tsconfig
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        delete json.compilerOptions.paths;
+        return json;
+      });
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Should still detect lib1 as empty using fallback index.ts check
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should handle removeGenerator failure gracefully', async () => {
+      // Make removeGenerator throw an error
+      removeGeneratorMock.mockRejectedValueOnce(
+        new Error('Cannot remove project'),
+      );
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      // Should not throw, but log the error
+      await expect(moveFileGenerator(tree, options)).resolves.not.toThrow();
+
+      // The file should still be moved
+      expect(tree.exists('packages/lib1/src/lib/only-file.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/only-file.ts')).toBe(true);
+    });
   });
 });

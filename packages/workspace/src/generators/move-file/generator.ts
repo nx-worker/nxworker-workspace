@@ -71,11 +71,17 @@ export async function moveFileGenerator(
       const project = projects.get(projectName);
       if (project && isProjectEmpty(tree, project)) {
         logger.debug(`Project ${projectName} is empty, removing it`);
-        await removeGenerator(tree, {
-          projectName,
-          skipFormat: true,
-          forceRemove: false,
-        });
+        try {
+          await removeGenerator(tree, {
+            projectName,
+            skipFormat: true,
+            forceRemove: false,
+          });
+        } catch (error) {
+          logger.error(
+            `Failed to remove empty project ${projectName}: ${error}`,
+          );
+        }
       }
     }
   }
