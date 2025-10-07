@@ -9,12 +9,12 @@ import {
   createProjectGraphAsync,
   normalizePath,
 } from '@nx/devkit';
+import { removeGenerator } from '@nx/workspace/generators';
 import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
 import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
-import { removeGenerator } from '@nx/workspace/src/generators/remove/remove';
 
 /**
  * Generator to move a file from one Nx project to another
