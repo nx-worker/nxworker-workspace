@@ -20,7 +20,7 @@ import { isValidPathInput } from './security-utils/is-valid-path-input';
  * and update import paths throughout the workspace.
  *
  * @param tree - The virtual file system tree
- * @param options - Generator options including from and to file paths
+ * @param options - Generator options including source file path and target project
  * @returns A promise that resolves when the generator completes
  */
 export async function moveFileGenerator(

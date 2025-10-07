@@ -31,5 +31,5 @@ Install the plugin in your Nx workspace and run a plugin with an Nx Console edit
 ```shell
 npm install --save-dev @nxworker/workspace
 
-nx generate @nxworker/workspace:move-file <from-file-path> <to-file-path>
+nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
 ```
