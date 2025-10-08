@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -500,25 +500,36 @@ describe('workspace', () => {
         );
 
         // Use backslashes in paths (Windows-style)
-        // Note: Paths must be quoted to prevent shell from interpreting backslashes as escape sequences
+        // Use spawnSync to pass arguments directly without shell interpretation
         const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
-        try {
-          execSync(
-            `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
-            {
-              cwd: projectDirectory,
-              stdio: 'pipe',
-              encoding: 'utf-8',
-            },
-          );
-        } catch (error) {
+        const result = spawnSync(
+          'npx',
+          [
+            'nx',
+            'generate',
+            '@nxworker/workspace:move-file',
+            winStyleSource,
+            '--project',
+            testLibName,
+            '--project-directory',
+            'utilities',
+            '--no-interactive',
+          ],
+          {
+            cwd: projectDirectory,
+            encoding: 'utf-8',
+          },
+        );
+
+        if (result.status !== 0) {
           console.error('Command failed with error:');
-          console.error('stdout:', error.stdout || '(empty)');
-          console.error('stderr:', error.stderr || '(empty)');
-          console.error('status:', error.status);
-          console.error('message:', error.message);
-          console.error('Full error:', JSON.stringify(error, null, 2));
-          throw error;
+          console.error('stdout:', result.stdout || '(empty)');
+          console.error('stderr:', result.stderr || '(empty)');
+          console.error('status:', result.status);
+          console.error('error:', result.error);
+          throw new Error(
+            `Command failed with status ${result.status}: ${result.stderr}`,
+          );
         }
 
         expect(readFileSync(movedPath, 'utf-8')).toContain(
