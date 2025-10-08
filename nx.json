@@ -50,7 +50,12 @@
     },
     "@nx/jest:jest": {
       "cache": true,
-      "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js", "osPlatform"],
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/jest.preset.js",
+        "osPlatform"
+      ],
       "options": {
         "passWithNoTests": true
       },
