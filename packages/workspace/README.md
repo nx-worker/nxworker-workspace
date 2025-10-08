@@ -5,7 +5,9 @@
 ## Highlights
 
 - Moves files across Nx projects, updating static `import`, dynamic `import()`, and re-export statements automatically
+- **Full CommonJS support**: Updates `require()`, `require.resolve()`, `module.exports`, and `exports` statements
 - Understands Nx project graphs: re-wires dependent projects when exported files move and preserves package entrypoints
+- **AST-based transformations**: Uses jscodeshift for reliable, syntax-aware import updates instead of regex patterns
 - Runs with strong input validation (path sanitisation, regex escaping, traversal blocking, optional Unicode opt-in)
 - Formats affected files with Prettier unless `--skipFormat` is provided
 - Backed by an extensive Jest unit suite and 20+ Verdaccio-powered end-to-end scenarios that exercise OS, architecture, and Node.js edge cases

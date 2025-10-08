@@ -6,7 +6,7 @@ The `@nxworker/workspace:move-file` generator safely moves a file between Nx pro
 
 - Nx 19.8-21.x with `@nx/devkit` and `@nx/workspace` installed
 - Node.js 18, 20, or 22 (same as Nx)
-- ECMAScript Modules (ESM) only, no CommonJS (CJS) support
+- Supports both ECMAScript Modules (ESM) and CommonJS (CJS)
 
 ## Usage
 
@@ -105,7 +105,9 @@ nx generate @nxworker/workspace:move-file \
 
 - Detects the source and target Nx projects as well as their TypeScript path aliases
 - Uses the Nx project graph to resolve dependencies for optimal performance
-- Rewrites imports automatically, covering
+- Rewrites imports automatically using AST-based transformations (jscodeshift), covering:
+  - **ESM**: Static `import`, dynamic `import()`, and re-exports (`export * from`)
+  - **CommonJS**: `require()`, `require.resolve()`, `module.exports`, and `exports`
   - Relative paths inside the source project
   - Project alias imports across projects
   - Dynamic `import()` expressions, including chained `.then()` access

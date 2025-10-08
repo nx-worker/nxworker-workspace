@@ -105,6 +105,31 @@ export function updateImportSpecifier(
         }
       });
 
+    // Update require.resolve calls: require.resolve('oldSpecifier')
+    root
+      .find(j.CallExpression, {
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'require' },
+          property: { type: 'Identifier', name: 'resolve' },
+        },
+      })
+      .filter((path) => {
+        const args = path.node.arguments;
+        return (
+          args.length > 0 &&
+          args[0].type === 'StringLiteral' &&
+          args[0].value === oldSpecifier
+        );
+      })
+      .forEach((path) => {
+        const args = path.node.arguments;
+        if (args[0].type === 'StringLiteral') {
+          args[0].value = newSpecifier;
+          hasChanges = true;
+        }
+      });
+
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
       tree.write(filePath, updatedContent);
@@ -230,6 +255,32 @@ export function updateImportSpecifierPattern(
         }
       });
 
+    // Update require.resolve calls: require.resolve('specifier')
+    root
+      .find(j.CallExpression, {
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'require' },
+          property: { type: 'Identifier', name: 'resolve' },
+        },
+      })
+      .filter((path) => {
+        const args = path.node.arguments;
+        return (
+          args.length > 0 &&
+          args[0].type === 'StringLiteral' &&
+          matcher(args[0].value)
+        );
+      })
+      .forEach((path) => {
+        const args = path.node.arguments;
+        if (args[0].type === 'StringLiteral') {
+          const oldValue = args[0].value;
+          args[0].value = getNewSpecifier(oldValue);
+          hasChanges = true;
+        }
+      });
+
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
       tree.write(filePath, updatedContent);
@@ -327,7 +378,30 @@ export function hasImportSpecifier(
           );
         }).length > 0;
 
-    return hasRequire;
+    if (hasRequire) {
+      return true;
+    }
+
+    // Check require.resolve calls
+    const hasRequireResolve =
+      root
+        .find(j.CallExpression, {
+          callee: {
+            type: 'MemberExpression',
+            object: { type: 'Identifier', name: 'require' },
+            property: { type: 'Identifier', name: 'resolve' },
+          },
+        })
+        .filter((path) => {
+          const args = path.node.arguments;
+          return (
+            args.length > 0 &&
+            args[0].type === 'StringLiteral' &&
+            args[0].value === specifier
+          );
+        }).length > 0;
+
+    return hasRequireResolve;
   } catch (error) {
     // If jscodeshift fails to parse, return false
     logger.debug(
