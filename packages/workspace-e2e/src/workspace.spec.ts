@@ -11,14 +11,28 @@ const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
  * Nx major versions are supported (e.g., ">=19.8.5 <22.0.0" => [19, 20, 21])
  */
 function getSupportedNxMajorVersions(): number[] {
-  const packageJsonPath = join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    'workspace',
-    'package.json',
-  );
+  // Find the workspace package.json by searching up the directory tree
+  let currentDir = __dirname;
+  let packageJsonPath: string | null = null;
+
+  // Search up to 5 levels to find packages/workspace/package.json
+  for (let i = 0; i < 5; i++) {
+    const testPath = join(currentDir, 'workspace', 'package.json');
+    try {
+      readFileSync(testPath, 'utf-8');
+      packageJsonPath = testPath;
+      break;
+    } catch {
+      currentDir = join(currentDir, '..');
+    }
+  }
+
+  if (!packageJsonPath) {
+    throw new Error(
+      'Could not find packages/workspace/package.json relative to test file',
+    );
+  }
+
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
   const devkitPeerDep = packageJson.peerDependencies?.['@nx/devkit'];
 
@@ -36,8 +50,8 @@ function getSupportedNxMajorVersions(): number[] {
     );
   }
 
-  const minMajor = parseInt(minMatch[1], 10);
-  const maxMajor = parseInt(maxMatch[1], 10);
+  const minMajor = Number.parseInt(minMatch[1], 10);
+  const maxMajor = Number.parseInt(maxMatch[1], 10);
 
   // Generate array of major versions [19, 20, 21, ...]
   const versions: number[] = [];
@@ -1482,12 +1496,15 @@ describe('Nx version compatibility (basic happy paths)', () => {
       beforeAll(async () => {
         projectDirectory = await createTestProject(nxMajorVersion);
 
-        // Install the plugin built with the latest source code into the test repo
-        execSync(`npm install @nxworker/workspace@e2e`, {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-          env: process.env,
-        });
+        // Install the plugin as a devDependency along with its peer dependencies
+        execSync(
+          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit @nx/workspace`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+            env: process.env,
+          },
+        );
       });
 
       afterAll(async () => {
@@ -1711,7 +1728,7 @@ function generateLargeTypeScriptFile(lines: number): string {
 
 /**
  * Creates a test project with create-nx-workspace and installs the plugin
- * @param nxVersion - Optional Nx major version to install (e.g., 19, 20, 21). If not provided, uses latest.
+ * @param nxVersion - Optional Nx major version to install (e.g., 19, 20, 21). If not provided, uses the workspace version.
  * @returns The directory where the test project was created
  */
 async function createTestProject(nxVersion?: number) {
@@ -1746,7 +1763,24 @@ async function createTestProject(nxVersion?: number) {
   });
 
   // Determine which version of create-nx-workspace to use
-  const versionSpec = nxVersion ? `^${nxVersion}.0.0` : 'latest';
+  // If no version is specified, use the workspace version from root package.json
+  let versionSpec: string;
+  if (nxVersion) {
+    versionSpec = `^${nxVersion}.0.0`;
+  } else {
+    // Get the workspace Nx version from root package.json
+    const rootPackageJsonPath = join(process.cwd(), 'package.json');
+    const rootPackageJson = JSON.parse(
+      readFileSync(rootPackageJsonPath, 'utf-8'),
+    );
+    const workspaceNxVersion =
+      rootPackageJson.devDependencies?.nx || rootPackageJson.dependencies?.nx;
+    if (!workspaceNxVersion) {
+      throw new Error('Could not determine workspace Nx version');
+    }
+    versionSpec = workspaceNxVersion;
+  }
+
   execSync(
     `npx --yes create-nx-workspace@${versionSpec} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
@@ -1756,7 +1790,7 @@ async function createTestProject(nxVersion?: number) {
     },
   );
   console.log(
-    `Created test project in "${projectDirectory}"${nxVersion ? ` with Nx ${nxVersion}.x` : ''}`,
+    `Created test project in "${projectDirectory}"${nxVersion ? ` with Nx ${nxVersion}.x` : ` with workspace Nx version`}`,
   );
 
   return projectDirectory;
