@@ -1241,7 +1241,12 @@ function updateImportsToRelative(
       );
 
       // Use jscodeshift to update imports from source import path to relative path
-      updateImportSpecifier(tree, filePath, sourceImportPath, relativeSpecifier);
+      updateImportSpecifier(
+        tree,
+        filePath,
+        sourceImportPath,
+        relativeSpecifier,
+      );
     }
   });
 }
