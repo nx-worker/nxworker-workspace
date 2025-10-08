@@ -696,6 +696,8 @@ async function handleExportedMove(
     sourceImportPath,
     targetImportPath,
     sourceProject,
+    targetProject,
+    targetProjectName,
     normalizedSource,
     normalizedTarget,
     relativeFilePathInSource,
@@ -709,6 +711,10 @@ async function handleExportedMove(
     `File is exported from ${sourceImportPath}, updating dependent projects`,
   );
 
+  // Compute the relative path in the target project
+  const targetRoot = targetProject.sourceRoot || targetProject.root;
+  const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
+
   await updateImportPathsInDependentProjects(
     tree,
     projectGraph,
@@ -716,6 +722,8 @@ async function handleExportedMove(
     sourceProjectName,
     sourceImportPath,
     targetImportPath,
+    targetProjectName,
+    relativeFilePathInTarget,
   );
 
   // Remove the export from source index BEFORE updating imports to package alias
@@ -1114,6 +1122,8 @@ async function updateImportPathsInDependentProjects(
   sourceProjectName: string,
   sourceImportPath: string,
   targetImportPath: string,
+  targetProjectName?: string,
+  targetRelativePath?: string,
 ): Promise<void> {
   const dependentProjectNames = getDependentProjectNames(
     projectGraph,
@@ -1135,12 +1145,31 @@ async function updateImportPathsInDependentProjects(
     }
 
     logger.debug(`Checking project ${dependentName} for imports`);
-    updateImportsByAliasInProject(
-      tree,
-      dependentProject,
-      sourceImportPath,
-      targetImportPath,
-    );
+
+    // If the dependent project is the target project, use relative imports
+    if (
+      targetProjectName &&
+      targetRelativePath &&
+      dependentName === targetProjectName
+    ) {
+      logger.debug(
+        `Updating imports in target project ${dependentName} to use relative paths`,
+      );
+      updateImportsToRelative(
+        tree,
+        dependentProject,
+        sourceImportPath,
+        targetRelativePath,
+        [],
+      );
+    } else {
+      updateImportsByAliasInProject(
+        tree,
+        dependentProject,
+        sourceImportPath,
+        targetImportPath,
+      );
+    }
   });
 }
 

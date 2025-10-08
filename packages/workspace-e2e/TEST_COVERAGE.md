@@ -4,7 +4,19 @@ This document describes the end-to-end test coverage for the `move-file` generat
 
 ## Test Suite Overview
 
-The e2e test suite includes **24 test cases** organized into the following categories:
+The e2e test suite includes **24 test cases** in the main test suite, plus additional version-compatibility tests organized into the following categories:
+
+### Nx Version Compatibility Tests
+
+The test suite includes a dedicated section that validates basic happy paths across all supported Nx major versions (currently 19.x, 20.x, and 21.x). This ensures the plugin works correctly with all versions declared in the `@nx/devkit` peer dependency.
+
+These version-specific tests run for each supported Nx major version:
+
+- **Plugin Installation**: Verifies the plugin installs correctly
+- **Basic File Move**: Tests moving a file between projects with import updates
+- **Exported File Move**: Tests moving exported files and updating dependent projects
+
+The supported versions are automatically detected from the `@nx/devkit` peer dependency in `packages/workspace/package.json`.
 
 ### Basic Functionality (6 tests)
 
@@ -68,6 +80,14 @@ And across Node.js versions:
 - **Node.js 20.x** (LTS Iron)
 - **Node.js 22.x** (Current, tested)
 
+And across Nx versions (for basic happy path tests):
+
+- **Nx 19.x** (peer dependency supported)
+- **Nx 20.x** (peer dependency supported)
+- **Nx 21.x** (peer dependency supported)
+
+The comprehensive test suite runs once with the workspace Nx version (19.8.14), while basic happy path tests run for each supported major version.
+
 ## Architecture Coverage
 
 The tests validate behavior on:
@@ -124,15 +144,17 @@ npx nx e2e workspace-e2e --output-style stream
 
 ## Test Execution Time
 
-The full e2e suite typically takes **~7-12 minutes** to run, as it:
+The full e2e suite typically takes **~15-25 minutes** to run, as it:
 
 1. Starts a local Verdaccio registry
 2. Publishes the plugin to the local registry
-3. Creates fresh Nx workspaces for each test scenario
+3. Creates fresh Nx workspaces for each test scenario (including multiple Nx versions)
 4. Generates libraries and files
 5. Runs the move-file generator
 6. Validates the results
 7. Cleans up temporary workspaces
+
+Note: The version compatibility tests create separate workspaces for each supported Nx major version, which increases the overall test execution time.
 
 ## CI/CD Integration
 
