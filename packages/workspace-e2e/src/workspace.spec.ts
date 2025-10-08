@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -475,16 +475,81 @@ describe('workspace', () => {
       );
 
       // Verify imports use forward slashes (normalized)
-      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      let updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
         /from ['"]\.\/utilities\/util['"]/,
       );
 
-      // The generator handles both forward slashes and backslashes correctly
-      // (verified by unit tests). This e2e test focuses on the end-to-end flow
-      // with forward slashes, which works reliably across all shells and platforms.
-      // Testing backslashes via command-line is problematic because different shells
-      // (cmd.exe, PowerShell, bash) handle escaping differently.
+      // Test with Windows-style paths on Windows (backslashes)
+      if (process.platform === 'win32') {
+        // Move file back first
+        const utilBackPath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'util.ts',
+        );
+        writeFileSync(
+          utilBackPath,
+          "export function util() { return 'utility'; }\n",
+        );
+        writeFileSync(
+          consumerPath,
+          "import { util } from './util';\nexport const value = util();\n",
+        );
+
+        // Use backslashes in paths (Windows-style)
+        // Use spawnSync to pass arguments directly without shell interpretation
+        const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
+        const result = spawnSync(
+          'npx',
+          [
+            'nx',
+            'generate',
+            '@nxworker/workspace:move-file',
+            winStyleSource,
+            '--project',
+            testLibName,
+            '--project-directory',
+            'utilities',
+            '--no-interactive',
+          ],
+          {
+            cwd: projectDirectory,
+            encoding: 'utf-8',
+            shell: true, // Required on Windows to execute .cmd files
+          },
+        );
+
+        if (result.status !== 0) {
+          const errorDetails = {
+            status: result.status,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            error: result.error,
+          };
+          console.error('Command failed with error:');
+          console.error('Full result:', JSON.stringify(errorDetails, null, 2));
+          console.error('stdout:', result.stdout || '(empty)');
+          console.error('stderr:', result.stderr || '(empty)');
+          console.error('status:', result.status);
+          console.error('error:', result.error);
+          throw new Error(
+            `Command failed with status ${result.status}. stderr: ${result.stderr || '(none)'}`,
+          );
+        }
+
+        expect(readFileSync(movedPath, 'utf-8')).toContain(
+          'export function util()',
+        );
+
+        // Imports should still use forward slashes (normalized)
+        updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+        expect(updatedConsumerContent).toMatch(
+          /from ['"]\.\/utilities\/util['"]/,
+        );
+      }
     });
 
     it('should handle deeply nested paths within OS limits (~900 characters)', () => {
