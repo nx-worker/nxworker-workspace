@@ -43,12 +43,13 @@ export async function moveFileGenerator(
   // Expand glob patterns to actual file paths
   const filePaths: string[] = [];
   for (const pattern of patterns) {
+    // Normalize pattern to use forward slashes (Windows compatibility)
+    const normalizedPattern = normalizePath(pattern);
+
     // Check if pattern contains glob characters
-    const isGlobPattern = /[*?[\]{}]/.test(pattern);
+    const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
 
     if (isGlobPattern) {
-      // Normalize pattern to use forward slashes (Windows compatibility)
-      const normalizedPattern = normalizePath(pattern);
       // Use glob to find matching files
       const matches = glob(tree, [normalizedPattern]);
       if (matches.length === 0) {
@@ -57,7 +58,7 @@ export async function moveFileGenerator(
       filePaths.push(...matches);
     } else {
       // Direct file path
-      filePaths.push(pattern);
+      filePaths.push(normalizedPattern);
     }
   }
 

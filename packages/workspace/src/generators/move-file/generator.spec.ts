@@ -1331,6 +1331,26 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib2/src/lib/test1.spec.ts')).toBe(true);
       expect(tree.exists('packages/lib2/src/lib/test2.spec.ts')).toBe(true);
     });
+
+    it('should handle direct file paths with backslashes (Windows path separators)', async () => {
+      tree.write(
+        'packages/lib1/src/lib/component.ts',
+        'export const component = "test";',
+      );
+
+      // Use backslashes like on Windows for a direct file path (not a glob)
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages\\lib1\\src\\lib\\component.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved despite backslashes in path
+      expect(tree.exists('packages/lib1/src/lib/component.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/component.ts')).toBe(true);
+    });
   });
 
   describe('removeEmptyProject option', () => {
