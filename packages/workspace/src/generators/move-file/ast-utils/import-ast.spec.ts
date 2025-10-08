@@ -282,4 +282,213 @@ describe('AST Import Utilities', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('CommonJS support in various file types', () => {
+    describe('.js files', () => {
+      it('should detect require statements in .js files', () => {
+        const code = `
+          const fs = require('fs');
+          const path = require('path');
+          const myModule = require('./my-module');
+        `;
+        const imports = findImports(code, 'test.js');
+
+        expect(imports).toHaveLength(3);
+        expect(imports[0].moduleSpecifier).toBe('fs');
+        expect(imports[0].type).toBe('require');
+        expect(imports[1].moduleSpecifier).toBe('path');
+        expect(imports[2].moduleSpecifier).toBe('./my-module');
+      });
+
+      it('should update require statements in .js files', () => {
+        const code = `const oldModule = require('old-module');`;
+        const replacements = new Map([['old-module', 'new-module']]);
+
+        const result = updateImports(code, 'test.js', replacements);
+
+        expect(result).toBe(`const oldModule = require('new-module');`);
+      });
+    });
+
+    describe('.jsx files', () => {
+      it('should detect require statements in .jsx files', () => {
+        const code = `
+          const React = require('react');
+          const Component = require('./Component');
+        `;
+        const imports = findImports(code, 'test.jsx');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].moduleSpecifier).toBe('react');
+        expect(imports[0].type).toBe('require');
+        expect(imports[1].moduleSpecifier).toBe('./Component');
+      });
+
+      it('should handle mixed imports and requires in .jsx files', () => {
+        const code = `
+          import React from 'react';
+          const utils = require('./utils');
+        `;
+        const imports = findImports(code, 'test.jsx');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].type).toBe('import');
+        expect(imports[1].type).toBe('require');
+      });
+    });
+
+    describe('.tsx files', () => {
+      it('should detect require statements in .tsx files', () => {
+        const code = `
+          const config = require('./config');
+          import type { Config } from './types';
+        `;
+        const imports = findImports(code, 'test.tsx');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].moduleSpecifier).toBe('./config');
+        expect(imports[0].type).toBe('require');
+        expect(imports[1].moduleSpecifier).toBe('./types');
+        expect(imports[1].type).toBe('import');
+      });
+    });
+
+    describe('.cjs files', () => {
+      it('should detect require statements in .cjs files', () => {
+        const code = `
+          const express = require('express');
+          const router = require('./routes');
+          module.exports = { express, router };
+        `;
+        const imports = findImports(code, 'test.cjs');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].moduleSpecifier).toBe('express');
+        expect(imports[0].type).toBe('require');
+        expect(imports[1].moduleSpecifier).toBe('./routes');
+        expect(imports[1].type).toBe('require');
+      });
+
+      it('should update require statements in .cjs files', () => {
+        const code = `
+          const oldLib = require('old-library');
+          const utils = require('./utils');
+        `;
+        const replacements = new Map([['old-library', 'new-library']]);
+
+        const result = updateImports(code, 'test.cjs', replacements);
+
+        expect(result).toContain("require('new-library')");
+        expect(result).toContain("require('./utils')");
+      });
+
+      it('should handle destructured requires in .cjs files', () => {
+        const code = `
+          const { readFile, writeFile } = require('fs');
+          const { join } = require('path');
+        `;
+        const imports = findImports(code, 'test.cjs');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].moduleSpecifier).toBe('fs');
+        expect(imports[1].moduleSpecifier).toBe('path');
+      });
+    });
+
+    describe('.cts files', () => {
+      it('should detect require statements in .cts files', () => {
+        const code = `
+          const config = require('./config');
+          const utils = require('../utils');
+          import type { TypeDef } from './types';
+        `;
+        const imports = findImports(code, 'test.cts');
+
+        expect(imports).toHaveLength(3);
+        expect(imports[0].moduleSpecifier).toBe('./config');
+        expect(imports[0].type).toBe('require');
+        expect(imports[1].moduleSpecifier).toBe('../utils');
+        expect(imports[1].type).toBe('require');
+        expect(imports[2].moduleSpecifier).toBe('./types');
+        expect(imports[2].type).toBe('import');
+      });
+
+      it('should update require statements in .cts files', () => {
+        const code = `const db = require('old-database');`;
+        const replacements = new Map([['old-database', 'new-database']]);
+
+        const result = updateImports(code, 'test.cts', replacements);
+
+        expect(result).toBe(`const db = require('new-database');`);
+      });
+
+      it('should handle mixed TypeScript and CommonJS in .cts files', () => {
+        const code = `
+          import type { User } from './types';
+          const validator = require('./validator');
+          export { validator };
+        `;
+        const imports = findImports(code, 'test.cts');
+
+        expect(imports).toHaveLength(2);
+        expect(imports.filter((i) => i.type === 'import')).toHaveLength(1);
+        expect(imports.filter((i) => i.type === 'require')).toHaveLength(1);
+      });
+    });
+
+    describe('.mjs files', () => {
+      it('should detect ES6 imports in .mjs files', () => {
+        const code = `
+          import { readFile } from 'fs/promises';
+          import path from 'path';
+        `;
+        const imports = findImports(code, 'test.mjs');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].moduleSpecifier).toBe('fs/promises');
+        expect(imports[0].type).toBe('import');
+        expect(imports[1].moduleSpecifier).toBe('path');
+      });
+
+      it('should handle dynamic imports in .mjs files', () => {
+        const code = `
+          const module = await import('./dynamic-module');
+        `;
+        const imports = findImports(code, 'test.mjs');
+
+        expect(imports).toHaveLength(1);
+        expect(imports[0].type).toBe('dynamic-import');
+        expect(imports[0].moduleSpecifier).toBe('./dynamic-module');
+      });
+    });
+
+    describe('.mts files', () => {
+      it('should detect ES6 imports in .mts files', () => {
+        const code = `
+          import type { Config } from './config';
+          import { setup } from './setup';
+        `;
+        const imports = findImports(code, 'test.mts');
+
+        expect(imports).toHaveLength(2);
+        expect(imports[0].type).toBe('import');
+        expect(imports[1].type).toBe('import');
+      });
+    });
+
+    describe('Module interoperability', () => {
+      it('should handle projects mixing ESM and CommonJS', () => {
+        const esmCode = `import { util } from './util';`;
+        const cjsCode = `const util = require('./util');`;
+
+        const esmImports = findImports(esmCode, 'esm.mjs');
+        const cjsImports = findImports(cjsCode, 'cjs.cjs');
+
+        expect(esmImports[0].moduleSpecifier).toBe('./util');
+        expect(cjsImports[0].moduleSpecifier).toBe('./util');
+        expect(esmImports[0].type).toBe('import');
+        expect(cjsImports[0].type).toBe('require');
+      });
+    });
+  });
 });

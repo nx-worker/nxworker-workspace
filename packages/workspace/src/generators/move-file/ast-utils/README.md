@@ -10,8 +10,47 @@ This module provides AST-based utilities for detecting and updating import state
   - Dynamic imports: `import('module')`
   - CommonJS requires: `require('module')`
   - Export re-exports: `export { x } from 'module'`
-- **Source file caching** for improved performance
+- **Support for all quote styles**: single quotes, double quotes, and backticks (template literals without interpolation)
+- **Comprehensive file type support**:
+  - TypeScript: `.ts`, `.tsx`, `.mts`, `.cts`
+  - JavaScript: `.js`, `.jsx`, `.mjs`, `.cjs`
+- **Source file caching** using SHA-256 hashing for improved performance
 - **Preserves formatting**: Quote style, whitespace, comments
+
+## Supported File Types
+
+### TypeScript Files
+
+- **`.ts`** - Standard TypeScript files with ES6 imports and type imports
+- **`.tsx`** - TypeScript JSX files (React components)
+- **`.mts`** - TypeScript ES Module files (ESM with explicit `.mts` extension)
+- **`.cts`** - TypeScript CommonJS files (allows both `require()` and `import`)
+
+### JavaScript Files
+
+- **`.js`** - Standard JavaScript files (supports both ESM and CommonJS)
+- **`.jsx`** - JavaScript JSX files (React components)
+- **`.mjs`** - JavaScript ES Module files (ESM with explicit `.mjs` extension)
+- **`.cjs`** - JavaScript CommonJS files (traditional `require()`/`module.exports`)
+
+### CommonJS Support
+
+Full support for CommonJS in all file types:
+
+```javascript
+// .cjs files - pure CommonJS
+const express = require('express');
+const router = require('./routes');
+module.exports = { express, router };
+
+// .cts files - TypeScript with CommonJS
+import type { Config } from './types';
+const validator = require('./validator');
+
+// .js files - can mix ESM and CommonJS
+import { modern } from './modern';
+const legacy = require('./legacy');
+```
 
 ## API
 
@@ -55,6 +94,22 @@ const updated = updateImports(code, 'file.ts', replacements);
 // Returns: "import { foo } from 'new-module';"
 ```
 
+**Quote style preservation:**
+
+```typescript
+// Preserves single quotes
+const code1 = `import { a } from 'old';`;
+// Result: `import { a } from 'new';`
+
+// Preserves double quotes
+const code2 = `import { a } from "old";`;
+// Result: `import { a } from "new";`
+
+// Preserves backticks
+const code3 = 'import { a } from `old`;';
+// Result: 'import { a } from `new`;'
+```
+
 ### `updateImportsMatching(sourceCode: string, filePath: string, matcher: (moduleSpecifier: string) => string | null): string | null`
 
 Updates imports based on a matcher function.
@@ -85,7 +140,7 @@ clearCache();
 
 ## Performance
 
-The utilities use caching to optimize performance:
+The utilities use SHA-256-based caching to optimize performance:
 
 - First parse of a file: ~0.01ms
 - Subsequent operations on the same file: ~0.001ms (from cache)
@@ -102,3 +157,16 @@ The move-file generator uses these utilities to:
 4. **Update exports** in index files
 
 All with guaranteed correctness and no false positives from regex limitations.
+
+## Testing
+
+Comprehensive test coverage includes:
+
+- All file types (`.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.mjs`, `.cjs`, `.cts`)
+- CommonJS `require()` statements in all supported files
+- Mixed ESM and CommonJS in the same project
+- Quote style preservation (single, double, backticks)
+- Template literals with and without interpolation
+- Edge cases and error conditions
+
+See [import-ast.spec.ts](./import-ast.spec.ts) for the complete test suite.

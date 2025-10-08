@@ -1105,7 +1105,16 @@ function updateImportPathsToPackageAlias(
   targetPackageAlias: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cjs',
+    '.cts',
+  ];
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -1161,7 +1170,16 @@ function updateImportPathsInProject(
   sourceFilePath: string,
   targetFilePath: string,
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cjs',
+    '.cts',
+  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
@@ -1221,7 +1239,16 @@ function checkForImportsInProject(
   project: ProjectConfiguration,
   importPath: string,
 ): boolean {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cjs',
+    '.cts',
+  ];
   let hasImports = false;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -1255,7 +1282,16 @@ function updateImportsToRelative(
   targetRelativePath: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cjs',
+    '.cts',
+  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
@@ -1293,7 +1329,16 @@ function updateImportsByAliasInProject(
   sourceImportPath: string,
   targetImportPath: string,
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cjs',
+    '.cts',
+  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {

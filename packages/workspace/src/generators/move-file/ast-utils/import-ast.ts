@@ -61,7 +61,9 @@ export function findImports(
       true,
       filePath.endsWith('.tsx') || filePath.endsWith('.jsx')
         ? ts.ScriptKind.TSX
-        : filePath.endsWith('.ts') || filePath.endsWith('.mts')
+        : filePath.endsWith('.ts') ||
+            filePath.endsWith('.mts') ||
+            filePath.endsWith('.cts')
           ? ts.ScriptKind.TS
           : ts.ScriptKind.JS,
     );
