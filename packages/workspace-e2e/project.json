@@ -12,7 +12,15 @@
         "jestConfig": "packages/workspace-e2e/jest.config.ts",
         "runInBand": true
       },
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/jest.preset.js",
+        {
+          "runtime": "node -p \"process.platform\""
+        }
+      ]
     }
   }
 }
