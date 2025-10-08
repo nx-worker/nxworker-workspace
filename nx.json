@@ -18,6 +18,11 @@
       "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/src/test-setup.[jt]s",
       "!{projectRoot}/test-setup.[jt]s"
+    ],
+    "osPlatform": [
+      {
+        "runtime": "node -p \"process.platform\""
+      }
     ]
   },
   "plugins": [
@@ -45,7 +50,7 @@
     },
     "@nx/jest:jest": {
       "cache": true,
-      "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+      "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js", "osPlatform"],
       "options": {
         "passWithNoTests": true
       },
