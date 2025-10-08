@@ -1508,6 +1508,17 @@ describe('Nx version compatibility (basic happy paths)', () => {
           rootPackageJson.dependencies?.['@nx/workspace'] ||
           rootPackageJson.devDependencies?.['@nx/workspace'];
 
+        if (!nxDevkitVersion) {
+          throw new Error(
+            '@nx/devkit not found in root package.json dependencies or devDependencies',
+          );
+        }
+        if (!nxWorkspaceVersion) {
+          throw new Error(
+            '@nx/workspace not found in root package.json dependencies or devDependencies',
+          );
+        }
+
         // Install the plugin as a devDependency along with its peer dependencies at the same versions as the workspace
         execSync(
           `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${nxDevkitVersion} @nx/workspace@${nxWorkspaceVersion}`,
