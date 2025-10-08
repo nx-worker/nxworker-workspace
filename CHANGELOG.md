@@ -23,6 +23,7 @@
     - Glob patterns (e.g., `packages/lib1/**/*.ts`)
     - Combination of direct paths and glob patterns
   - Properly handles files with multiple dots in the filename (e.g., `util.helper.ts`)
+  - Optional `--derive-project-directory` flag automatically preserves the directory structure from the source project in the target project (useful for bulk moves)
   - Security hardening with path sanitization, regex escaping, and traversal blocking
   - Optional Unicode parameter support via `--allow-unicode` flag
   - Optional `--remove-empty-project` flag cleans up source projects that no longer contain source code files after the file move
