@@ -2003,5 +2003,121 @@ describe('move-file generator', () => {
         tree.exists('packages/lib2/src/lib/components/button.component.css'),
       ).toBe(true);
     });
+
+    it('should derive project directory from Windows path with backslashes', async () => {
+      tree.write(
+        'packages/lib1/src/lib/components/button/button.component.ts',
+        'export class ButtonComponent {}',
+      );
+
+      // Use backslashes like on Windows
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages\\lib1\\src\\lib\\components\\button\\button.component.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved with the same directory structure preserved
+      expect(
+        tree.exists(
+          'packages/lib1/src/lib/components/button/button.component.ts',
+        ),
+      ).toBe(false);
+      expect(
+        tree.exists(
+          'packages/lib2/src/lib/components/button/button.component.ts',
+        ),
+      ).toBe(true);
+    });
+
+    it('should derive project directory with Windows backslash glob patterns', async () => {
+      tree.write(
+        'packages/lib1/src/lib/utils/helper1.ts',
+        'export const helper1 = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/utils/helper2.ts',
+        'export const helper2 = true;',
+      );
+
+      // Use backslashes in glob pattern like on Windows
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages\\lib1\\src\\lib\\utils\\*.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Files should be moved with directory structure preserved
+      expect(tree.exists('packages/lib1/src/lib/utils/helper1.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/utils/helper2.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper1.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper2.ts')).toBe(true);
+    });
+
+    it('should derive project directory with Windows backslash comma-separated paths', async () => {
+      tree.write(
+        'packages/lib1/src/lib/components/button.ts',
+        'export const button = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/services/api.ts',
+        'export const api = true;',
+      );
+
+      // Use backslashes in comma-separated paths like on Windows
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages\\lib1\\src\\lib\\components\\button.ts,packages\\lib1\\src\\lib\\services\\api.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Each file should preserve its respective directory structure
+      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(
+        false,
+      );
+      expect(tree.exists('packages/lib1/src/lib/services/api.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(
+        true,
+      );
+      expect(tree.exists('packages/lib2/src/lib/services/api.ts')).toBe(true);
+    });
+
+    it('should derive project directory with Windows backslash deeply nested paths', async () => {
+      tree.write(
+        'packages/lib1/src/lib/features/auth/login/components/login-form.ts',
+        'export class LoginForm {}',
+      );
+
+      // Use backslashes for deeply nested Windows path
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages\\lib1\\src\\lib\\features\\auth\\login\\components\\login-form.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Deeply nested directory structure should be preserved
+      expect(
+        tree.exists(
+          'packages/lib1/src/lib/features/auth/login/components/login-form.ts',
+        ),
+      ).toBe(false);
+      expect(
+        tree.exists(
+          'packages/lib2/src/lib/features/auth/login/components/login-form.ts',
+        ),
+      ).toBe(true);
+    });
   });
 });
