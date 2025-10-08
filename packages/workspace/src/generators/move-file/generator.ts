@@ -1107,11 +1107,6 @@ function updateImportPathsToPackageAlias(
       fileExtensions.some((ext) => filePath.endsWith(ext)) &&
       !filesToExclude.includes(normalizedFilePath)
     ) {
-      const sourceFileName = path.basename(
-        sourceFilePath,
-        path.extname(sourceFilePath),
-      );
-
       // Use jscodeshift to update imports that reference the source file
       updateImportSpecifierPattern(
         tree,
@@ -1121,12 +1116,16 @@ function updateImportPathsToPackageAlias(
           if (!specifier.startsWith('.')) {
             return false;
           }
-          // Extract the filename from the import specifier
-          const importedFileName = path.basename(
-            specifier,
-            path.extname(specifier),
+          // Resolve the import specifier to an absolute path
+          const importerDir = path.dirname(filePath);
+          const resolvedImport = path.join(importerDir, specifier);
+          // Normalize and compare with source file (without extension)
+          const normalizedResolvedImport = normalizePath(resolvedImport);
+          const sourceFileWithoutExt = sourceFilePath.replace(
+            /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
+            '',
           );
-          return importedFileName === sourceFileName;
+          return normalizedResolvedImport === sourceFileWithoutExt;
         },
         () => targetPackageAlias,
       );
@@ -1154,11 +1153,6 @@ function updateImportPathsInProject(
       normalizedFilePath !== sourceFilePath &&
       normalizedFilePath !== targetFilePath
     ) {
-      const sourceFileName = path.basename(
-        sourceFilePath,
-        path.extname(sourceFilePath),
-      );
-
       const relativeSpecifier = getRelativeImportSpecifier(
         filePath,
         targetFilePath,
@@ -1173,12 +1167,16 @@ function updateImportPathsInProject(
           if (!specifier.startsWith('.')) {
             return false;
           }
-          // Extract the filename from the import specifier
-          const importedFileName = path.basename(
-            specifier,
-            path.extname(specifier),
+          // Resolve the import specifier to an absolute path
+          const importerDir = path.dirname(filePath);
+          const resolvedImport = path.join(importerDir, specifier);
+          // Normalize and compare with source file (without extension)
+          const normalizedResolvedImport = normalizePath(resolvedImport);
+          const sourceFileWithoutExt = sourceFilePath.replace(
+            /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
+            '',
           );
-          return importedFileName === sourceFileName;
+          return normalizedResolvedImport === sourceFileWithoutExt;
         },
         () => relativeSpecifier,
       );
