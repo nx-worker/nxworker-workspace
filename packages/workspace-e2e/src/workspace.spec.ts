@@ -1496,9 +1496,21 @@ describe('Nx version compatibility (basic happy paths)', () => {
       beforeAll(async () => {
         projectDirectory = await createTestProject(nxMajorVersion);
 
-        // Install the plugin as a devDependency along with its peer dependencies
+        // Get the versions of @nx/* packages from root package.json
+        const rootPackageJsonPath = join(process.cwd(), 'package.json');
+        const rootPackageJson = JSON.parse(
+          readFileSync(rootPackageJsonPath, 'utf-8'),
+        );
+        const nxDevkitVersion =
+          rootPackageJson.dependencies?.['@nx/devkit'] ||
+          rootPackageJson.devDependencies?.['@nx/devkit'];
+        const nxWorkspaceVersion =
+          rootPackageJson.dependencies?.['@nx/workspace'] ||
+          rootPackageJson.devDependencies?.['@nx/workspace'];
+
+        // Install the plugin as a devDependency along with its peer dependencies at the same versions as the workspace
         execSync(
-          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit @nx/workspace`,
+          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${nxDevkitVersion} @nx/workspace@${nxWorkspaceVersion}`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
