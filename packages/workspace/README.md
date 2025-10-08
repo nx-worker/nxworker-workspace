@@ -5,8 +5,12 @@
 ## Highlights
 
 - Moves files across Nx projects, updating static `import`, dynamic `import()`, and re-export statements automatically
+- **Full CommonJS support**: Updates `require()`, `require.resolve()`, `module.exports`, and `exports` statements
+- Handles single files, glob patterns, and comma-separated file lists/glob patterns so you can move multiple files in one run
 - Understands Nx project graphs: re-wires dependent projects when exported files move and preserves package entrypoints
+- **AST-based transformations**: Uses jscodeshift for reliable, syntax-aware import updates instead of regex patterns
 - Runs with strong input validation (path sanitisation, regex escaping, traversal blocking, optional Unicode opt-in)
+- Can optionally remove source project(s) that become empty after a move by opting into `--remove-empty-project`
 - Formats affected files with Prettier unless `--skipFormat` is provided
 - Backed by an extensive Jest unit suite and 20+ Verdaccio-powered end-to-end scenarios that exercise OS, architecture, and Node.js edge cases
 
@@ -35,6 +39,8 @@ nx add @nx/workspace
 
 nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
 ```
+
+Use glob patterns (e.g. `packages/lib1/**/*.ts`) or comma-separated lists to move several files at once, and pass `--remove-empty-project` when you want the generator to clean up source project(s) that no longer have any source code files after the move.
 
 Alternatively, you can install manually with npm:
 

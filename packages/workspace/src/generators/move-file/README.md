@@ -1,6 +1,6 @@
 # @nxworker/workspace:move-file
 
-The `@nxworker/workspace:move-file` generator safely moves a file between Nx projects and keeps every import, export, and dependent project aligned.
+The `@nxworker/workspace:move-file` generator safely moves one or more files between Nx projects and keeps every import, export, and dependent project aligned.
 
 ## Requirements
 
