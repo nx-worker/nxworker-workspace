@@ -47,8 +47,10 @@ export async function moveFileGenerator(
     const isGlobPattern = /[*?[\]{}]/.test(pattern);
 
     if (isGlobPattern) {
+      // Normalize pattern to use forward slashes (Windows compatibility)
+      const normalizedPattern = normalizePath(pattern);
       // Use glob to find matching files
-      const matches = glob(tree, [pattern]);
+      const matches = glob(tree, [normalizedPattern]);
       if (matches.length === 0) {
         throw new Error(`No files found matching glob pattern: "${pattern}"`);
       }

@@ -1305,6 +1305,32 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib1/src/lib/file.ts')).toBe(false);
       expect(tree.exists('packages/lib2/src/lib/file.ts')).toBe(true);
     });
+
+    it('should handle glob patterns with backslashes (Windows path separators)', async () => {
+      tree.write(
+        'packages/lib1/src/lib/test1.spec.ts',
+        'export const test1 = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/test2.spec.ts',
+        'export const test2 = "test";',
+      );
+
+      // Use backslashes like on Windows
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages\\lib1\\src\\lib\\*.spec.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Files should be moved despite backslashes in pattern
+      expect(tree.exists('packages/lib1/src/lib/test1.spec.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/test2.spec.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/test1.spec.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/test2.spec.ts')).toBe(true);
+    });
   });
 
   describe('removeEmptyProject option', () => {
