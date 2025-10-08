@@ -1,6 +1,9 @@
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+
+const itSkipWindows = process.platform === 'win32' ? it.skip : it;
+const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
 
 describe('workspace', () => {
   let projectDirectory: string;
@@ -423,10 +426,8 @@ describe('workspace', () => {
       );
     });
 
-    it('should handle path separators correctly across platforms (Windows backslash vs Unix forward slash)', () => {
-      // This test verifies that the generator normalizes paths correctly
-      // Windows uses backslashes, Unix uses forward slashes
-      // The generator should handle both and normalize to POSIX style internally
+    it('should handle path separators correctly (forward slashes)', () => {
+      // This test verifies that the generator normalizes POSIX-style paths
 
       const sourcePath = join(
         projectDirectory,
@@ -452,8 +453,6 @@ describe('workspace', () => {
         "import { util } from './util';\nexport const value = util();\n",
       );
 
-      // Test with POSIX-style paths (forward slashes)
-      // This should work on all platforms
       execSync(
         `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts --project ${testLibName} --project-directory utilities --no-interactive`,
         {
@@ -474,16 +473,16 @@ describe('workspace', () => {
         'export function util()',
       );
 
-      // Verify imports use forward slashes (normalized)
-      let updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
         /from ['"]\.\/utilities\/util['"]/,
       );
+    });
 
-      // Test with Windows-style paths on Windows (backslashes)
-      if (process.platform === 'win32') {
-        // Move file back first
-        const utilBackPath = join(
+    itWindowsOnly(
+      'should handle path separators correctly on Windows (backslashes)',
+      () => {
+        const sourcePath = join(
           projectDirectory,
           testLibName,
           'src',
@@ -491,66 +490,49 @@ describe('workspace', () => {
           'util.ts',
         );
         writeFileSync(
-          utilBackPath,
+          sourcePath,
           "export function util() { return 'utility'; }\n",
+        );
+
+        const consumerPath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'consumer.ts',
         );
         writeFileSync(
           consumerPath,
           "import { util } from './util';\nexport const value = util();\n",
         );
 
-        // Use backslashes in paths (Windows-style)
-        // Use spawnSync to pass arguments directly without shell interpretation
         const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
-        const result = spawnSync(
-          'npx',
-          [
-            'nx',
-            'generate',
-            '@nxworker/workspace:move-file',
-            winStyleSource,
-            '--project',
-            testLibName,
-            '--project-directory',
-            'utilities',
-            '--no-interactive',
-          ],
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
           {
             cwd: projectDirectory,
-            encoding: 'utf-8',
-            shell: true, // Required on Windows to execute .cmd files
+            stdio: 'inherit',
           },
         );
 
-        if (result.status !== 0) {
-          const errorDetails = {
-            status: result.status,
-            stdout: result.stdout,
-            stderr: result.stderr,
-            error: result.error,
-          };
-          console.error('Command failed with error:');
-          console.error('Full result:', JSON.stringify(errorDetails, null, 2));
-          console.error('stdout:', result.stdout || '(empty)');
-          console.error('stderr:', result.stderr || '(empty)');
-          console.error('status:', result.status);
-          console.error('error:', result.error);
-          throw new Error(
-            `Command failed with status ${result.status}. stderr: ${result.stderr || '(none)'}`,
-          );
-        }
-
+        const movedPath = join(
+          projectDirectory,
+          testLibName,
+          'src',
+          'lib',
+          'utilities',
+          'util.ts',
+        );
         expect(readFileSync(movedPath, 'utf-8')).toContain(
           'export function util()',
         );
 
-        // Imports should still use forward slashes (normalized)
-        updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
+        const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
         expect(updatedConsumerContent).toMatch(
           /from ['"]\.\/utilities\/util['"]/,
         );
-      }
-    });
+      },
+    );
 
     it('should handle deeply nested paths within OS limits (~900 characters)', () => {
       // Windows historically had a 260-character limit (MAX_PATH)
@@ -710,7 +692,7 @@ describe('workspace', () => {
       );
     });
 
-    (process.platform === 'win32' ? it.skip : it)(
+    itSkipWindows(
       'should handle files with Unix-specific special characters (skipped on Windows)',
       () => {
         // Windows doesn't allow these characters in filenames: < > : " / \ | ? *
