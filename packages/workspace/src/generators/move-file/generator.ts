@@ -1177,8 +1177,10 @@ function updateImportPathsToPackageAlias(
           // Resolve the import specifier to an absolute path
           const importerDir = path.dirname(normalizedFilePath);
           const resolvedImport = path.join(importerDir, specifier);
-          // Normalize and compare with source file (without extension)
-          const normalizedResolvedImport = normalizePath(resolvedImport);
+          // Normalize and compare with source file (both without extension)
+          const normalizedResolvedImport = normalizePath(
+            resolvedImport.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
+          );
           const sourceFileWithoutExt = normalizePath(
             sourceFilePath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
           );
@@ -1227,8 +1229,10 @@ function updateImportPathsInProject(
           // Resolve the import specifier to an absolute path
           const importerDir = path.dirname(normalizedFilePath);
           const resolvedImport = path.join(importerDir, specifier);
-          // Normalize and compare with source file (without extension)
-          const normalizedResolvedImport = normalizePath(resolvedImport);
+          // Normalize and compare with source file (both without extension)
+          const normalizedResolvedImport = normalizePath(
+            resolvedImport.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
+          );
           const sourceFileWithoutExt = normalizePath(
             sourceFilePath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
           );
