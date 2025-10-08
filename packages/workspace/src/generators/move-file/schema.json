@@ -24,6 +24,11 @@
       "type": "string",
       "description": "Optional subdirectory within the target project's base folder (e.g., 'utils' or 'features/auth'). For libraries, files are placed at sourceRoot/lib/<projectDirectory>. For applications, files are placed at sourceRoot/app/<projectDirectory>"
     },
+    "deriveProjectDirectory": {
+      "type": "boolean",
+      "description": "Automatically derive the project directory from the source file path. If true, the directory structure from the source project will be preserved in the target project. Cannot be used together with projectDirectory option.",
+      "default": false
+    },
     "skipExport": {
       "type": "boolean",
       "description": "Skip adding export to target project's index file",

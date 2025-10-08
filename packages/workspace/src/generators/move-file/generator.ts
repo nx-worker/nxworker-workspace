@@ -160,6 +160,45 @@ function splitPatterns(input: string): string[] {
 }
 
 /**
+ * Derives the project directory from the source file path relative to the source project.
+ * Extracts the directory structure between the base directory (lib/app) and the filename.
+ *
+ * @param sourceFilePath - Original source file path.
+ * @param sourceProject - Source project configuration.
+ * @returns The derived directory path, or undefined if the file is in the base directory.
+ */
+function deriveProjectDirectoryFromSource(
+  sourceFilePath: string,
+  sourceProject: ProjectConfiguration,
+): string | undefined {
+  const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
+  const baseDir = sourceProject.projectType === 'application' ? 'app' : 'lib';
+
+  // Get the path relative to source root
+  const relativeToSourceRoot = path.relative(sourceRoot, sourceFilePath);
+
+  // Check if the file is within the base directory (lib or app)
+  const baseDirPrefix = baseDir + '/';
+  if (!relativeToSourceRoot.startsWith(baseDirPrefix)) {
+    // File is not in the expected base directory, return undefined
+    return undefined;
+  }
+
+  // Remove the base directory prefix
+  const afterBaseDir = relativeToSourceRoot.substring(baseDirPrefix.length);
+
+  // Get the directory part (without the filename)
+  const dirPath = path.dirname(afterBaseDir);
+
+  // If dirPath is '.' it means the file is directly in the base directory
+  if (dirPath === '.') {
+    return undefined;
+  }
+
+  return dirPath;
+}
+
+/**
  * Builds the target file path from the target project and optional directory.
  *
  * @param targetProject - Target project configuration.
@@ -236,6 +275,13 @@ function resolveAndValidate(
     );
   }
 
+  // Validate that deriveProjectDirectory and projectDirectory are not both set
+  if (options.deriveProjectDirectory && options.projectDirectory) {
+    throw new Error(
+      'Cannot use both "deriveProjectDirectory" and "projectDirectory" options at the same time',
+    );
+  }
+
   // Validate projectDirectory if provided
   if (
     options.projectDirectory &&
@@ -250,29 +296,12 @@ function resolveAndValidate(
 
   const normalizedSource = sanitizePath(options.file);
 
-  // Sanitize projectDirectory to prevent path traversal
-  const sanitizedProjectDirectory = options.projectDirectory
-    ? sanitizePath(options.projectDirectory)
-    : undefined;
-
-  // Construct target path from project and optional directory
-  const normalizedTarget = buildTargetPath(
-    targetProject,
-    normalizedSource,
-    sanitizedProjectDirectory,
-  );
-
-  // Verify source file exists
+  // Verify source file exists before deriving directory
   if (!tree.exists(normalizedSource)) {
     throw new Error(`Source file "${normalizedSource}" not found`);
   }
 
-  // Verify target file does not exist
-  if (tree.exists(normalizedTarget)) {
-    throw new Error(`Target file "${normalizedTarget}" already exists`);
-  }
-
-  // Find which project the source file belongs to
+  // Find which project the source file belongs to (needed for deriving directory)
   const sourceProjectInfo = findProjectForFile(projects, normalizedSource);
 
   if (!sourceProjectInfo) {
@@ -282,6 +311,35 @@ function resolveAndValidate(
   }
 
   const { project: sourceProject, name: sourceProjectName } = sourceProjectInfo;
+
+  // Derive or use provided projectDirectory
+  let sanitizedProjectDirectory: string | undefined;
+
+  if (options.deriveProjectDirectory) {
+    // Derive the directory from the source file path
+    const derivedDirectory = deriveProjectDirectoryFromSource(
+      normalizedSource,
+      sourceProject,
+    );
+    sanitizedProjectDirectory = derivedDirectory
+      ? sanitizePath(derivedDirectory)
+      : undefined;
+  } else if (options.projectDirectory) {
+    // Sanitize projectDirectory to prevent path traversal
+    sanitizedProjectDirectory = sanitizePath(options.projectDirectory);
+  }
+
+  // Construct target path from project and optional directory
+  const normalizedTarget = buildTargetPath(
+    targetProject,
+    normalizedSource,
+    sanitizedProjectDirectory,
+  );
+
+  // Verify target file does not exist
+  if (tree.exists(normalizedTarget)) {
+    throw new Error(`Target file "${normalizedTarget}" already exists`);
+  }
 
   const targetProjectName = options.project;
 

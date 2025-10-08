@@ -15,6 +15,7 @@
   - Removes stale exports from source entrypoint and adds exports to target entrypoint
     - Optional `--skip-export` flag to prevent creating a new export
   - Supports bulk moves by passing a comma-separated list and/or glob pattern(s)
+  - Optional `--derive-project-directory` flag automatically preserves the directory structure from the source project in the target project (useful for bulk moves)
   - Security hardening with path sanitization, regex escaping, and traversal blocking
   - Optional Unicode parameter support via `--allow-unicode` flag
   - Optional `--remove-empty-project` flag cleans up source projects that no longer contain source code files after the file move
