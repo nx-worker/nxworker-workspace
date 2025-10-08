@@ -1,4 +1,4 @@
-import { uniqueId } from 'lodash'
+import { uniqueId } from 'lodash';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
@@ -1494,32 +1494,27 @@ describe('Nx version compatibility (basic happy paths)', () => {
       beforeAll(async () => {
         projectDirectory = await createTestProject(nxMajorVersion);
 
-        // Get the versions of @nx/* packages from root package.json
-        const rootPackageJsonPath = join(process.cwd(), 'package.json');
-        const rootPackageJson = JSON.parse(
-          readFileSync(rootPackageJsonPath, 'utf-8'),
+        // Get the Nx version from the generated test workspace
+        const testWorkspacePackageJsonPath = join(
+          projectDirectory,
+          'package.json',
         );
-        const nxDevkitVersion =
-          rootPackageJson.dependencies?.['@nx/devkit'] ||
-          rootPackageJson.devDependencies?.['@nx/devkit'];
-        const nxWorkspaceVersion =
-          rootPackageJson.dependencies?.['@nx/workspace'] ||
-          rootPackageJson.devDependencies?.['@nx/workspace'];
+        const testWorkspacePackageJson = JSON.parse(
+          readFileSync(testWorkspacePackageJsonPath, 'utf-8'),
+        );
+        const testWorkspaceNxVersion =
+          testWorkspacePackageJson.devDependencies?.nx ||
+          testWorkspacePackageJson.dependencies?.nx;
 
-        if (!nxDevkitVersion) {
+        if (!testWorkspaceNxVersion) {
           throw new Error(
-            '@nx/devkit not found in root package.json dependencies or devDependencies',
-          );
-        }
-        if (!nxWorkspaceVersion) {
-          throw new Error(
-            '@nx/workspace not found in root package.json dependencies or devDependencies',
+            'nx not found in test workspace package.json dependencies or devDependencies',
           );
         }
 
-        // Install the plugin as a devDependency along with its peer dependencies at the same versions as the workspace
+        // Install the plugin as a devDependency along with its peer dependencies at the same version as the test workspace
         execSync(
-          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${nxDevkitVersion} @nx/workspace@${nxWorkspaceVersion}`,
+          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${testWorkspaceNxVersion} @nx/workspace@${testWorkspaceNxVersion}`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -1677,6 +1672,19 @@ describe('Nx version compatibility (basic happy paths)', () => {
           `import { util } from '${lib1Alias}';\nexport const value = util();\n`,
         );
 
+        // Import in lib2 (will become same project after move)
+        const lib2ServicePath = join(
+          projectDirectory,
+          lib2,
+          'src',
+          'lib',
+          'service.ts',
+        );
+        writeFileSync(
+          lib2ServicePath,
+          `import { util } from '${lib1Alias}';\nexport const value2 = util();\n`,
+        );
+
         // Move util.ts from lib1 to lib2
         execSync(
           `npx nx generate @nxworker/workspace:move-file ${lib1}/src/lib/util.ts --project ${lib2} --no-interactive`,
@@ -1695,6 +1703,11 @@ describe('Nx version compatibility (basic happy paths)', () => {
         const serviceContent = readFileSync(lib3ServicePath, 'utf-8');
         expect(serviceContent).toContain(lib2Alias);
         expect(serviceContent).not.toContain(lib1Alias);
+
+        // Verify lib2's service.ts now uses relative import (same project)
+        const lib2ServiceContent = readFileSync(lib2ServicePath, 'utf-8');
+        expect(lib2ServiceContent).toContain("from './util'");
+        expect(lib2ServiceContent).not.toContain(lib1Alias);
 
         // Verify lib1's index no longer exports util
         const lib1IndexContent = readFileSync(lib1IndexPath, 'utf-8');
