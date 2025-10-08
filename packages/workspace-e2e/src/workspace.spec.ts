@@ -518,6 +518,7 @@ describe('workspace', () => {
           {
             cwd: projectDirectory,
             encoding: 'utf-8',
+            shell: true, // Required on Windows to execute .cmd files
           },
         );
 
