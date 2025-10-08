@@ -71,6 +71,54 @@ describe('jscodeshift-utils', () => {
       expect(content).toContain(`require('./new-path')`);
     });
 
+    it('should update module.exports with require', () => {
+      const filePath = 'test.js';
+      tree.write(filePath, `module.exports = require('./old-path');`);
+
+      const result = updateImportSpecifier(
+        tree,
+        filePath,
+        './old-path',
+        './new-path',
+      );
+
+      expect(result).toBe(true);
+      const content = tree.read(filePath, 'utf-8');
+      expect(content).toContain(`require('./new-path')`);
+    });
+
+    it('should update exports with require', () => {
+      const filePath = 'test.js';
+      tree.write(filePath, `exports.foo = require('./old-path');`);
+
+      const result = updateImportSpecifier(
+        tree,
+        filePath,
+        './old-path',
+        './new-path',
+      );
+
+      expect(result).toBe(true);
+      const content = tree.read(filePath, 'utf-8');
+      expect(content).toContain(`require('./new-path')`);
+    });
+
+    it('should update require.resolve calls', () => {
+      const filePath = 'test.js';
+      tree.write(filePath, `const path = require.resolve('./old-path');`);
+
+      const result = updateImportSpecifier(
+        tree,
+        filePath,
+        './old-path',
+        './new-path',
+      );
+
+      expect(result).toBe(true);
+      const content = tree.read(filePath, 'utf-8');
+      expect(content).toContain(`require.resolve('./new-path')`);
+    });
+
     it('should update export from statements', () => {
       const filePath = 'test.ts';
       tree.write(filePath, `export { foo } from './old-path';`);
@@ -203,6 +251,15 @@ describe('jscodeshift-utils', () => {
     it('should return true for require calls', () => {
       const filePath = 'test.js';
       tree.write(filePath, `const module = require('./path');`);
+
+      const result = hasImportSpecifier(tree, filePath, './path');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true for require.resolve calls', () => {
+      const filePath = 'test.js';
+      tree.write(filePath, `const path = require.resolve('./path');`);
 
       const result = hasImportSpecifier(tree, filePath, './path');
 

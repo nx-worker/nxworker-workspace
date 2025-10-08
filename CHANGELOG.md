@@ -20,7 +20,6 @@
   - Optional Unicode parameter support via `--allow-unicode` flag
   - Optional `--remove-empty-project` flag cleans up source projects that no longer contain source code files after the file move
   - Platform support: Linux, Windows, macOS, all x64/arm64
-  - ECMAScript Modules (ESM) only, no CommonJS (CJS) support
 
 ### Requirements
 

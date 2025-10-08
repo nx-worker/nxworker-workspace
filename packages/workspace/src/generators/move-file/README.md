@@ -6,7 +6,6 @@ The `@nxworker/workspace:move-file` generator safely moves files — single path
 
 - Nx 19.8-21.x with `@nx/devkit` and `@nx/workspace` installed
 - Node.js 18, 20, or 22 (same as Nx)
-- ECMAScript Modules (ESM) only, no CommonJS (CJS) support
 
 ## Usage
 
