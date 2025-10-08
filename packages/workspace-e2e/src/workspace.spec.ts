@@ -502,13 +502,22 @@ describe('workspace', () => {
         // Use backslashes in paths (Windows-style)
         // Note: Paths must be quoted to prevent shell from interpreting backslashes as escape sequences
         const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
-          {
-            cwd: projectDirectory,
-            stdio: 'inherit',
-          },
-        );
+        try {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
+            {
+              cwd: projectDirectory,
+              stdio: 'pipe',
+              encoding: 'utf-8',
+            },
+          );
+        } catch (error) {
+          console.error('Command failed with error:');
+          console.error('stdout:', error.stdout);
+          console.error('stderr:', error.stderr);
+          console.error('status:', error.status);
+          throw error;
+        }
 
         expect(readFileSync(movedPath, 'utf-8')).toContain(
           'export function util()',
