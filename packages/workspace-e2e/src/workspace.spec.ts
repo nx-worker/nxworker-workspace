@@ -5,6 +5,49 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 const itSkipWindows = process.platform === 'win32' ? it.skip : it;
 const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
 
+/**
+ * Extracts supported major versions from @nx/devkit peer dependency.
+ * Parses the peerDependencies field in package.json to determine which
+ * Nx major versions are supported (e.g., ">=19.8.5 <22.0.0" => [19, 20, 21])
+ */
+function getSupportedNxMajorVersions(): number[] {
+  const packageJsonPath = join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'workspace',
+    'package.json',
+  );
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+  const devkitPeerDep = packageJson.peerDependencies?.['@nx/devkit'];
+
+  if (!devkitPeerDep) {
+    throw new Error('@nx/devkit peer dependency not found in package.json');
+  }
+
+  // Parse version range like ">=19.8.5 <22.0.0"
+  const minMatch = devkitPeerDep.match(/>=(\d+)\./);
+  const maxMatch = devkitPeerDep.match(/<(\d+)\./);
+
+  if (!minMatch || !maxMatch) {
+    throw new Error(
+      `Unable to parse @nx/devkit peer dependency: ${devkitPeerDep}`,
+    );
+  }
+
+  const minMajor = parseInt(minMatch[1], 10);
+  const maxMajor = parseInt(maxMatch[1], 10);
+
+  // Generate array of major versions [19, 20, 21, ...]
+  const versions: number[] = [];
+  for (let v = minMajor; v < maxMajor; v++) {
+    versions.push(v);
+  }
+
+  return versions;
+}
+
 describe('workspace', () => {
   let projectDirectory: string;
   let libNames: Record<string, string>;
@@ -1426,6 +1469,204 @@ describe('workspace', () => {
   });
 });
 
+// Test basic happy paths across all supported Nx major versions
+// This ensures compatibility with all peer dependency versions
+describe('Nx version compatibility (basic happy paths)', () => {
+  const supportedVersions = getSupportedNxMajorVersions();
+
+  // Run basic tests for each supported Nx major version
+  supportedVersions.forEach((nxMajorVersion) => {
+    describe(`Nx ${nxMajorVersion}.x`, () => {
+      let projectDirectory: string;
+
+      beforeAll(async () => {
+        projectDirectory = await createTestProject(nxMajorVersion);
+
+        // Install the plugin built with the latest source code into the test repo
+        execSync(`npm install @nxworker/workspace@e2e`, {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+          env: process.env,
+        });
+      });
+
+      afterAll(async () => {
+        // Cleanup the test project (Windows: handle EBUSY)
+        if (projectDirectory) {
+          let attempts = 0;
+          const maxAttempts = 5;
+          const delay = 200;
+          while (attempts < maxAttempts) {
+            try {
+              rmSync(projectDirectory, { recursive: true, force: true });
+              break;
+            } catch (err) {
+              if (err.code === 'EBUSY' || err.code === 'ENOTEMPTY') {
+                attempts++;
+                await sleep(delay);
+              } else {
+                throw err;
+              }
+            }
+          }
+        }
+      });
+
+      it('should be installed', () => {
+        // npm ls will fail if the package is not installed properly
+        execSync('npm ls @nxworker/workspace', {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        });
+      });
+
+      it('should move a file between projects', () => {
+        function uniqueId() {
+          return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        }
+        const lib1 = `lib-${uniqueId()}`;
+        const lib2 = `lib-${uniqueId()}`;
+
+        // Create two library projects
+        execSync(
+          `npx nx generate @nx/js:library ${lib1} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        execSync(
+          `npx nx generate @nx/js:library ${lib2} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        // Create a file in lib1
+        const helperPath = join(
+          projectDirectory,
+          lib1,
+          'src',
+          'lib',
+          'helper.ts',
+        );
+        mkdirSync(dirname(helperPath), { recursive: true });
+        writeFileSync(
+          helperPath,
+          'export function helper() { return "hello"; }\n',
+        );
+
+        // Create a file that imports the helper
+        const mainPath = join(projectDirectory, lib1, 'src', 'lib', 'main.ts');
+        writeFileSync(
+          mainPath,
+          "import { helper } from './helper';\n\nexport const result = helper();\n",
+        );
+
+        // Move the helper file to lib2
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${lib1}/src/lib/helper.ts --project ${lib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        // Verify the file was moved
+        const movedPath = join(
+          projectDirectory,
+          lib2,
+          'src',
+          'lib',
+          'helper.ts',
+        );
+        expect(readFileSync(movedPath, 'utf-8')).toContain('helper');
+
+        // Verify imports were updated
+        const lib2Alias = getProjectImportAlias(projectDirectory, lib2);
+        const mainContent = readFileSync(mainPath, 'utf-8');
+        expect(mainContent).toContain(lib2Alias);
+      });
+
+      it('should update imports when moving exported files', () => {
+        function uniqueId() {
+          return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        }
+        const lib1 = `lib-${uniqueId()}`;
+        const lib2 = `lib-${uniqueId()}`;
+
+        // Create library projects
+        execSync(
+          `npx nx generate @nx/js:library ${lib1} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        execSync(
+          `npx nx generate @nx/js:library ${lib2} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        // Create an exported utility in lib1
+        const utilPath = join(projectDirectory, lib1, 'src', 'lib', 'util.ts');
+        writeFileSync(utilPath, 'export function util() { return 42; }\n');
+
+        // Add to lib1's index.ts (barrel export)
+        const lib1IndexPath = join(projectDirectory, lib1, 'src', 'index.ts');
+        writeFileSync(lib1IndexPath, "export * from './lib/util';\n");
+
+        // Import in lib2
+        const lib2ServicePath = join(
+          projectDirectory,
+          lib2,
+          'src',
+          'lib',
+          'service.ts',
+        );
+        const lib1Alias = getProjectImportAlias(projectDirectory, lib1);
+        writeFileSync(
+          lib2ServicePath,
+          `import { util } from '${lib1Alias}';\nexport const value = util();\n`,
+        );
+
+        // Move util.ts from lib1 to lib2
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${lib1}/src/lib/util.ts --project ${lib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
+        // Verify file was moved
+        const movedPath = join(projectDirectory, lib2, 'src', 'lib', 'util.ts');
+        expect(readFileSync(movedPath, 'utf-8')).toContain('util');
+
+        // Verify lib2's service.ts now uses relative import
+        const serviceContent = readFileSync(lib2ServicePath, 'utf-8');
+        expect(serviceContent).toContain("from './util'");
+        expect(serviceContent).not.toContain(lib1Alias);
+
+        // Verify lib1's index no longer exports util
+        const lib1IndexContent = readFileSync(lib1IndexPath, 'utf-8');
+        expect(lib1IndexContent).not.toContain('util');
+
+        // Verify lib2's index exports util
+        const lib2IndexPath = join(projectDirectory, lib2, 'src', 'index.ts');
+        const lib2IndexContent = readFileSync(lib2IndexPath, 'utf-8');
+        expect(lib2IndexContent).toContain('util');
+      });
+    });
+  });
+});
+
 function getProjectImportAlias(
   projectDir: string,
   projectName: string,
@@ -1470,9 +1711,10 @@ function generateLargeTypeScriptFile(lines: number): string {
 
 /**
  * Creates a test project with create-nx-workspace and installs the plugin
+ * @param nxVersion - Optional Nx major version to install (e.g., 19, 20, 21). If not provided, uses latest.
  * @returns The directory where the test project was created
  */
-async function createTestProject() {
+async function createTestProject(nxVersion?: number) {
   function uniqueId() {
     return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
   }
@@ -1503,15 +1745,19 @@ async function createTestProject() {
     recursive: true,
   });
 
+  // Determine which version of create-nx-workspace to use
+  const versionSpec = nxVersion ? `^${nxVersion}.0.0` : 'latest';
   execSync(
-    `npx --yes create-nx-workspace@latest ${projectName} --preset apps --nxCloud=skip --no-interactive`,
+    `npx --yes create-nx-workspace@${versionSpec} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
       cwd: dirname(projectDirectory),
       stdio: 'inherit',
       env: process.env,
     },
   );
-  console.log(`Created test project in "${projectDirectory}"`);
+  console.log(
+    `Created test project in "${projectDirectory}"${nxVersion ? ` with Nx ${nxVersion}.x` : ''}`,
+  );
 
   return projectDirectory;
 }
