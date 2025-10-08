@@ -1636,6 +1636,7 @@ describe('Nx version compatibility (basic happy paths)', () => {
         }
         const lib1 = `lib-${uniqueId()}`;
         const lib2 = `lib-${uniqueId()}`;
+        const lib3 = `lib-${uniqueId()}`;
 
         // Create library projects
         execSync(
@@ -1654,6 +1655,14 @@ describe('Nx version compatibility (basic happy paths)', () => {
           },
         );
 
+        execSync(
+          `npx nx generate @nx/js:library ${lib3} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+
         // Create an exported utility in lib1
         const utilPath = join(projectDirectory, lib1, 'src', 'lib', 'util.ts');
         writeFileSync(utilPath, 'export function util() { return 42; }\n');
@@ -1662,17 +1671,17 @@ describe('Nx version compatibility (basic happy paths)', () => {
         const lib1IndexPath = join(projectDirectory, lib1, 'src', 'index.ts');
         writeFileSync(lib1IndexPath, "export * from './lib/util';\n");
 
-        // Import in lib2
-        const lib2ServicePath = join(
+        // Import in lib3 (separate project)
+        const lib3ServicePath = join(
           projectDirectory,
-          lib2,
+          lib3,
           'src',
           'lib',
           'service.ts',
         );
         const lib1Alias = getProjectImportAlias(projectDirectory, lib1);
         writeFileSync(
-          lib2ServicePath,
+          lib3ServicePath,
           `import { util } from '${lib1Alias}';\nexport const value = util();\n`,
         );
 
@@ -1689,9 +1698,10 @@ describe('Nx version compatibility (basic happy paths)', () => {
         const movedPath = join(projectDirectory, lib2, 'src', 'lib', 'util.ts');
         expect(readFileSync(movedPath, 'utf-8')).toContain('util');
 
-        // Verify lib2's service.ts now uses relative import
-        const serviceContent = readFileSync(lib2ServicePath, 'utf-8');
-        expect(serviceContent).toContain("from './util'");
+        // Verify lib3's service.ts now imports from lib2
+        const lib2Alias = getProjectImportAlias(projectDirectory, lib2);
+        const serviceContent = readFileSync(lib3ServicePath, 'utf-8');
+        expect(serviceContent).toContain(lib2Alias);
         expect(serviceContent).not.toContain(lib1Alias);
 
         // Verify lib1's index no longer exports util
