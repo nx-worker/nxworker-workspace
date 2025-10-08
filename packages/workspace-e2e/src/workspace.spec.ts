@@ -513,9 +513,11 @@ describe('workspace', () => {
           );
         } catch (error) {
           console.error('Command failed with error:');
-          console.error('stdout:', error.stdout);
-          console.error('stderr:', error.stderr);
+          console.error('stdout:', error.stdout || '(empty)');
+          console.error('stderr:', error.stderr || '(empty)');
           console.error('status:', error.status);
+          console.error('message:', error.message);
+          console.error('Full error:', JSON.stringify(error, null, 2));
           throw error;
         }
 
