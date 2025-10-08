@@ -73,10 +73,7 @@ describe('jscodeshift-utils', () => {
 
     it('should update module.exports with require', () => {
       const filePath = 'test.js';
-      tree.write(
-        filePath,
-        `module.exports = require('./old-path');`,
-      );
+      tree.write(filePath, `module.exports = require('./old-path');`);
 
       const result = updateImportSpecifier(
         tree,
@@ -92,10 +89,7 @@ describe('jscodeshift-utils', () => {
 
     it('should update exports with require', () => {
       const filePath = 'test.js';
-      tree.write(
-        filePath,
-        `exports.foo = require('./old-path');`,
-      );
+      tree.write(filePath, `exports.foo = require('./old-path');`);
 
       const result = updateImportSpecifier(
         tree,
@@ -111,10 +105,7 @@ describe('jscodeshift-utils', () => {
 
     it('should update require.resolve calls', () => {
       const filePath = 'test.js';
-      tree.write(
-        filePath,
-        `const path = require.resolve('./old-path');`,
-      );
+      tree.write(filePath, `const path = require.resolve('./old-path');`);
 
       const result = updateImportSpecifier(
         tree,
