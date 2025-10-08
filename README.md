@@ -23,6 +23,8 @@ tools/scripts/        → Verdaccio lifecycle helpers used by the e2e suite
 docs/                 → Additional documentation (Node 18 baseline, etc.)
 ```
 
+The `@nxworker/workspace:move-file` generator moves files individually or in bulk using a comma-separated file list and/or glob pattern(s), automatically rewrites imports, and can optionally remove source projects that become empty after moving files by passing `--remove-empty-project`.
+
 Key configuration files live at the repository root (`nx.json`, `project.json`, `tsconfig.base.json`, `.eslintrc.json`, `.prettierrc`, `.node-version`, `jest.config.ts`). Path alias `@nxworker/workspace` resolves to `packages/workspace/src/index.ts`.
 
 ## Core npm scripts & Nx targets

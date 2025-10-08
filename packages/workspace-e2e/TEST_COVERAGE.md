@@ -4,52 +4,54 @@ This document describes the end-to-end test coverage for the `move-file` generat
 
 ## Test Suite Overview
 
-The e2e test suite includes **22 test cases** organized into the following categories:
+The e2e test suite includes **24 test cases** organized into the following categories:
 
-### Basic Functionality (4 tests)
+### Basic Functionality (6 tests)
 
 1. **Plugin Installation**: Verifies the plugin installs correctly from the local registry
 2. **Basic File Move**: Tests moving a file between projects with import updates
 3. **Exported File Move**: Tests moving exported files and updating dependent projects
 4. **Same-Project Move**: Tests moving files within the same project with relative imports
+5. **Multi-File Glob Move**: Uses glob patterns and comma-separated lists to move multiple files in one invocation
+6. **Remove Empty Project Cleanup**: Verifies that enabling `--remove-empty-project` deletes source projects that no longer contain implementation files
 
 ### OS-Specific Edge Cases (8 tests)
 
 These tests validate behavior across different operating systems (Linux, macOS, Windows Server, Windows 11 ARM):
 
-5. **Path Separators**: Validates that the generator handles both Windows backslashes (`\`) and Unix forward slashes (`/`) correctly by normalizing to POSIX style
-6. **Deeply Nested Paths**: Tests handling of long, nested directory structures that may hit Windows MAX_PATH limits (260 characters)
-7. **Special Characters**: Tests files with special characters that are allowed on Unix but may be problematic on Windows
-8. **Spaces in File Names**: Validates proper handling of file paths with spaces across platforms
-9. **Concurrent Operations**: Tests sequential file operations to ensure they work correctly despite different file locking behavior (Windows stricter than Unix)
-10. **Line Ending Preservation**: Verifies that file content is preserved correctly including line endings (CRLF on Windows, LF on Unix)
-11. **Files at Project Root**: Tests edge cases with path calculations when moving files from/to the project root
-12. **Case Sensitivity**: Tests that moves work correctly on both case-sensitive (Linux) and case-insensitive (Windows/macOS) file systems
+7. **Path Separators**: Validates that the generator handles both Windows backslashes (`\`) and Unix forward slashes (`/`) correctly by normalizing to POSIX style
+8. **Deeply Nested Paths**: Tests handling of long, nested directory structures that may hit Windows MAX_PATH limits (260 characters)
+9. **Special Characters**: Tests files with special characters that are allowed on Unix but may be problematic on Windows
+10. **Spaces in File Names**: Validates proper handling of file paths with spaces across platforms
+11. **Concurrent Operations**: Tests sequential file operations to ensure they work correctly despite different file locking behavior (Windows stricter than Unix)
+12. **Line Ending Preservation**: Verifies that file content is preserved correctly including line endings (CRLF on Windows, LF on Unix)
+13. **Files at Project Root**: Tests edge cases with path calculations when moving files from/to the project root
+14. **Case Sensitivity**: Tests that moves work correctly on both case-sensitive (Linux) and case-insensitive (Windows/macOS) file systems
 
 ### Architecture-Specific Edge Cases (3 tests)
 
 These tests ensure consistent behavior across different CPU architectures (x64/amd64 and arm64):
 
-13. **Large File Handling**: Tests moving a file with 10,000+ lines to verify efficient memory handling across architectures
-14. **Many Files Stress Test**: Creates 20 files and tests performance of moving files with many potential import updates
-15. **Binary-Safe Unicode Operations**: Verifies that Unicode content (Japanese, Greek, emoji) is preserved correctly across architectures
+15. **Large File Handling**: Tests moving a file with 10,000+ lines to verify efficient memory handling across architectures
+16. **Many Files Stress Test**: Creates 20 files and tests performance of moving files with many potential import updates
+17. **Binary-Safe Unicode Operations**: Verifies that Unicode content (Japanese, Greek, emoji) is preserved correctly across architectures
 
 ### Node.js Version-Specific Edge Cases (3 tests)
 
 These tests validate consistent behavior across major Node.js versions (18.x, 20.x, 22.x):
 
-16. **File System Operations**: Tests that the generator works with different fs implementations across Node.js versions
-17. **Path Resolution**: Validates path normalization works consistently across Node.js 18.x, 20.x, and 22.x
-18. **Modern ESM Imports**: Tests compatibility with improved ECMAScript module support in Node.js 18+
+18. **File System Operations**: Tests that the generator works with different fs implementations across Node.js versions
+19. **Path Resolution**: Validates path normalization works consistently across Node.js 18.x, 20.x, and 22.x
+20. **Modern ESM Imports**: Tests compatibility with improved ECMAScript module support in Node.js 18+
 
 ### Failure Scenarios (4 tests)
 
 These tests validate proper error handling across platforms:
 
-19. **Non-Existent Source**: Verifies graceful failure when source file doesn't exist
-20. **Path Traversal Rejection**: Security test ensuring path traversal attempts (e.g., `../../../etc/passwd`) are rejected
-21. **Invalid Characters**: Tests rejection of dangerous characters like `[`, `]`, `*`, `(`, `)` that could be interpreted as regex patterns
-22. **Auto-Create Directories**: Tests that the generator creates target directories if they don't exist
+21. **Non-Existent Source**: Verifies graceful failure when source file doesn't exist
+22. **Path Traversal Rejection**: Security test ensuring path traversal attempts (e.g., `../../../etc/passwd`) are rejected
+23. **Invalid Characters**: Tests rejection of dangerous characters like `[`, `]`, `*`, `(`, `)` that could be interpreted as regex patterns
+24. **Auto-Create Directories**: Tests that the generator creates target directories if they don't exist
 
 ## Platform Coverage
 

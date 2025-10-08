@@ -14,9 +14,10 @@
   - Updates dependent projects when exported files move
   - Removes stale exports from source entrypoint and adds exports to target entrypoint
     - Optional `--skip-export` flag to prevent creating a new export
-  - Supports moving multiple files at once by passing a comma-separated list
+  - Supports bulk moves by passing a comma-separated list and/or glob pattern(s)
   - Security hardening with path sanitization, regex escaping, and traversal blocking
   - Optional Unicode parameter support via `--allow-unicode` flag
+  - Optional `--remove-empty-project` flag cleans up source projects that no longer contain source code files after the file move
   - Platform support: Linux, Windows, macOS, all x64/arm64
   - ECMAScript Modules (ESM) only, no CommonJS (CJS) support
 
