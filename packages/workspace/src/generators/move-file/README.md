@@ -131,7 +131,6 @@ nx generate @nxworker/workspace:move-file \
 - Rewrites imports automatically, covering
   - Relative paths inside the source project
   - Project alias imports across projects
-  - Dynamic `import()` expressions, including chained `.then()` access
 - Updates dependent projects when exported files move, ensuring they resolve the target project's import alias
 - Removes stale exports from the source entrypoint and adds exports to the target entrypoint unless `--skip-export` is set
 - Supports comma-separated file paths and/or glob patterns to bulk move files
