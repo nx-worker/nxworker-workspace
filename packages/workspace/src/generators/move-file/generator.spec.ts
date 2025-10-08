@@ -578,9 +578,9 @@ describe('move-file generator', () => {
     });
 
     it('should reject source containing disallowed characters', async () => {
-      // user attempts to pass a regex-like string
+      // user attempts to pass a string with parentheses (not allowed even with globs)
       const options: MoveFileGeneratorSchema = {
-        file: 'packages/lib1/src/[evil*].ts',
+        file: 'packages/lib1/src/(evil).ts',
         project: 'lib2',
         skipFormat: true,
       };
@@ -1109,7 +1109,7 @@ describe('move-file generator', () => {
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'At least one file path must be provided',
+        'At least one file path or glob pattern must be provided',
       );
     });
 
@@ -1121,8 +1121,189 @@ describe('move-file generator', () => {
       };
 
       await expect(moveFileGenerator(tree, options)).rejects.toThrow(
-        'At least one file path must be provided',
+        'At least one file path or glob pattern must be provided',
       );
+    });
+  });
+
+  describe('glob pattern support', () => {
+    it('should move files matching a simple glob pattern', async () => {
+      // Create multiple files
+      tree.write(
+        'packages/lib1/src/lib/file1.ts',
+        'export const file1 = "test1";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file2.ts',
+        'export const file2 = "test2";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file3.ts',
+        'export const file3 = "test3";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/file*.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // All matching files should be moved
+      expect(tree.exists('packages/lib1/src/lib/file1.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file2.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file3.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/file1.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file2.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file3.ts')).toBe(true);
+    });
+
+    it('should move files matching a recursive glob pattern', async () => {
+      // Create nested files
+      tree.write(
+        'packages/lib1/src/lib/utils/helper.spec.ts',
+        'export const test1 = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/services/api.spec.ts',
+        'export const test2 = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/**/*.spec.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // All spec files should be moved
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.spec.ts')).toBe(
+        false,
+      );
+      expect(tree.exists('packages/lib1/src/lib/services/api.spec.ts')).toBe(
+        false,
+      );
+      expect(tree.exists('packages/lib2/src/lib/helper.spec.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/api.spec.ts')).toBe(true);
+    });
+
+    it('should handle comma-separated glob patterns', async () => {
+      // Create files with different extensions
+      tree.write(
+        'packages/lib1/src/lib/component.ts',
+        'export class Component {}',
+      );
+      tree.write(
+        'packages/lib1/src/lib/component.html',
+        '<div>Component</div>',
+      );
+      tree.write(
+        'packages/lib1/src/lib/component.css',
+        '.component { color: red; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/component.ts,packages/lib1/src/lib/component.html,packages/lib1/src/lib/component.css',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // All files should be moved
+      expect(tree.exists('packages/lib1/src/lib/component.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/component.html')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/component.css')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/component.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/component.html')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/component.css')).toBe(true);
+    });
+
+    it('should combine direct paths and glob patterns', async () => {
+      tree.write(
+        'packages/lib1/src/lib/main.ts',
+        'export const main = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/test1.spec.ts',
+        'export const test1 = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/test2.spec.ts',
+        'export const test2 = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/main.ts,packages/lib1/src/lib/*.spec.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/main.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/test1.spec.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/test2.spec.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/main.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/test1.spec.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/test2.spec.ts')).toBe(true);
+    });
+
+    it('should throw error if glob pattern matches no files', async () => {
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/**/*.nonexistent.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'No files found matching glob pattern',
+      );
+    });
+
+    it('should handle glob patterns with braces', async () => {
+      tree.write(
+        'packages/lib1/src/lib/file.ts',
+        'export const file = "test";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file.js',
+        'export const file = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/file.{ts,js}',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/file.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file.js')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/file.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file.js')).toBe(true);
+    });
+
+    it('should remove duplicate files when multiple patterns match the same file', async () => {
+      tree.write(
+        'packages/lib1/src/lib/file.ts',
+        'export const file = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/file.ts,packages/lib1/src/lib/*.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should only be moved once
+      expect(tree.exists('packages/lib1/src/lib/file.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/file.ts')).toBe(true);
     });
   });
 
