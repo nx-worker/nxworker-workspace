@@ -7,26 +7,16 @@
 - `@nxworker/workspace:move-file` generator: Safely move files between Nx projects while automatically updating all imports, exports, and dependent projects
   - Detects source and target Nx projects and their TypeScript path aliases
   - Uses the Nx project graph to resolve dependencies for optimal performance
-  - **AST-based transformations**: Uses jscodeshift for reliable, syntax-aware import updates instead of regex patterns
-  - **Full CommonJS support**: Updates `require()`, `require.resolve()`, `module.exports`, and `exports` statements
   - Rewrites imports automatically across the workspace:
-    - ESM: Static `import`, dynamic `import()`, and re-exports (`export * from`)
-    - CommonJS: `require()`, `require.resolve()`, `module.exports`, and `exports`
     - Relative paths inside the source project
     - Project alias imports across projects
     - Dynamic `import()` expressions, including chained `.then()` access
   - Updates dependent projects when exported files move
   - Removes stale exports from source entrypoint and adds exports to target entrypoint
     - Optional `--skip-export` flag to prevent creating a new export
-  - Support bulk moves by passing:
-    - Comma-separated list of file paths
-    - Glob patterns (e.g., `packages/lib1/**/*.ts`)
-    - Combination of direct paths and glob patterns
-  - Properly handles files with multiple dots in the filename (e.g., `util.helper.ts`)
-  - Optional `--derive-project-directory` flag automatically preserves the directory structure from the source project in the target project (useful for bulk moves)
+  - Supports moving multiple files at once by passing a comma-separated list
   - Security hardening with path sanitization, regex escaping, and traversal blocking
   - Optional Unicode parameter support via `--allow-unicode` flag
-  - Optional `--remove-empty-project` flag cleans up source projects that no longer contain source code files after the file move
   - Platform support: Linux, Windows, macOS, all x64/arm64
   - Supports both ECMAScript Modules (ESM) and CommonJS (CJS)
 
