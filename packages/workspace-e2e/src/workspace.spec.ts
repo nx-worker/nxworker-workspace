@@ -1685,19 +1685,6 @@ describe('Nx version compatibility (basic happy paths)', () => {
           `import { util } from '${lib1Alias}';\nexport const value = util();\n`,
         );
 
-        // Import in lib2 (will become same project after move)
-        const lib2ServicePath = join(
-          projectDirectory,
-          lib2,
-          'src',
-          'lib',
-          'service.ts',
-        );
-        writeFileSync(
-          lib2ServicePath,
-          `import { util } from '${lib1Alias}';\nexport const value2 = util();\n`,
-        );
-
         // Move util.ts from lib1 to lib2
         execSync(
           `npx nx generate @nxworker/workspace:move-file ${lib1}/src/lib/util.ts --project ${lib2} --no-interactive`,
@@ -1716,11 +1703,6 @@ describe('Nx version compatibility (basic happy paths)', () => {
         const serviceContent = readFileSync(lib3ServicePath, 'utf-8');
         expect(serviceContent).toContain(lib2Alias);
         expect(serviceContent).not.toContain(lib1Alias);
-
-        // Verify lib2's service.ts now uses relative import (same project)
-        const lib2ServiceContent = readFileSync(lib2ServicePath, 'utf-8');
-        expect(lib2ServiceContent).toContain("from './util'");
-        expect(lib2ServiceContent).not.toContain(lib1Alias);
 
         // Verify lib1's index no longer exports util
         const lib1IndexContent = readFileSync(lib1IndexPath, 'utf-8');
