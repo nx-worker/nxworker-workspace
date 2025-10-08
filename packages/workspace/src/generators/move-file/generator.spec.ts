@@ -1708,4 +1708,274 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib2/src/lib/only-file.ts')).toBe(true);
     });
   });
+
+  describe('deriveProjectDirectory option', () => {
+    it('should derive project directory from source file path for single file', async () => {
+      // Create a file in a nested directory structure
+      tree.write(
+        'packages/lib1/src/lib/components/button/button.component.ts',
+        'export class ButtonComponent {}',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/components/button/button.component.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved with the same directory structure
+      expect(
+        tree.exists('packages/lib1/src/lib/components/button/button.component.ts'),
+      ).toBe(false);
+      expect(
+        tree.exists('packages/lib2/src/lib/components/button/button.component.ts'),
+      ).toBe(true);
+    });
+
+    it('should derive project directory for files in nested paths', async () => {
+      tree.write(
+        'packages/lib1/src/lib/features/auth/login/login.service.ts',
+        'export class LoginService {}',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/features/auth/login/login.service.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(
+        tree.exists('packages/lib1/src/lib/features/auth/login/login.service.ts'),
+      ).toBe(false);
+      expect(
+        tree.exists('packages/lib2/src/lib/features/auth/login/login.service.ts'),
+      ).toBe(true);
+    });
+
+    it('should place file in base directory when source file has no subdirectory', async () => {
+      tree.write(
+        'packages/lib1/src/lib/simple.ts',
+        'export const simple = true;',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/simple.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/simple.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/simple.ts')).toBe(true);
+    });
+
+    it('should work with glob patterns and deriveProjectDirectory', async () => {
+      tree.write(
+        'packages/lib1/src/lib/utils/helper1.ts',
+        'export const helper1 = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/utils/helper2.ts',
+        'export const helper2 = true;',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils/*.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/utils/helper1.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/utils/helper2.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper1.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper2.ts')).toBe(true);
+    });
+
+    it('should work with multiple files in different directories using comma-separated paths', async () => {
+      tree.write(
+        'packages/lib1/src/lib/components/button.ts',
+        'export const button = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/services/api.ts',
+        'export const api = true;',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/components/button.ts,packages/lib1/src/lib/services/api.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/services/api.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/services/api.ts')).toBe(true);
+    });
+
+    it('should work with comma-separated glob patterns', async () => {
+      tree.write(
+        'packages/lib1/src/lib/components/button.ts',
+        'export const button = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/components/input.ts',
+        'export const input = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/services/api.ts',
+        'export const api = true;',
+      );
+      tree.write(
+        'packages/lib1/src/lib/services/auth.ts',
+        'export const auth = true;',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/components/*.ts,packages/lib1/src/lib/services/*.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // All files should be moved with their directory structure preserved
+      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/components/input.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/services/api.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/services/auth.ts')).toBe(false);
+      
+      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/components/input.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/services/api.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/services/auth.ts')).toBe(true);
+    });
+
+    it('should work for application projects with app base directory', async () => {
+      // Add an application project
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/lib1/src/lib/features/profile/profile.component.ts',
+        'export class ProfileComponent {}',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/features/profile/profile.component.ts',
+        project: 'app1',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(
+        tree.exists('packages/lib1/src/lib/features/profile/profile.component.ts'),
+      ).toBe(false);
+      expect(
+        tree.exists('packages/app1/src/app/features/profile/profile.component.ts'),
+      ).toBe(true);
+    });
+
+    it('should throw error when both deriveProjectDirectory and projectDirectory are set', async () => {
+      tree.write(
+        'packages/lib1/src/lib/utils/helper.ts',
+        'export const helper = true;',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'custom',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await expect(moveFileGenerator(tree, options)).rejects.toThrow(
+        'Cannot use both "deriveProjectDirectory" and "projectDirectory" options at the same time',
+      );
+    });
+
+    it('should handle deeply nested directory structures', async () => {
+      tree.write(
+        'packages/lib1/src/lib/a/b/c/d/e/deep.ts',
+        'export const deep = true;',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/a/b/c/d/e/deep.ts',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/a/b/c/d/e/deep.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/a/b/c/d/e/deep.ts')).toBe(true);
+    });
+
+    it('should work with brace expansion glob patterns', async () => {
+      tree.write(
+        'packages/lib1/src/lib/components/button.component.ts',
+        'export class ButtonComponent {}',
+      );
+      tree.write(
+        'packages/lib1/src/lib/components/button.component.html',
+        '<button>Click me</button>',
+      );
+      tree.write(
+        'packages/lib1/src/lib/components/button.component.css',
+        'button { color: blue; }',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/components/button.component.{ts,html,css}',
+        project: 'lib2',
+        deriveProjectDirectory: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(
+        tree.exists('packages/lib1/src/lib/components/button.component.ts'),
+      ).toBe(false);
+      expect(
+        tree.exists('packages/lib1/src/lib/components/button.component.html'),
+      ).toBe(false);
+      expect(
+        tree.exists('packages/lib1/src/lib/components/button.component.css'),
+      ).toBe(false);
+      
+      expect(
+        tree.exists('packages/lib2/src/lib/components/button.component.ts'),
+      ).toBe(true);
+      expect(
+        tree.exists('packages/lib2/src/lib/components/button.component.html'),
+      ).toBe(true);
+      expect(
+        tree.exists('packages/lib2/src/lib/components/button.component.css'),
+      ).toBe(true);
+    });
+  });
 });
