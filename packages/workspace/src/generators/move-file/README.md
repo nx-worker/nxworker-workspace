@@ -1,6 +1,6 @@
 # @nxworker/workspace:move-file
 
-The `@nxworker/workspace:move-file` generator safely moves a file between Nx projects and keeps every import, export, and dependent project aligned.
+The `@nxworker/workspace:move-file` generator safely moves files — single paths, glob patterns, and/or comma-separated lists — between Nx projects and keeps every import, export, and dependent project aligned. It can optionally remove empty source projects.
 
 ## Requirements
 
@@ -113,6 +113,8 @@ nx generate @nxworker/workspace:move-file \
   - Dynamic `import()` expressions, including chained `.then()` access
 - Updates dependent projects when exported files move, ensuring they resolve the target project's import alias
 - Removes stale exports from the source entrypoint and adds exports to the target entrypoint unless `--skip-export` is set
+- Supports comma-separated file paths and/or glob patterns to bulk move files
+- Removes source projects that become empty when `--remove-empty-project` is enabled
 - Places files in the target project at `sourceRoot/lib/<projectDirectory>` for libraries or `sourceRoot/app/<projectDirectory>` for applications, with the base directory (`lib` or `app`) always included in the path
 
 ## Security Hardening
