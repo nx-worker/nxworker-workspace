@@ -1728,10 +1728,14 @@ describe('move-file generator', () => {
 
       // File should be moved with the same directory structure
       expect(
-        tree.exists('packages/lib1/src/lib/components/button/button.component.ts'),
+        tree.exists(
+          'packages/lib1/src/lib/components/button/button.component.ts',
+        ),
       ).toBe(false);
       expect(
-        tree.exists('packages/lib2/src/lib/components/button/button.component.ts'),
+        tree.exists(
+          'packages/lib2/src/lib/components/button/button.component.ts',
+        ),
       ).toBe(true);
     });
 
@@ -1751,10 +1755,14 @@ describe('move-file generator', () => {
       await moveFileGenerator(tree, options);
 
       expect(
-        tree.exists('packages/lib1/src/lib/features/auth/login/login.service.ts'),
+        tree.exists(
+          'packages/lib1/src/lib/features/auth/login/login.service.ts',
+        ),
       ).toBe(false);
       expect(
-        tree.exists('packages/lib2/src/lib/features/auth/login/login.service.ts'),
+        tree.exists(
+          'packages/lib2/src/lib/features/auth/login/login.service.ts',
+        ),
       ).toBe(true);
     });
 
@@ -1821,9 +1829,13 @@ describe('move-file generator', () => {
 
       await moveFileGenerator(tree, options);
 
-      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(
+        false,
+      );
       expect(tree.exists('packages/lib1/src/lib/services/api.ts')).toBe(false);
-      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(
+        true,
+      );
       expect(tree.exists('packages/lib2/src/lib/services/api.ts')).toBe(true);
     });
 
@@ -1855,13 +1867,21 @@ describe('move-file generator', () => {
       await moveFileGenerator(tree, options);
 
       // All files should be moved with their directory structure preserved
-      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(false);
-      expect(tree.exists('packages/lib1/src/lib/components/input.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/components/button.ts')).toBe(
+        false,
+      );
+      expect(tree.exists('packages/lib1/src/lib/components/input.ts')).toBe(
+        false,
+      );
       expect(tree.exists('packages/lib1/src/lib/services/api.ts')).toBe(false);
       expect(tree.exists('packages/lib1/src/lib/services/auth.ts')).toBe(false);
-      
-      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(true);
-      expect(tree.exists('packages/lib2/src/lib/components/input.ts')).toBe(true);
+
+      expect(tree.exists('packages/lib2/src/lib/components/button.ts')).toBe(
+        true,
+      );
+      expect(tree.exists('packages/lib2/src/lib/components/input.ts')).toBe(
+        true,
+      );
       expect(tree.exists('packages/lib2/src/lib/services/api.ts')).toBe(true);
       expect(tree.exists('packages/lib2/src/lib/services/auth.ts')).toBe(true);
     });
@@ -1889,10 +1909,14 @@ describe('move-file generator', () => {
       await moveFileGenerator(tree, options);
 
       expect(
-        tree.exists('packages/lib1/src/lib/features/profile/profile.component.ts'),
+        tree.exists(
+          'packages/lib1/src/lib/features/profile/profile.component.ts',
+        ),
       ).toBe(false);
       expect(
-        tree.exists('packages/app1/src/app/features/profile/profile.component.ts'),
+        tree.exists(
+          'packages/app1/src/app/features/profile/profile.component.ts',
+        ),
       ).toBe(true);
     });
 
@@ -1930,7 +1954,9 @@ describe('move-file generator', () => {
 
       await moveFileGenerator(tree, options);
 
-      expect(tree.exists('packages/lib1/src/lib/a/b/c/d/e/deep.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/a/b/c/d/e/deep.ts')).toBe(
+        false,
+      );
       expect(tree.exists('packages/lib2/src/lib/a/b/c/d/e/deep.ts')).toBe(true);
     });
 
@@ -1966,7 +1992,7 @@ describe('move-file generator', () => {
       expect(
         tree.exists('packages/lib1/src/lib/components/button.component.css'),
       ).toBe(false);
-      
+
       expect(
         tree.exists('packages/lib2/src/lib/components/button.component.ts'),
       ).toBe(true);
