@@ -1197,14 +1197,14 @@ function updateImportPathsToPackageAlias(
       // Use jscodeshift to update imports that reference the source file
       updateImportSpecifierPattern(
         tree,
-        filePath,
+        normalizedFilePath,
         (specifier) => {
           // Match relative imports that reference the source file
           if (!specifier.startsWith('.')) {
             return false;
           }
           // Resolve the import specifier to an absolute path
-          const importerDir = path.dirname(filePath);
+          const importerDir = path.dirname(normalizedFilePath);
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (without extension)
           const normalizedResolvedImport = normalizePath(resolvedImport);
@@ -1240,21 +1240,21 @@ function updateImportPathsInProject(
       normalizedFilePath !== targetFilePath
     ) {
       const relativeSpecifier = getRelativeImportSpecifier(
-        filePath,
+        normalizedFilePath,
         targetFilePath,
       );
 
       // Use jscodeshift to update imports that reference the source file
       updateImportSpecifierPattern(
         tree,
-        filePath,
+        normalizedFilePath,
         (specifier) => {
           // Match relative imports that reference the source file
           if (!specifier.startsWith('.')) {
             return false;
           }
           // Resolve the import specifier to an absolute path
-          const importerDir = path.dirname(filePath);
+          const importerDir = path.dirname(normalizedFilePath);
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (without extension)
           const normalizedResolvedImport = normalizePath(resolvedImport);
