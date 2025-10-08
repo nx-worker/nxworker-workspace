@@ -1121,9 +1121,8 @@ function updateImportPathsToPackageAlias(
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (without extension)
           const normalizedResolvedImport = normalizePath(resolvedImport);
-          const sourceFileWithoutExt = sourceFilePath.replace(
-            /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-            '',
+          const sourceFileWithoutExt = normalizePath(
+            sourceFilePath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
           );
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
@@ -1172,9 +1171,8 @@ function updateImportPathsInProject(
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (without extension)
           const normalizedResolvedImport = normalizePath(resolvedImport);
-          const sourceFileWithoutExt = sourceFilePath.replace(
-            /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-            '',
+          const sourceFileWithoutExt = normalizePath(
+            sourceFilePath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
           );
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
