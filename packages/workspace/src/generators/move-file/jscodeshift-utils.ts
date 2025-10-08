@@ -77,11 +77,8 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          args[0].value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.arguments[0].value = newSpecifier;
+        hasChanges = true;
       });
 
     // Update require calls: require('oldSpecifier')
@@ -98,11 +95,8 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          args[0].value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.arguments[0].value = newSpecifier;
+        hasChanges = true;
       });
 
     // Update require.resolve calls: require.resolve('oldSpecifier')
@@ -123,11 +117,8 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          args[0].value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.arguments[0].value = newSpecifier;
+        hasChanges = true;
       });
 
     if (hasChanges) {
@@ -138,9 +129,9 @@ export function updateImportSpecifier(
 
     return hasChanges;
   } catch (error) {
-    // If jscodeshift fails to parse, log and return false
-    logger.debug(
-      `Failed to parse ${filePath} with jscodeshift: ${error}. Skipping file.`,
+    // If parsing fails, log warning and return false
+    logger.warn(
+      `Unable to parse ${filePath}. Import updates may not be applied. Error: ${error}`,
     );
     return false;
   }
@@ -172,6 +163,7 @@ export function updateImportSpecifierPattern(
     let hasChanges = false;
 
     // Update static imports: import ... from 'specifier'
+    // Example: import { foo } from './path'
     root
       .find(j.ImportDeclaration)
       .filter((path) => {
@@ -179,12 +171,13 @@ export function updateImportSpecifierPattern(
         return typeof source === 'string' && matcher(source);
       })
       .forEach((path) => {
-        const oldSource = path.node.source.value as string;
+        const oldSource = String(path.node.source.value);
         path.node.source.value = getNewSpecifier(oldSource);
         hasChanges = true;
       });
 
     // Update export declarations: export ... from 'specifier'
+    // Example: export { foo } from './path'
     root
       .find(j.ExportNamedDeclaration)
       .filter((path) => {
@@ -193,12 +186,13 @@ export function updateImportSpecifierPattern(
       })
       .forEach((path) => {
         if (path.node.source) {
-          const oldSource = path.node.source.value as string;
+          const oldSource = String(path.node.source.value);
           path.node.source.value = getNewSpecifier(oldSource);
           hasChanges = true;
         }
       });
 
+    // Example: export * from './path'
     root
       .find(j.ExportAllDeclaration)
       .filter((path) => {
@@ -206,12 +200,13 @@ export function updateImportSpecifierPattern(
         return typeof source === 'string' && matcher(source);
       })
       .forEach((path) => {
-        const oldSource = path.node.source.value as string;
+        const oldSource = String(path.node.source.value);
         path.node.source.value = getNewSpecifier(oldSource);
         hasChanges = true;
       });
 
     // Update dynamic imports: import('specifier')
+    // Example: import('./path')
     root
       .find(j.CallExpression, {
         callee: { type: 'Import' },
@@ -234,6 +229,7 @@ export function updateImportSpecifierPattern(
       });
 
     // Update require calls: require('specifier')
+    // Example: const foo = require('./path')
     root
       .find(j.CallExpression, {
         callee: { type: 'Identifier', name: 'require' },
@@ -256,6 +252,7 @@ export function updateImportSpecifierPattern(
       });
 
     // Update require.resolve calls: require.resolve('specifier')
+    // Example: const path = require.resolve('./path')
     root
       .find(j.CallExpression, {
         callee: {
@@ -291,9 +288,9 @@ export function updateImportSpecifierPattern(
 
     return hasChanges;
   } catch (error) {
-    // If jscodeshift fails to parse, log and return false
-    logger.debug(
-      `Failed to parse ${filePath} with jscodeshift: ${error}. Skipping file.`,
+    // If parsing fails, log warning and return false
+    logger.warn(
+      `Unable to parse ${filePath}. Import updates may not be applied. Error: ${error}`,
     );
     return false;
   }
@@ -322,6 +319,7 @@ export function hasImportSpecifier(
     const root = j(content);
 
     // Check static imports
+    // Example: import { foo } from './path'
     const hasStaticImport =
       root
         .find(j.ImportDeclaration)
@@ -332,6 +330,7 @@ export function hasImportSpecifier(
     }
 
     // Check export declarations
+    // Example: export { foo } from './path' or export * from './path'
     const hasExportFrom =
       root
         .find(j.ExportNamedDeclaration)
@@ -345,6 +344,7 @@ export function hasImportSpecifier(
     }
 
     // Check dynamic imports
+    // Example: import('./path')
     const hasDynamicImport =
       root
         .find(j.CallExpression, {
@@ -364,6 +364,7 @@ export function hasImportSpecifier(
     }
 
     // Check require calls
+    // Example: const foo = require('./path')
     const hasRequire =
       root
         .find(j.CallExpression, {
@@ -383,6 +384,7 @@ export function hasImportSpecifier(
     }
 
     // Check require.resolve calls
+    // Example: const path = require.resolve('./path')
     const hasRequireResolve =
       root
         .find(j.CallExpression, {
@@ -403,10 +405,8 @@ export function hasImportSpecifier(
 
     return hasRequireResolve;
   } catch (error) {
-    // If jscodeshift fails to parse, return false
-    logger.debug(
-      `Failed to parse ${filePath} with jscodeshift: ${error}. Skipping file.`,
-    );
+    // If parsing fails, log warning and return false
+    logger.warn(`Unable to parse ${filePath}. Import check may be inaccurate.`);
     return false;
   }
 }
