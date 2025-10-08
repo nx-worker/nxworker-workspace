@@ -179,6 +179,62 @@ describe('jscodeshift-utils', () => {
       expect(content).toContain(`from './new-path'`);
       expect(content).not.toContain(`from "./new-path"`);
     });
+
+    it('should preserve double quotes', () => {
+      const filePath = 'test.ts';
+      tree.write(
+        filePath,
+        `import { foo } from "./old-path";\nexport const bar = foo;`,
+      );
+
+      updateImportSpecifier(tree, filePath, './old-path', './new-path');
+
+      const content = tree.read(filePath, 'utf-8');
+      expect(content).toContain(`from "./new-path"`);
+      expect(content).not.toContain(`from './new-path'`);
+    });
+
+    it('should preserve double quotes in require statements', () => {
+      const filePath = 'test.js';
+      tree.write(
+        filePath,
+        `const module = require("./old-path");\nmodule.exports = module;`,
+      );
+
+      updateImportSpecifier(tree, filePath, './old-path', './new-path');
+
+      const content = tree.read(filePath, 'utf-8');
+      expect(content).toContain(`require("./new-path")`);
+      expect(content).not.toContain(`require('./new-path')`);
+    });
+
+    it('should default to single quotes when quotes are mixed equally', () => {
+      const filePath = 'test.ts';
+      tree.write(
+        filePath,
+        `import { foo } from './old-path';\nimport { baz } from "./other-path";\nexport const bar = foo;`,
+      );
+
+      updateImportSpecifier(tree, filePath, './old-path', './new-path');
+
+      const content = tree.read(filePath, 'utf-8');
+      // Should use single quotes as default when counts are equal
+      expect(content).toContain(`from './new-path'`);
+    });
+
+    it('should use double quotes when they are predominant', () => {
+      const filePath = 'test.ts';
+      tree.write(
+        filePath,
+        `import { foo } from "./old-path";\nimport { bar } from "./another-path";\nimport { baz } from './third-path';\nexport const result = foo + bar;`,
+      );
+
+      updateImportSpecifier(tree, filePath, './old-path', './new-path');
+
+      const content = tree.read(filePath, 'utf-8');
+      // Should use double quotes because 2 double > 1 single
+      expect(content).toContain(`from "./new-path"`);
+    });
   });
 
   describe('updateImportSpecifierPattern', () => {
@@ -223,6 +279,29 @@ describe('jscodeshift-utils', () => {
       const content = tree.read(filePath, 'utf-8');
       expect(content).toContain(`from '@nx/devkit'`);
       expect(content).toContain(`from '../local'`);
+    });
+
+    it('should preserve double quotes in pattern updates', () => {
+      const filePath = 'test.ts';
+      tree.write(
+        filePath,
+        `import { foo } from "./utils/helper";\nimport { bar } from "../shared/component";\nexport const baz = foo + bar;`,
+      );
+
+      const result = updateImportSpecifierPattern(
+        tree,
+        filePath,
+        (specifier) => specifier.startsWith('.'),
+        (oldPath) => {
+          const fileName = oldPath.split('/').pop();
+          return `@lib/${fileName}`;
+        },
+      );
+
+      expect(result).toBe(true);
+      const content = tree.read(filePath, 'utf-8');
+      expect(content).toContain(`from "@lib/helper"`);
+      expect(content).toContain(`from "@lib/component"`);
     });
   });
 

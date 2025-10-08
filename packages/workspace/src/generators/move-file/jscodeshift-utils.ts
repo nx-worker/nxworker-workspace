@@ -2,6 +2,26 @@ import { Tree, logger } from '@nx/devkit';
 import * as jscodeshift from 'jscodeshift';
 
 /**
+ * Detects the predominant quote style used in a file.
+ * Returns 'single' if single quotes are more common, 'double' if double quotes are more common.
+ * Defaults to 'single' if no quotes are found or counts are equal.
+ *
+ * @param content - The file content to analyze
+ * @returns 'single' or 'double'
+ */
+function detectQuoteStyle(content: string): 'single' | 'double' {
+  // Count single and double quotes in import/export/require statements
+  const singleQuoteMatches = content.match(/(?:from|import|require(?:\.resolve)?)\s*\(?.*?'/g) || [];
+  const doubleQuoteMatches = content.match(/(?:from|import|require(?:\.resolve)?)\s*\(?.*?"/g) || [];
+  
+  const singleCount = singleQuoteMatches.length;
+  const doubleCount = doubleQuoteMatches.length;
+  
+  // Return double if double quotes are more common, otherwise single (default)
+  return doubleCount > singleCount ? 'double' : 'single';
+}
+
+/**
  * Updates import specifiers in a file using jscodeshift.
  *
  * @param tree - The virtual file system tree
@@ -77,8 +97,11 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
+        const arg = path.node.arguments[0];
+        if (arg.type === 'StringLiteral') {
+          arg.value = newSpecifier;
+          hasChanges = true;
+        }
       });
 
     // Update require calls: require('oldSpecifier')
@@ -95,8 +118,11 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
+        const arg = path.node.arguments[0];
+        if (arg.type === 'StringLiteral') {
+          arg.value = newSpecifier;
+          hasChanges = true;
+        }
       });
 
     // Update require.resolve calls: require.resolve('oldSpecifier')
@@ -117,12 +143,16 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
+        const arg = path.node.arguments[0];
+        if (arg.type === 'StringLiteral') {
+          arg.value = newSpecifier;
+          hasChanges = true;
+        }
       });
 
     if (hasChanges) {
-      const updatedContent = root.toSource({ quote: 'single' });
+      const quoteStyle = detectQuoteStyle(content);
+      const updatedContent = root.toSource({ quote: quoteStyle });
       tree.write(filePath, updatedContent);
       logger.debug(`Updated imports in ${filePath} using jscodeshift`);
     }
@@ -279,7 +309,8 @@ export function updateImportSpecifierPattern(
       });
 
     if (hasChanges) {
-      const updatedContent = root.toSource({ quote: 'single' });
+      const quoteStyle = detectQuoteStyle(content);
+      const updatedContent = root.toSource({ quote: quoteStyle });
       tree.write(filePath, updatedContent);
       logger.debug(
         `Updated imports in ${filePath} using jscodeshift pattern matcher`,
@@ -404,7 +435,7 @@ export function hasImportSpecifier(
         }).length > 0;
 
     return hasRequireResolve;
-  } catch (error) {
+  } catch {
     // If parsing fails, log warning and return false
     logger.warn(
       `Unable to parse ${filePath}. Import check may be inaccurate.`,
