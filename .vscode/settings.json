@@ -1,3 +1,20 @@
 {
+  // Reduce file watcher load (helps avoid EMFILE on large transient trees)
+  "files.watcherExclude": {
+    "**/tmp/**": true,
+    "**/dist/**": true,
+    "**/node_modules/**": true
+  },
+  // Exclude from search index / quick open to speed up operations
+  "search.exclude": {
+    "**/tmp/**": true,
+    "**/dist/**": true,
+    "**/node_modules/**": true
+  },
+  // Hide transient tmp folders from the Explorer view
+  "files.exclude": {
+    "**/tmp/**": true
+  },
+  // Keep ESLint validation for JSON (optional convenience)
   "eslint.validate": ["json"]
 }
