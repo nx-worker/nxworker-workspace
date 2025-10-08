@@ -1,3 +1,4 @@
+import { uniqueId } from 'lodash'
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
@@ -65,17 +66,14 @@ function getSupportedNxMajorVersions(): number[] {
 describe('workspace', () => {
   let projectDirectory: string;
   let libNames: Record<string, string>;
-  function uniqueId() {
-    return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-  }
   beforeAll(async () => {
     projectDirectory = await createTestProject();
     libNames = {
-      lib1: `lib-${uniqueId()}`,
-      lib2: `lib-${uniqueId()}`,
-      lib3: `lib-${uniqueId()}`,
-      lib4: `lib-${uniqueId()}`,
-      lib5: `lib-${uniqueId()}`,
+      lib1: uniqueId('lib1-'),
+      lib2: uniqueId('lib2-'),
+      lib3: uniqueId('lib3-'),
+      lib4: uniqueId('lib4-'),
+      lib5: uniqueId('lib5-'),
     };
 
     // The plugin has been built and published to a local registry in the jest globalSetup
@@ -382,7 +380,7 @@ describe('workspace', () => {
 
     it('should move multiple files using glob patterns', () => {
       // Create a new library with multiple spec files
-      const testLib = `lib-${uniqueId()}`;
+      const testLib = uniqueId('libtest-');
       execSync(
         `npx nx generate @nx/js:library ${testLib} --unitTestRunner=none --bundler=none --no-interactive`,
         {
@@ -416,7 +414,7 @@ describe('workspace', () => {
       writeFileSync(test3Path, 'export const test3 = "test";\n');
 
       // Create a target library
-      const targetLib = `lib-${uniqueId()}`;
+      const targetLib = uniqueId('libtarget-');
       execSync(
         `npx nx generate @nx/js:library ${targetLib} --unitTestRunner=none --bundler=none --no-interactive`,
         {
@@ -473,7 +471,7 @@ describe('workspace', () => {
     let testLibName: string;
 
     beforeEach(() => {
-      testLibName = `lib-${uniqueId()}`;
+      testLibName = uniqueId('libtest-');
       execSync(
         `npx nx generate @nx/js:library ${testLibName} --unitTestRunner=none --bundler=none --no-interactive`,
         {
@@ -1079,7 +1077,7 @@ describe('workspace', () => {
     let archLibName: string;
 
     beforeEach(() => {
-      archLibName = `lib-${uniqueId()}`;
+      archLibName = uniqueId('libarch-');
       execSync(
         `npx nx generate @nx/js:library ${archLibName} --unitTestRunner=none --bundler=none --no-interactive`,
         {
@@ -1236,7 +1234,7 @@ describe('workspace', () => {
     let failLibName: string;
 
     beforeEach(() => {
-      failLibName = `lib-${uniqueId()}`;
+      failLibName = uniqueId('libfail-');
       execSync(
         `npx nx generate @nx/js:library ${failLibName} --unitTestRunner=none --bundler=none --no-interactive`,
         {
@@ -1340,7 +1338,7 @@ describe('workspace', () => {
     const nodeMajor = parseInt(nodeVersion.split('.')[0].substring(1), 10);
 
     beforeEach(() => {
-      nodeLibName = `lib-${uniqueId()}`;
+      nodeLibName = uniqueId('libnode-');
       execSync(
         `npx nx generate @nx/js:library ${nodeLibName} --unitTestRunner=none --bundler=none --no-interactive`,
         {
@@ -1561,11 +1559,8 @@ describe('Nx version compatibility (basic happy paths)', () => {
       });
 
       it('should move a file between projects', () => {
-        function uniqueId() {
-          return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-        }
-        const lib1 = `lib-${uniqueId()}`;
-        const lib2 = `lib-${uniqueId()}`;
+        const lib1 = uniqueId('lib1-');
+        const lib2 = uniqueId('lib2-');
 
         // Create two library projects
         execSync(
@@ -1631,12 +1626,9 @@ describe('Nx version compatibility (basic happy paths)', () => {
       });
 
       it('should update imports when moving exported files', () => {
-        function uniqueId() {
-          return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-        }
-        const lib1 = `lib-${uniqueId()}`;
-        const lib2 = `lib-${uniqueId()}`;
-        const lib3 = `lib-${uniqueId()}`;
+        const lib1 = uniqueId('lib1-');
+        const lib2 = uniqueId('lib2-');
+        const lib3 = uniqueId('lib3-');
 
         // Create library projects
         execSync(
@@ -1765,9 +1757,6 @@ function generateLargeTypeScriptFile(lines: number): string {
  * @returns The directory where the test project was created
  */
 async function createTestProject(nxVersion?: number) {
-  function uniqueId() {
-    return `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-  }
   const projectName = `test-project-${uniqueId()}`;
   const projectDirectory = join(process.cwd(), 'tmp', projectName);
 
