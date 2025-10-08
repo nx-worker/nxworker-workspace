@@ -523,13 +523,20 @@ describe('workspace', () => {
         );
 
         if (result.status !== 0) {
+          const errorDetails = {
+            status: result.status,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            error: result.error,
+          };
           console.error('Command failed with error:');
+          console.error('Full result:', JSON.stringify(errorDetails, null, 2));
           console.error('stdout:', result.stdout || '(empty)');
           console.error('stderr:', result.stderr || '(empty)');
           console.error('status:', result.status);
           console.error('error:', result.error);
           throw new Error(
-            `Command failed with status ${result.status}: ${result.stderr}`,
+            `Command failed with status ${result.status}. stderr: ${result.stderr || '(none)'}`,
           );
         }
 
