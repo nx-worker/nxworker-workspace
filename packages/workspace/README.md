@@ -4,13 +4,11 @@
 
 ## Highlights
 
-- Moves files across Nx projects, updating static `import`, dynamic `import()`, and re-export statements automatically
+- Moves files across Nx projects, updating import and re-export statements automatically
 - Handles single files, glob patterns, and comma-separated file lists/glob patterns so you can move multiple files in one run
 - Understands Nx project graphs: re-wires dependent projects when exported files move and preserves package entrypoints
 - Runs with strong input validation (path sanitisation, regex escaping, traversal blocking, optional Unicode opt-in)
 - Can optionally remove source project(s) that become empty after a move by opting into `--remove-empty-project`
-- Formats affected files with Prettier unless `--skipFormat` is provided
-- Backed by an extensive Jest unit suite and 20+ Verdaccio-powered end-to-end scenarios that exercise OS, architecture, and Node.js edge cases
 
 ## Requirements
 
