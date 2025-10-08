@@ -305,6 +305,38 @@ describe('move-file generator', () => {
       const lazyContent = tree.read('packages/lib1/src/lib/lazy.ts', 'utf-8');
       expect(lazyContent).toContain("import('@test/lib2').then(m => m.helper)");
     });
+
+    it('should handle files with dots in the filename', async () => {
+      // Test files with multiple dots in name (e.g., util.helper.ts)
+      tree.write(
+        'packages/lib1/src/lib/util.helper.ts',
+        'export function utilHelper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/lib/main.ts',
+        "import { utilHelper } from './util.helper';\n\nexport const result = utilHelper();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/util.helper.ts',
+        project: 'lib1',
+        projectDirectory: 'helpers',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved
+      expect(tree.exists('packages/lib1/src/lib/util.helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/helpers/util.helper.ts')).toBe(
+        true,
+      );
+
+      // Import should be updated
+      const mainContent = tree.read('packages/lib1/src/lib/main.ts', 'utf-8');
+      expect(mainContent).toContain("from './helpers/util.helper'");
+    });
   });
 
   describe('moving a file that is exported', () => {
