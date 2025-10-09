@@ -22,6 +22,60 @@ import {
   hasImportSpecifier,
 } from './jscodeshift-utils';
 
+const ENTRYPOINT_EXTENSIONS = Object.freeze([
+  'ts',
+  'mts',
+  'cts',
+  'mjs',
+  'cjs',
+  'js',
+  'tsx',
+  'jsx',
+] as const);
+
+const PRIMARY_ENTRY_BASE_NAMES = Object.freeze([
+  'public-api',
+  'index',
+] as const);
+
+const PRIMARY_ENTRY_FILENAMES = buildFileNames(PRIMARY_ENTRY_BASE_NAMES);
+const MAIN_ENTRY_FILENAMES = buildFileNames(['main']);
+
+const ENTRYPOINT_PATTERNS = buildPatterns(
+  ['', 'src/', 'lib/'],
+  PRIMARY_ENTRY_FILENAMES,
+);
+const MAIN_ENTRY_PATTERNS = buildPatterns(['', 'src/'], MAIN_ENTRY_FILENAMES);
+
+function buildFileNames(baseNames: readonly string[]): string[] {
+  return baseNames.flatMap((base) =>
+    ENTRYPOINT_EXTENSIONS.map((ext) => `${base}.${ext}`),
+  );
+}
+
+function buildPatterns(
+  prefixes: readonly string[],
+  fileNames: readonly string[],
+): string[] {
+  return prefixes.flatMap((prefix) =>
+    fileNames.map((fileName) => `${prefix}${fileName}`),
+  );
+}
+
+function getProjectEntryPointPaths(project: ProjectConfiguration): string[] {
+  const sourceRoot = project.sourceRoot || project.root;
+  const candidates = [
+    ...PRIMARY_ENTRY_FILENAMES.map((fileName) =>
+      path.join(sourceRoot, fileName),
+    ),
+    ...PRIMARY_ENTRY_FILENAMES.map((fileName) =>
+      path.join(project.root, 'src', fileName),
+    ),
+  ];
+
+  return Array.from(new Set(candidates));
+}
+
 /**
  * Generator to move a file from one Nx project to another
  * and update import paths throughout the workspace.
@@ -934,40 +988,7 @@ function isFileExported(
   project: ProjectConfiguration,
   file: string,
 ): boolean {
-  const indexPaths = [
-    path.join(project.sourceRoot || project.root, 'public-api.ts'),
-    path.join(project.sourceRoot || project.root, 'public-api.mts'),
-    path.join(project.sourceRoot || project.root, 'public-api.cts'),
-    path.join(project.sourceRoot || project.root, 'public-api.mjs'),
-    path.join(project.sourceRoot || project.root, 'public-api.cjs'),
-    path.join(project.sourceRoot || project.root, 'public-api.js'),
-    path.join(project.sourceRoot || project.root, 'public-api.tsx'),
-    path.join(project.sourceRoot || project.root, 'public-api.jsx'),
-    path.join(project.sourceRoot || project.root, 'index.ts'),
-    path.join(project.sourceRoot || project.root, 'index.mts'),
-    path.join(project.sourceRoot || project.root, 'index.cts'),
-    path.join(project.sourceRoot || project.root, 'index.mjs'),
-    path.join(project.sourceRoot || project.root, 'index.cjs'),
-    path.join(project.sourceRoot || project.root, 'index.js'),
-    path.join(project.sourceRoot || project.root, 'index.tsx'),
-    path.join(project.sourceRoot || project.root, 'index.jsx'),
-    path.join(project.root, 'src', 'public-api.ts'),
-    path.join(project.root, 'src', 'public-api.mts'),
-    path.join(project.root, 'src', 'public-api.cts'),
-    path.join(project.root, 'src', 'public-api.mjs'),
-    path.join(project.root, 'src', 'public-api.cjs'),
-    path.join(project.root, 'src', 'public-api.js'),
-    path.join(project.root, 'src', 'public-api.tsx'),
-    path.join(project.root, 'src', 'public-api.jsx'),
-    path.join(project.root, 'src', 'index.ts'),
-    path.join(project.root, 'src', 'index.mts'),
-    path.join(project.root, 'src', 'index.cts'),
-    path.join(project.root, 'src', 'index.mjs'),
-    path.join(project.root, 'src', 'index.cjs'),
-    path.join(project.root, 'src', 'index.js'),
-    path.join(project.root, 'src', 'index.tsx'),
-    path.join(project.root, 'src', 'index.jsx'),
-  ];
+  const indexPaths = getProjectEntryPointPaths(project);
 
   const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
   const escapedFile = escapeRegex(fileWithoutExt);
@@ -1122,68 +1143,7 @@ function pointsToProjectIndex(
  * @returns True if the path matches common index file patterns.
  */
 function isIndexFilePath(pathStr: string): boolean {
-  // Common index file patterns
-  const indexPatterns = [
-    'public-api.ts',
-    'public-api.mts',
-    'public-api.cts',
-    'public-api.tsx',
-    'public-api.js',
-    'public-api.mjs',
-    'public-api.cjs',
-    'public-api.jsx',
-    'index.ts',
-    'index.mts',
-    'index.cts',
-    'index.tsx',
-    'index.js',
-    'index.mjs',
-    'index.cjs',
-    'index.jsx',
-    'src/public-api.ts',
-    'src/public-api.mts',
-    'src/public-api.cts',
-    'src/public-api.tsx',
-    'src/public-api.js',
-    'src/public-api.mjs',
-    'src/public-api.cjs',
-    'src/public-api.jsx',
-    'src/index.ts',
-    'src/index.mts',
-    'src/index.cts',
-    'src/index.tsx',
-    'src/index.js',
-    'src/index.mjs',
-    'src/index.cjs',
-    'src/index.jsx',
-    'lib/public-api.ts',
-    'lib/public-api.mts',
-    'lib/public-api.cts',
-    'lib/public-api.tsx',
-    'lib/public-api.js',
-    'lib/public-api.mjs',
-    'lib/public-api.cjs',
-    'lib/public-api.jsx',
-    'lib/index.ts',
-    'lib/index.js',
-    // Some projects use main.ts or main.js as entry point
-    'main.ts',
-    'main.mts',
-    'main.cts',
-    'main.tsx',
-    'main.js',
-    'main.cjs',
-    'main.mjs',
-    'main.jsx',
-    'src/main.ts',
-    'src/main.mts',
-    'src/main.cts',
-    'src/main.tsx',
-    'src/main.js',
-    'src/main.cjs',
-    'src/main.mjs',
-    'src/main.jsx',
-  ];
+  const indexPatterns = [...ENTRYPOINT_PATTERNS, ...MAIN_ENTRY_PATTERNS];
 
   return indexPatterns.some((pattern) => pathStr.endsWith(pattern));
 }
@@ -1237,16 +1197,16 @@ async function updateImportPathsInDependentProjects(
   const candidates: Array<[string, ProjectConfiguration]> =
     dependentProjectNames.length
       ? dependentProjectNames
-        .map((name) => {
-          const project = projects.get(name);
-          return project ? [name, project] : null;
-        })
-        .filter(
-          (entry): entry is [string, ProjectConfiguration] => entry !== null,
-        )
+          .map((name) => {
+            const project = projects.get(name);
+            return project ? [name, project] : null;
+          })
+          .filter(
+            (entry): entry is [string, ProjectConfiguration] => entry !== null,
+          )
       : Array.from(projects.entries()).filter(([, project]) =>
-        checkForImportsInProject(tree, project, sourceImportPath),
-      );
+          checkForImportsInProject(tree, project, sourceImportPath),
+        );
 
   candidates.forEach(([dependentName, dependentProject]) => {
     logger.debug(`Checking project ${dependentName} for imports`);
@@ -1600,40 +1560,7 @@ function ensureFileExported(
   project: ProjectConfiguration,
   file: string,
 ): void {
-  const indexPaths = [
-    path.join(project.sourceRoot || project.root, 'public-api.ts'),
-    path.join(project.sourceRoot || project.root, 'public-api.mts'),
-    path.join(project.sourceRoot || project.root, 'public-api.cts'),
-    path.join(project.sourceRoot || project.root, 'public-api.mjs'),
-    path.join(project.sourceRoot || project.root, 'public-api.cjs'),
-    path.join(project.sourceRoot || project.root, 'public-api.js'),
-    path.join(project.sourceRoot || project.root, 'public-api.tsx'),
-    path.join(project.sourceRoot || project.root, 'public-api.jsx'),
-    path.join(project.root, 'src', 'public-api.ts'),
-    path.join(project.root, 'src', 'public-api.mts'),
-    path.join(project.root, 'src', 'public-api.cts'),
-    path.join(project.root, 'src', 'public-api.mjs'),
-    path.join(project.root, 'src', 'public-api.cjs'),
-    path.join(project.root, 'src', 'public-api.js'),
-    path.join(project.root, 'src', 'public-api.tsx'),
-    path.join(project.root, 'src', 'public-api.jsx'),
-    path.join(project.sourceRoot || project.root, 'index.ts'),
-    path.join(project.sourceRoot || project.root, 'index.mts'),
-    path.join(project.sourceRoot || project.root, 'index.cts'),
-    path.join(project.sourceRoot || project.root, 'index.mjs'),
-    path.join(project.sourceRoot || project.root, 'index.cjs'),
-    path.join(project.sourceRoot || project.root, 'index.js'),
-    path.join(project.sourceRoot || project.root, 'index.tsx'),
-    path.join(project.sourceRoot || project.root, 'index.jsx'),
-    path.join(project.root, 'src', 'index.ts'),
-    path.join(project.root, 'src', 'index.mts'),
-    path.join(project.root, 'src', 'index.cts'),
-    path.join(project.root, 'src', 'index.mjs'),
-    path.join(project.root, 'src', 'index.cjs'),
-    path.join(project.root, 'src', 'index.js'),
-    path.join(project.root, 'src', 'index.tsx'),
-    path.join(project.root, 'src', 'index.jsx'),
-  ];
+  const indexPaths = getProjectEntryPointPaths(project);
 
   // Find the first existing index file
   const indexPath = indexPaths.find((p) => tree.exists(p)) || indexPaths[0];
@@ -1663,40 +1590,7 @@ function removeFileExport(
   project: ProjectConfiguration,
   file: string,
 ): void {
-  const indexPaths = [
-    path.join(project.sourceRoot || project.root, 'public-api.ts'),
-    path.join(project.sourceRoot || project.root, 'public-api.mts'),
-    path.join(project.sourceRoot || project.root, 'public-api.cts'),
-    path.join(project.sourceRoot || project.root, 'public-api.mjs'),
-    path.join(project.sourceRoot || project.root, 'public-api.cjs'),
-    path.join(project.sourceRoot || project.root, 'public-api.js'),
-    path.join(project.sourceRoot || project.root, 'public-api.tsx'),
-    path.join(project.sourceRoot || project.root, 'public-api.jsx'),
-    path.join(project.root, 'src', 'public-api.ts'),
-    path.join(project.root, 'src', 'public-api.mts'),
-    path.join(project.root, 'src', 'public-api.cts'),
-    path.join(project.root, 'src', 'public-api.mjs'),
-    path.join(project.root, 'src', 'public-api.cjs'),
-    path.join(project.root, 'src', 'public-api.js'),
-    path.join(project.root, 'src', 'public-api.tsx'),
-    path.join(project.root, 'src', 'public-api.jsx'),
-    path.join(project.sourceRoot || project.root, 'index.ts'),
-    path.join(project.sourceRoot || project.root, 'index.mts'),
-    path.join(project.sourceRoot || project.root, 'index.cts'),
-    path.join(project.sourceRoot || project.root, 'index.mjs'),
-    path.join(project.sourceRoot || project.root, 'index.cjs'),
-    path.join(project.sourceRoot || project.root, 'index.js'),
-    path.join(project.sourceRoot || project.root, 'index.tsx'),
-    path.join(project.sourceRoot || project.root, 'index.jsx'),
-    path.join(project.root, 'src', 'index.ts'),
-    path.join(project.root, 'src', 'index.mts'),
-    path.join(project.root, 'src', 'index.cts'),
-    path.join(project.root, 'src', 'index.mjs'),
-    path.join(project.root, 'src', 'index.cjs'),
-    path.join(project.root, 'src', 'index.js'),
-    path.join(project.root, 'src', 'index.tsx'),
-    path.join(project.root, 'src', 'index.jsx'),
-  ];
+  const indexPaths = getProjectEntryPointPaths(project);
 
   // Find existing index files
   indexPaths.forEach((indexPath) => {
@@ -1773,24 +1667,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
   }
 
   // Fallback: list of common index file names if not found in tsconfig
-  const fallbackIndexFileNames = [
-    'public-api.ts',
-    'public-api.mts',
-    'public-api.cts',
-    'public-api.mjs',
-    'public-api.cjs',
-    'public-api.js',
-    'public-api.tsx',
-    'public-api.jsx',
-    'index.ts',
-    'index.mts',
-    'index.cts',
-    'index.mjs',
-    'index.cjs',
-    'index.js',
-    'index.tsx',
-    'index.jsx',
-  ];
+  const fallbackIndexFileNames = PRIMARY_ENTRY_FILENAMES;
 
   let hasNonIndexSourceFiles = false;
 
