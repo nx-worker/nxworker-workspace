@@ -457,6 +457,7 @@ export function hasImportSpecifier(
 
     return hasRequireResolve;
   } catch (error) {
+    logger.verbose(`Error parsing ${filePath}: ${error}`);
     // If parsing fails, log warning and return false
     logger.warn(`Unable to parse ${filePath}. Import check may be inaccurate.`);
     return false;
