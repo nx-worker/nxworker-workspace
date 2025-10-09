@@ -42,15 +42,21 @@ export function updateImportSpecifier(
     // Update export declarations: export ... from 'oldSpecifier'
     root
       .find(j.ExportNamedDeclaration)
-      .filter((path) => {
-        const source = path.node.source?.value;
-        return source === oldSpecifier;
-      })
+      .filter(
+        (
+          path,
+        ): path is jscodeshift.ASTPath<
+          jscodeshift.ExportNamedDeclaration & {
+            source: jscodeshift.StringLiteral;
+          }
+        > => {
+          const source = path.node.source?.value;
+          return source === oldSpecifier;
+        },
+      )
       .forEach((path) => {
-        if (path.node.source) {
-          path.node.source.value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.source.value = newSpecifier;
+        hasChanges = true;
       });
 
     root
@@ -205,16 +211,22 @@ export function updateImportSpecifierPattern(
     // Example: export { foo } from './path'
     root
       .find(j.ExportNamedDeclaration)
-      .filter((path) => {
-        const source = path.node.source?.value;
-        return typeof source === 'string' && matcher(source);
-      })
+      .filter(
+        (
+          path,
+        ): path is jscodeshift.ASTPath<
+          jscodeshift.ExportNamedDeclaration & {
+            source: jscodeshift.StringLiteral;
+          }
+        > => {
+          const source = path.node.source?.value;
+          return typeof source === 'string' && matcher(source);
+        },
+      )
       .forEach((path) => {
-        if (path.node.source) {
-          const oldSource = String(path.node.source.value);
-          path.node.source.value = getNewSpecifier(oldSource);
-          hasChanges = true;
-        }
+        const oldSource = String(path.node.source.value);
+        path.node.source.value = getNewSpecifier(oldSource);
+        hasChanges = true;
       });
 
     // Example: export * from './path'
@@ -236,21 +248,26 @@ export function updateImportSpecifierPattern(
       .find(j.CallExpression, {
         callee: { type: 'Import' },
       })
-      .filter((path) => {
-        const args = path.node.arguments;
-        return (
-          args.length > 0 &&
-          args[0].type === 'StringLiteral' &&
-          matcher(args[0].value)
-        );
-      })
+      .filter(
+        (
+          path,
+        ): path is jscodeshift.ASTPath<
+          jscodeshift.CallExpression & {
+            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          }
+        > => {
+          const args = path.node.arguments;
+          return (
+            args.length > 0 &&
+            args[0].type === 'StringLiteral' &&
+            matcher(args[0].value)
+          );
+        },
+      )
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          const oldValue = args[0].value;
-          args[0].value = getNewSpecifier(oldValue);
-          hasChanges = true;
-        }
+        const oldValue = path.node.arguments[0].value;
+        path.node.arguments[0].value = getNewSpecifier(oldValue);
+        hasChanges = true;
       });
 
     // Update require calls: require('specifier')
@@ -259,21 +276,26 @@ export function updateImportSpecifierPattern(
       .find(j.CallExpression, {
         callee: { type: 'Identifier', name: 'require' },
       })
-      .filter((path) => {
-        const args = path.node.arguments;
-        return (
-          args.length > 0 &&
-          args[0].type === 'StringLiteral' &&
-          matcher(args[0].value)
-        );
-      })
+      .filter(
+        (
+          path,
+        ): path is jscodeshift.ASTPath<
+          jscodeshift.CallExpression & {
+            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          }
+        > => {
+          const args = path.node.arguments;
+          return (
+            args.length > 0 &&
+            args[0].type === 'StringLiteral' &&
+            matcher(args[0].value)
+          );
+        },
+      )
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          const oldValue = args[0].value;
-          args[0].value = getNewSpecifier(oldValue);
-          hasChanges = true;
-        }
+        const oldValue = path.node.arguments[0].value;
+        path.node.arguments[0].value = getNewSpecifier(oldValue);
+        hasChanges = true;
       });
 
     // Update require.resolve calls: require.resolve('specifier')
@@ -286,21 +308,26 @@ export function updateImportSpecifierPattern(
           property: { type: 'Identifier', name: 'resolve' },
         },
       })
-      .filter((path) => {
-        const args = path.node.arguments;
-        return (
-          args.length > 0 &&
-          args[0].type === 'StringLiteral' &&
-          matcher(args[0].value)
-        );
-      })
+      .filter(
+        (
+          path,
+        ): path is jscodeshift.ASTPath<
+          jscodeshift.CallExpression & {
+            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          }
+        > => {
+          const args = path.node.arguments;
+          return (
+            args.length > 0 &&
+            args[0].type === 'StringLiteral' &&
+            matcher(args[0].value)
+          );
+        },
+      )
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          const oldValue = args[0].value;
-          args[0].value = getNewSpecifier(oldValue);
-          hasChanges = true;
-        }
+        const oldValue = path.node.arguments[0].value;
+        path.node.arguments[0].value = getNewSpecifier(oldValue);
+        hasChanges = true;
       });
 
     if (hasChanges) {
