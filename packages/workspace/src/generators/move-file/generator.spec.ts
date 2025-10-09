@@ -305,6 +305,38 @@ describe('move-file generator', () => {
       const lazyContent = tree.read('packages/lib1/src/lib/lazy.ts', 'utf-8');
       expect(lazyContent).toContain("import('@test/lib2').then(m => m.helper)");
     });
+
+    it('should handle files with dots in the filename', async () => {
+      // Test files with multiple dots in name (e.g., util.helper.ts)
+      tree.write(
+        'packages/lib1/src/lib/util.helper.ts',
+        'export function utilHelper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/lib/main.ts',
+        "import { utilHelper } from './util.helper';\n\nexport const result = utilHelper();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/util.helper.ts',
+        project: 'lib1',
+        projectDirectory: 'helpers',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved
+      expect(tree.exists('packages/lib1/src/lib/util.helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/helpers/util.helper.ts')).toBe(
+        true,
+      );
+
+      // Import should be updated
+      const mainContent = tree.read('packages/lib1/src/lib/main.ts', 'utf-8');
+      expect(mainContent).toContain("from './helpers/util.helper'");
+    });
   });
 
   describe('moving a file that is exported', () => {
@@ -1644,6 +1676,329 @@ describe('move-file generator', () => {
       await moveFileGenerator(tree, options);
 
       // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should detect empty project with different index file name (index.cts)', async () => {
+      // Update tsconfig to use index.cts
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.cts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create index.cts file for lib1
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.cts', 'export {};');
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should handle moving .cjs files', async () => {
+      // Create a .cjs file
+      tree.write(
+        'packages/lib1/src/lib/utils.cjs',
+        'module.exports = { util: () => "test" };',
+      );
+
+      // Create a consumer file that imports the .cjs file
+      tree.write(
+        'packages/lib1/src/lib/consumer.ts',
+        "import { util } from './utils.cjs';\nexport const value = util();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils.cjs',
+        project: 'lib1',
+        projectDirectory: 'common',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The file should have been moved
+      expect(tree.exists('packages/lib1/src/lib/utils.cjs')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/common/utils.cjs')).toBe(true);
+
+      // The import should have been updated (preserving .cjs extension)
+      const consumerContent = tree.read(
+        'packages/lib1/src/lib/consumer.ts',
+        'utf-8',
+      );
+      expect(consumerContent).toContain("from './common/utils.cjs'");
+    });
+
+    it('should handle moving .cts files', async () => {
+      // Create a .cts file
+      tree.write(
+        'packages/lib1/src/lib/utils.cts',
+        'export const util = () => "test";',
+      );
+
+      // Create a consumer file that imports the .cts file
+      tree.write(
+        'packages/lib1/src/lib/consumer.ts',
+        "import { util } from './utils.cts';\nexport const value = util();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils.cts',
+        project: 'lib1',
+        projectDirectory: 'common',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The file should have been moved
+      expect(tree.exists('packages/lib1/src/lib/utils.cts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/common/utils.cts')).toBe(true);
+
+      // The import should have been updated (preserving .cts extension)
+      const consumerContent = tree.read(
+        'packages/lib1/src/lib/consumer.ts',
+        'utf-8',
+      );
+      expect(consumerContent).toContain("from './common/utils.cts'");
+    });
+
+    it('should dynamically detect custom entry point files', async () => {
+      // Update tsconfig to use a custom entry point (main.ts)
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/main.ts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create main.ts file for lib1 instead of index.ts
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/main.ts', 'export {};');
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should dynamically detect entry point in lib directory', async () => {
+      // Update tsconfig to use lib/index.ts
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/lib/index.ts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create lib/index.ts for lib1
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/lib/index.ts', 'export {};');
+
+      // Update lib1 project configuration to have lib as sourceRoot
+      updateJson(tree, 'packages/lib1/project.json', (json) => {
+        json.sourceRoot = 'packages/lib1/lib';
+        return json;
+      });
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should verify index file exists before treating as entry point', async () => {
+      // Update tsconfig to reference a non-existent file
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/nonexistent.ts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Don't create the nonexistent.ts file
+
+      // Create a project with only one file (and the standard index.ts)
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1 because
+      // only index.ts remains (fallback pattern matching)
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should support TypeScript CommonJS module extension (.cts)', async () => {
+      // Test with .cts extension
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.cts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.cts', 'export {};');
+
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should support TypeScript ES module extension (.mts)', async () => {
+      // Test with .mts extension
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.mts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.mts', 'export {};');
+
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should support JavaScript entry points', async () => {
+      // Test with .js extension
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.js'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.js', 'export {};');
+
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
       expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
         projectName: 'lib1',
         skipFormat: true,

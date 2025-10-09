@@ -34,7 +34,8 @@
   },
   "dependencies": {
     "@swc/helpers": "~0.5.11",
-    "core-js-pure": "^3.41.0"
+    "core-js-pure": "^3.41.0",
+    "jscodeshift": "^17.1.1"
   },
   "type": "commonjs",
   "main": "./src/index.js",
