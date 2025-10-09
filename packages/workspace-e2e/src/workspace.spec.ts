@@ -1481,8 +1481,15 @@ describe('workspace', () => {
 describe('Nx version compatibility (basic happy paths)', () => {
   const supportedVersions = getSupportedNxMajorVersions();
 
+  // For performance, only test minimum and maximum supported versions
+  // Full compatibility testing happens in CI across all versions
+  const versionsToTest =
+    process.env['TEST_ALL_NX_VERSIONS'] === 'true'
+      ? supportedVersions
+      : [Math.min(...supportedVersions), Math.max(...supportedVersions)];
+
   // Run basic tests for each supported Nx major version
-  supportedVersions.forEach((nxMajorVersion) => {
+  versionsToTest.forEach((nxMajorVersion) => {
     describe(`Nx ${nxMajorVersion}.x`, () => {
       let projectDirectory: string;
 

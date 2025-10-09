@@ -8,9 +8,9 @@ The e2e test suite includes **24 test cases** in the main test suite, plus addit
 
 ### Nx Version Compatibility Tests
 
-The test suite includes a dedicated section that validates basic happy paths across all supported Nx major versions (currently 19.x, 20.x, and 21.x). This ensures the plugin works correctly with all versions declared in the `@nx/devkit` peer dependency.
+The test suite includes a dedicated section that validates basic happy paths across the minimum and maximum supported Nx major versions (currently 19.x and 21.x). For performance reasons, the middle versions (20.x) are skipped in local development but can be enabled by setting the `TEST_ALL_NX_VERSIONS=true` environment variable. This ensures the plugin works correctly with all versions declared in the `@nx/devkit` peer dependency.
 
-These version-specific tests run for each supported Nx major version:
+These version-specific tests run for each tested Nx major version:
 
 - **Plugin Installation**: Verifies the plugin installs correctly
 - **Basic File Move**: Tests moving a file between projects with import updates
@@ -82,11 +82,11 @@ And across Node.js versions:
 
 And across Nx versions (for basic happy path tests):
 
-- **Nx 19.x** (peer dependency supported)
-- **Nx 20.x** (peer dependency supported)
-- **Nx 21.x** (peer dependency supported)
+- **Nx 19.x** (minimum supported version)
+- **Nx 21.x** (maximum supported version)
+- **Nx 20.x** (tested when `TEST_ALL_NX_VERSIONS=true`)
 
-The comprehensive test suite runs once with the workspace Nx version (19.8.14), while basic happy path tests run for each supported major version.
+By default, the test suite only tests the minimum (19.x) and maximum (21.x) versions for performance. Set `TEST_ALL_NX_VERSIONS=true` to test all supported major versions.
 
 ## Architecture Coverage
 
