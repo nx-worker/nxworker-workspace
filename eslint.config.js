@@ -11,7 +11,7 @@ module.exports = [
     ignores: ['**/dist'],
   },
   {
-    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.mts', '**/*.mjs', '**/*.cts', '**/*.cjs'],
+    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
     },
@@ -32,7 +32,7 @@ module.exports = [
     },
   },
   {
-    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.mts', '**/*.mjs', '**/*.cts', '**/*.cjs'],
+    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     plugins: {
       'es-x': esxPlugin,
       n: nPlugin,
@@ -75,7 +75,7 @@ module.exports = [
     },
   },
   {
-    files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.spec.js', '**/*.spec.jsx', '**/*.spec.mts', '**/*.spec.mjs', '**/*.spec.cts', '**/*.spec.cjs'],
+    files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.spec.js', '**/*.spec.jsx'],
     languageOptions: {
       globals: {
         ...globals.jest,
