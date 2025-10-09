@@ -8,7 +8,7 @@ import {
   logger,
   createProjectGraphAsync,
   normalizePath,
-  glob,
+  globAsync,
 } from '@nx/devkit';
 import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
@@ -50,8 +50,8 @@ export async function moveFileGenerator(
     const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
 
     if (isGlobPattern) {
-      // Use glob to find matching files
-      const matches = glob(tree, [normalizedPattern]);
+      // Use globAsync to find matching files
+      const matches = await globAsync(tree, [normalizedPattern]);
       if (matches.length === 0) {
         throw new Error(`No files found matching glob pattern: "${pattern}"`);
       }
