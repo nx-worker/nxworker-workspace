@@ -484,11 +484,11 @@ describe('workspace', () => {
         testLibName,
         'src',
         'lib',
-        'util.ts',
+        'util-posix.ts',
       );
       writeFileSync(
         sourcePath,
-        "export function util() { return 'utility'; }\n",
+        "export function utilPosix() { return 'utility'; }\n",
       );
 
       const consumerPath = join(
@@ -496,15 +496,15 @@ describe('workspace', () => {
         testLibName,
         'src',
         'lib',
-        'consumer.ts',
+        'consumer-posix.ts',
       );
       writeFileSync(
         consumerPath,
-        "import { util } from './util';\nexport const value = util();\n",
+        "import { utilPosix } from './util-posix';\nexport const value = utilPosix();\n",
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts --project ${testLibName} --project-directory utilities --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util-posix.ts --project ${testLibName} --project-directory utilities --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -517,15 +517,15 @@ describe('workspace', () => {
         'src',
         'lib',
         'utilities',
-        'util.ts',
+        'util-posix.ts',
       );
       expect(readFileSync(movedPath, 'utf-8')).toContain(
-        'export function util()',
+        'export function utilPosix()',
       );
 
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
-        /from ['"]\.\/utilities\/util['"]/,
+        /from ['"]\.\/utilities\/util-posix['"]/,
       );
     });
 
@@ -537,11 +537,11 @@ describe('workspace', () => {
           testLibName,
           'src',
           'lib',
-          'util.ts',
+          'util-win.ts',
         );
         writeFileSync(
           sourcePath,
-          "export function util() { return 'utility'; }\n",
+          "export function utilWin() { return 'utility'; }\n",
         );
 
         const consumerPath = join(
@@ -549,14 +549,14 @@ describe('workspace', () => {
           testLibName,
           'src',
           'lib',
-          'consumer.ts',
+          'consumer-win.ts',
         );
         writeFileSync(
           consumerPath,
-          "import { util } from './util';\nexport const value = util();\n",
+          "import { utilWin } from './util-win';\nexport const value = utilWin();\n",
         );
 
-        const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
+        const winStyleSource = `${testLibName}\\src\\lib\\util-win.ts`;
         execSync(
           `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
           {
@@ -571,15 +571,15 @@ describe('workspace', () => {
           'src',
           'lib',
           'utilities',
-          'util.ts',
+          'util-win.ts',
         );
         expect(readFileSync(movedPath, 'utf-8')).toContain(
-          'export function util()',
+          'export function utilWin()',
         );
 
         const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
         expect(updatedConsumerContent).toMatch(
-          /from ['"]\.\/utilities\/util['"]/,
+          /from ['"]\.\/utilities\/util-win['"]/,
         );
       },
     );
