@@ -935,10 +935,13 @@ function isFileExported(
   const indexPaths = [
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
+    path.join(project.sourceRoot || project.root, 'index.cts'),
     path.join(project.sourceRoot || project.root, 'index.mjs'),
+    path.join(project.sourceRoot || project.root, 'index.cjs'),
     path.join(project.sourceRoot || project.root, 'index.js'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
+    path.join(project.root, 'src', 'index.cts'),
   ];
 
   const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
@@ -1080,6 +1083,7 @@ function isIndexFilePath(pathStr: string): boolean {
   return (
     pathStr.endsWith('index.ts') ||
     pathStr.endsWith('index.mts') ||
+    pathStr.endsWith('index.cts') ||
     pathStr.endsWith('src/index.ts')
   );
 }
@@ -1184,7 +1188,16 @@ function updateImportPathsToPackageAlias(
   targetPackageAlias: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cts',
+    '.cjs',
+  ];
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -1231,7 +1244,16 @@ function updateImportPathsInProject(
   sourceFilePath: string,
   targetFilePath: string,
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cts',
+    '.cjs',
+  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
@@ -1282,7 +1304,16 @@ function checkForImportsInProject(
   project: ProjectConfiguration,
   importPath: string,
 ): boolean {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cts',
+    '.cjs',
+  ];
   let hasImports = false;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -1311,7 +1342,16 @@ function updateImportsToRelative(
   targetRelativePath: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cts',
+    '.cjs',
+  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
@@ -1345,7 +1385,16 @@ function updateImportsByAliasInProject(
   sourceImportPath: string,
   targetImportPath: string,
 ): void {
-  const fileExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
+  const fileExtensions = [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mts',
+    '.mjs',
+    '.cts',
+    '.cjs',
+  ];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
@@ -1454,8 +1503,10 @@ function ensureFileExported(
   const indexPaths = [
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
+    path.join(project.sourceRoot || project.root, 'index.cts'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
+    path.join(project.root, 'src', 'index.cts'),
   ];
 
   // Find the first existing index file
@@ -1489,8 +1540,10 @@ function removeFileExport(
   const indexPaths = [
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
+    path.join(project.sourceRoot || project.root, 'index.cts'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
+    path.join(project.root, 'src', 'index.cts'),
   ];
 
   // Find existing index files
@@ -1571,7 +1624,9 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
   const fallbackIndexFileNames = [
     'index.ts',
     'index.mts',
+    'index.cts',
     'index.mjs',
+    'index.cjs',
     'index.js',
     'index.tsx',
     'index.jsx',
