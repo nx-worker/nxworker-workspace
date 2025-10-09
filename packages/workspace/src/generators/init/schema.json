@@ -18,12 +18,6 @@
       "description": "Skip adding package.json dependencies",
       "default": false,
       "x-priority": "internal"
-    },
-    "keepExistingVersions": {
-      "type": "boolean",
-      "x-priority": "internal",
-      "description": "Keep existing dependencies versions",
-      "default": false
     }
   }
 }

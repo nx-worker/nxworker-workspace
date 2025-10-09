@@ -1,10 +1,11 @@
 import {
   addDependenciesToPackageJson,
   formatFiles,
+  NX_VERSION,
   readJson,
+  runTasksInSerial,
   Tree,
 } from '@nx/devkit';
-import { NX_VERSION } from '@nx/devkit/src/utils/package-json';
 import { InitGeneratorSchema } from './schema';
 
 /**
@@ -34,7 +35,7 @@ export async function initGenerator(
   // Determine the version to use for @nx/devkit and @nx/workspace
   // Use NX_VERSION from @nx/devkit or fallback to the installed nx package version
   let nxVersion = NX_VERSION;
-  
+
   if (!nxVersion) {
     const installedNxVersion = getInstalledPackageVersion(tree, 'nx');
     if (!installedNxVersion) {
@@ -45,31 +46,19 @@ export async function initGenerator(
     nxVersion = installedNxVersion;
   }
 
-  const devDependencies: Record<string, string> = {};
-
-  // Only add @nx/devkit if not already installed
-  const installedDevkitVersion = getInstalledPackageVersion(tree, '@nx/devkit');
-  if (!installedDevkitVersion) {
-    devDependencies['@nx/devkit'] = nxVersion;
-  }
-
-  // Only add @nx/workspace if not already installed
-  const installedWorkspaceVersion = getInstalledPackageVersion(
-    tree,
-    '@nx/workspace',
-  );
-  if (!installedWorkspaceVersion) {
-    devDependencies['@nx/workspace'] = nxVersion;
-  }
-
-  // Add dependencies to package.json if there are any to add
-  if (Object.keys(devDependencies).length > 0 && !options.skipPackageJson) {
+  // Add dependencies to package.json
+  // addDependenciesToPackageJson is a no-op if packages are already installed
+  // We pass keepExistingVersions: true to prevent version mismatches
+  if (!options.skipPackageJson) {
     const installTask = addDependenciesToPackageJson(
       tree,
       {},
-      devDependencies,
+      {
+        '@nx/devkit': nxVersion,
+        '@nx/workspace': nxVersion,
+      },
       undefined,
-      options.keepExistingVersions,
+      true,
     );
     tasks.push(installTask);
   }
@@ -79,11 +68,7 @@ export async function initGenerator(
     await formatFiles(tree);
   }
 
-  return async () => {
-    for (const task of tasks) {
-      await task();
-    }
-  };
+  return runTasksInSerial(...tasks);
 }
 
 export default initGenerator;

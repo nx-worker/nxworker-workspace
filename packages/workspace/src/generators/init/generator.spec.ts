@@ -1,8 +1,4 @@
-import {
-  Tree,
-  addDependenciesToPackageJson,
-  formatFiles,
-} from '@nx/devkit';
+import { Tree, addDependenciesToPackageJson, formatFiles } from '@nx/devkit';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { initGenerator } from './generator';
 import { InitGeneratorSchema } from './schema';
@@ -14,13 +10,14 @@ jest.mock('@nx/devkit', () => {
     ...actual,
     formatFiles: jest.fn(),
     addDependenciesToPackageJson: jest.fn(() => jest.fn()),
+    runTasksInSerial: jest.fn((...tasks) => async () => {
+      for (const task of tasks) {
+        await task();
+      }
+    }),
+    NX_VERSION: '19.8.14',
   };
 });
-
-// Mock the NX_VERSION from @nx/devkit
-jest.mock('@nx/devkit/src/utils/package-json', () => ({
-  NX_VERSION: '19.8.14',
-}));
 
 const formatFilesMock = jest.mocked(formatFiles);
 const addDependenciesToPackageJsonMock = jest.mocked(
@@ -35,7 +32,7 @@ describe('init generator', () => {
     jest.clearAllMocks();
   });
 
-  it('should add @nx/devkit and @nx/workspace as devDependencies when not installed', async () => {
+  it('should add @nx/devkit and @nx/workspace as devDependencies', async () => {
     const options: InitGeneratorSchema = {
       skipFormat: true,
     };
@@ -50,42 +47,12 @@ describe('init generator', () => {
         '@nx/workspace': '19.8.14',
       },
       undefined,
-      undefined,
+      true,
     );
     expect(formatFilesMock).not.toHaveBeenCalled();
   });
 
-  it('should not add @nx/devkit if already installed', async () => {
-    // Pre-install @nx/devkit
-    const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
-    packageJson.devDependencies = packageJson.devDependencies || {};
-    packageJson.devDependencies['@nx/devkit'] = '20.0.0';
-    tree.write('package.json', JSON.stringify(packageJson, null, 2));
-
-    const options: InitGeneratorSchema = {
-      skipFormat: true,
-    };
-
-    await initGenerator(tree, options);
-
-    expect(addDependenciesToPackageJsonMock).toHaveBeenCalledWith(
-      tree,
-      {},
-      {
-        '@nx/workspace': '19.8.14',
-      },
-      undefined,
-      undefined,
-    );
-  });
-
-  it('should not add @nx/workspace if already installed', async () => {
-    // Pre-install @nx/workspace
-    const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
-    packageJson.devDependencies = packageJson.devDependencies || {};
-    packageJson.devDependencies['@nx/workspace'] = '20.0.0';
-    tree.write('package.json', JSON.stringify(packageJson, null, 2));
-
+  it('should pass keepExistingVersions: true to prevent version mismatches', async () => {
     const options: InitGeneratorSchema = {
       skipFormat: true,
     };
@@ -97,27 +64,11 @@ describe('init generator', () => {
       {},
       {
         '@nx/devkit': '19.8.14',
+        '@nx/workspace': '19.8.14',
       },
       undefined,
-      undefined,
+      true,
     );
-  });
-
-  it('should not add any dependencies if both @nx/devkit and @nx/workspace are already installed', async () => {
-    // Pre-install both packages
-    const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
-    packageJson.devDependencies = packageJson.devDependencies || {};
-    packageJson.devDependencies['@nx/devkit'] = '20.0.0';
-    packageJson.devDependencies['@nx/workspace'] = '20.0.0';
-    tree.write('package.json', JSON.stringify(packageJson, null, 2));
-
-    const options: InitGeneratorSchema = {
-      skipFormat: true,
-    };
-
-    await initGenerator(tree, options);
-
-    expect(addDependenciesToPackageJsonMock).not.toHaveBeenCalled();
   });
 
   it('should respect skipPackageJson option', async () => {
@@ -131,39 +82,6 @@ describe('init generator', () => {
     expect(addDependenciesToPackageJsonMock).not.toHaveBeenCalled();
   });
 
-  it('should check both devDependencies and dependencies', async () => {
-    // Install @nx/devkit in dependencies instead of devDependencies
-    const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
-    packageJson.dependencies = packageJson.dependencies || {};
-    packageJson.dependencies['@nx/devkit'] = '20.0.0';
-    tree.write('package.json', JSON.stringify(packageJson, null, 2));
-
-    const options: InitGeneratorSchema = {
-      skipFormat: true,
-    };
-
-    await initGenerator(tree, options);
-
-    // Should not add @nx/devkit since it's already in dependencies
-    // Should only add @nx/workspace
-    expect(addDependenciesToPackageJsonMock).toHaveBeenCalledWith(
-      tree,
-      {},
-      {
-        '@nx/workspace': '19.8.14',
-      },
-      undefined,
-      undefined,
-    );
-  });
-
-  it('should use nx package version as fallback when NX_VERSION is not available', async () => {
-    // This test would require runtime manipulation of NX_VERSION which is difficult in Jest
-    // The fallback logic is tested implicitly through the code path
-    // Instead, we can test the error case directly
-    expect(true).toBe(true);
-  });
-
   it('should call formatFiles when skipFormat is false', async () => {
     const options: InitGeneratorSchema = {
       skipFormat: false,
@@ -172,5 +90,85 @@ describe('init generator', () => {
     await initGenerator(tree, options);
 
     expect(formatFilesMock).toHaveBeenCalledWith(tree);
+  });
+
+  it('should use nx package version as fallback when NX_VERSION is not available', async () => {
+    // Mock NX_VERSION as undefined
+    const actualDevkit = jest.requireActual('@nx/devkit');
+    jest.resetModules();
+    jest.doMock('@nx/devkit', () => ({
+      ...actualDevkit,
+      formatFiles: jest.fn(),
+      addDependenciesToPackageJson: jest.fn(() => jest.fn()),
+      runTasksInSerial: jest.fn((...tasks) => async () => {
+        for (const task of tasks) {
+          await task();
+        }
+      }),
+      NX_VERSION: undefined,
+    }));
+
+    // Add nx package to package.json
+    const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
+    packageJson.devDependencies = packageJson.devDependencies || {};
+    packageJson.devDependencies['nx'] = '21.0.0';
+    tree.write('package.json', JSON.stringify(packageJson, null, 2));
+
+    // Re-import the generator
+    const { initGenerator: initGen } = await import('./generator');
+    const { addDependenciesToPackageJson: addDepsMock } = await import(
+      '@nx/devkit'
+    );
+
+    const options: InitGeneratorSchema = {
+      skipFormat: true,
+    };
+
+    await initGen(tree, options);
+
+    expect(addDepsMock).toHaveBeenCalledWith(
+      tree,
+      {},
+      {
+        '@nx/devkit': '21.0.0',
+        '@nx/workspace': '21.0.0',
+      },
+      undefined,
+      true,
+    );
+
+    // Restore mocks
+    jest.resetModules();
+  });
+
+  it('should throw error when NX_VERSION is not available and nx is not installed', async () => {
+    // Mock NX_VERSION as undefined
+    const actualDevkit = jest.requireActual('@nx/devkit');
+    jest.resetModules();
+    jest.doMock('@nx/devkit', () => ({
+      ...actualDevkit,
+      formatFiles: jest.fn(),
+      addDependenciesToPackageJson: jest.fn(() => jest.fn()),
+      runTasksInSerial: jest.fn((...tasks) => async () => {
+        for (const task of tasks) {
+          await task();
+        }
+      }),
+      NX_VERSION: undefined,
+    }));
+
+    // Re-import the generator
+    const { initGenerator: initGen } = await import('./generator');
+
+    const options: InitGeneratorSchema = {
+      skipFormat: true,
+    };
+
+    await expect(initGen(tree, options)).rejects.toThrow(
+      'Could not determine Nx version. Please ensure nx is installed in your workspace.',
+    );
+
+    // Restore mocks
+    jest.resetModules();
   });
 });
