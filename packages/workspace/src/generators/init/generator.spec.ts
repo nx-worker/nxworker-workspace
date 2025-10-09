@@ -1,4 +1,9 @@
-import { Tree, addDependenciesToPackageJson, formatFiles } from '@nx/devkit';
+import {
+  Tree,
+  addDependenciesToPackageJson,
+  formatFiles,
+  NX_VERSION,
+} from '@nx/devkit';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { initGenerator } from './generator';
 import { InitGeneratorSchema } from './schema';
@@ -15,7 +20,6 @@ jest.mock('@nx/devkit', () => {
         await task();
       }
     }),
-    NX_VERSION: '19.8.14',
   };
 });
 
@@ -43,8 +47,8 @@ describe('init generator', () => {
       tree,
       {},
       {
-        '@nx/devkit': '19.8.14',
-        '@nx/workspace': '19.8.14',
+        '@nx/devkit': NX_VERSION,
+        '@nx/workspace': NX_VERSION,
       },
       undefined,
       true,
@@ -63,8 +67,8 @@ describe('init generator', () => {
       tree,
       {},
       {
-        '@nx/devkit': '19.8.14',
-        '@nx/workspace': '19.8.14',
+        '@nx/devkit': NX_VERSION,
+        '@nx/workspace': NX_VERSION,
       },
       undefined,
       true,
