@@ -30,11 +30,11 @@ Install the plugin in your Nx workspace using `nx add`:
 
 ```shell
 nx add @nxworker/workspace
-nx add @nx/devkit
-nx add @nx/workspace
 
 nx generate @nxworker/workspace:move-file <source-file-path> --project <target-project-name>
 ```
+
+The `nx add` command will automatically install the required peer dependencies (`@nx/devkit` and `@nx/workspace`) if they are not already installed, matching your workspace's Nx version.
 
 Use glob patterns (e.g. `packages/lib1/**/*.ts`) or comma-separated lists to move several files at once, and pass `--remove-empty-project` when you want the generator to clean up source project(s) that no longer have any source code files after the move.
 
