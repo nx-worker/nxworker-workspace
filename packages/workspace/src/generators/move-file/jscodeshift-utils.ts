@@ -2,6 +2,32 @@ import { Tree, logger } from '@nx/devkit';
 import * as jscodeshift from 'jscodeshift';
 import type { ASTNode } from 'jscodeshift';
 
+// Create parser instance once and reuse it for better performance
+const j = jscodeshift.withParser('tsx');
+
+/**
+ * Quick check if content might contain imports/requires before expensive parsing.
+ * This is a fast pre-filter to avoid parsing files with no imports.
+ */
+function mightContainImports(content: string): boolean {
+  // Check for common import/require patterns
+  return (
+    content.includes('import') ||
+    content.includes('require') ||
+    content.includes('export')
+  );
+}
+
+/**
+ * Quick check if content might contain a specific specifier before expensive parsing.
+ * This is a fast pre-filter to avoid parsing files that definitely don't contain the specifier.
+ */
+function mightContainSpecifier(content: string, specifier: string): boolean {
+  // Simple string search - if the specifier doesn't appear anywhere in the file,
+  // it definitely won't be in an import
+  return content.includes(specifier);
+}
+
 /**
  * Updates import specifiers in a file using jscodeshift.
  *
@@ -22,135 +48,77 @@ export function updateImportSpecifier(
     return false;
   }
 
+  // Early exit: quick string check before expensive parsing
+  if (!mightContainSpecifier(content, oldSpecifier)) {
+    return false;
+  }
+
   try {
-    const j = jscodeshift.withParser('tsx');
     const root = j(content);
     let hasChanges = false;
 
-    // Update static imports: import ... from 'oldSpecifier'
-    root
-      .find(j.ImportDeclaration)
-      .filter((path) => {
-        const source = path.node.source.value;
-        return source === oldSpecifier;
-      })
-      .forEach((path) => {
-        path.node.source.value = newSpecifier;
-        hasChanges = true;
-      });
+    // Single-pass traversal: visit all nodes once and handle different types
+    root.find(j.Node).forEach((path) => {
+      const node = path.node as ASTNode;
 
-    // Update export declarations: export ... from 'oldSpecifier'
-    root
-      .find(j.ExportNamedDeclaration)
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.ExportNamedDeclaration & {
-            source: jscodeshift.StringLiteral;
+      // Handle ImportDeclaration: import ... from 'oldSpecifier'
+      if (
+        j.ImportDeclaration.check(node) &&
+        node.source.value === oldSpecifier
+      ) {
+        node.source.value = newSpecifier;
+        hasChanges = true;
+      }
+      // Handle ExportNamedDeclaration: export { foo } from 'oldSpecifier'
+      else if (
+        j.ExportNamedDeclaration.check(node) &&
+        node.source?.value === oldSpecifier
+      ) {
+        node.source.value = newSpecifier;
+        hasChanges = true;
+      }
+      // Handle ExportAllDeclaration: export * from 'oldSpecifier'
+      else if (
+        j.ExportAllDeclaration.check(node) &&
+        node.source.value === oldSpecifier
+      ) {
+        node.source.value = newSpecifier;
+        hasChanges = true;
+      }
+      // Handle CallExpression for dynamic imports, require, and require.resolve
+      else if (j.CallExpression.check(node)) {
+        const { callee, arguments: args } = node;
+
+        // Check if first argument matches oldSpecifier
+        if (
+          args.length > 0 &&
+          j.StringLiteral.check(args[0]) &&
+          args[0].value === oldSpecifier
+        ) {
+          // Dynamic import: import('oldSpecifier')
+          if (j.Import.check(callee)) {
+            args[0].value = newSpecifier;
+            hasChanges = true;
           }
-        > => {
-          const source = path.node.source?.value;
-          return source === oldSpecifier;
-        },
-      )
-      .forEach((path) => {
-        path.node.source.value = newSpecifier;
-        hasChanges = true;
-      });
-
-    root
-      .find(j.ExportAllDeclaration)
-      .filter((path) => {
-        const source = path.node.source.value;
-        return source === oldSpecifier;
-      })
-      .forEach((path) => {
-        path.node.source.value = newSpecifier;
-        hasChanges = true;
-      });
-
-    // Update dynamic imports: import('oldSpecifier')
-    root
-      .find(j.CallExpression, {
-        callee: { type: 'Import' },
-      })
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.CallExpression & {
-            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          // require('oldSpecifier')
+          else if (j.Identifier.check(callee) && callee.name === 'require') {
+            args[0].value = newSpecifier;
+            hasChanges = true;
           }
-        > => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            args[0].value === oldSpecifier
-          );
-        },
-      )
-      .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
-      });
-
-    // Update require calls: require('oldSpecifier')
-    root
-      .find(j.CallExpression, {
-        callee: { type: 'Identifier', name: 'require' },
-      })
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.CallExpression & {
-            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          // require.resolve('oldSpecifier')
+          else if (
+            j.MemberExpression.check(callee) &&
+            j.Identifier.check(callee.object) &&
+            callee.object.name === 'require' &&
+            j.Identifier.check(callee.property) &&
+            callee.property.name === 'resolve'
+          ) {
+            args[0].value = newSpecifier;
+            hasChanges = true;
           }
-        > => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            args[0].value === oldSpecifier
-          );
-        },
-      )
-      .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
-      });
-
-    // Update require.resolve calls: require.resolve('oldSpecifier')
-    root
-      .find(j.CallExpression, {
-        callee: {
-          type: 'MemberExpression',
-          object: { type: 'Identifier', name: 'require' },
-          property: { type: 'Identifier', name: 'resolve' },
-        },
-      })
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.CallExpression & {
-            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
-          }
-        > => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            args[0].value === oldSpecifier
-          );
-        },
-      )
-      .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
-      });
+        }
+      }
+    });
 
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
@@ -170,6 +138,7 @@ export function updateImportSpecifier(
 
 /**
  * Updates import specifiers that match a pattern in a file using jscodeshift.
+ * This is optimized to do a single AST traversal instead of multiple find() calls.
  *
  * @param tree - The virtual file system tree
  * @param filePath - Path to the file to update
@@ -188,147 +157,88 @@ export function updateImportSpecifierPattern(
     return false;
   }
 
+  // Early exit: quick check if file contains any imports/requires at all
+  if (!mightContainImports(content)) {
+    return false;
+  }
+
   try {
-    const j = jscodeshift.withParser('tsx');
     const root = j(content);
     let hasChanges = false;
 
-    // Update static imports: import ... from 'specifier'
-    // Example: import { foo } from './path'
-    root
-      .find(j.ImportDeclaration)
-      .filter((path) => {
-        const source = path.node.source.value;
-        return typeof source === 'string' && matcher(source);
-      })
-      .forEach((path) => {
-        const oldSource = String(path.node.source.value);
-        path.node.source.value = getNewSpecifier(oldSource);
-        hasChanges = true;
-      });
+    // Single-pass traversal: visit all nodes once and handle different types
+    root.find(j.Node).forEach((path) => {
+      const node = path.node as ASTNode;
 
-    // Update export declarations: export ... from 'specifier'
-    // Example: export { foo } from './path'
-    root
-      .find(j.ExportNamedDeclaration)
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.ExportNamedDeclaration & {
-            source: jscodeshift.StringLiteral;
+      // Handle ImportDeclaration: import ... from 'specifier'
+      if (j.ImportDeclaration.check(node)) {
+        const source = node.source.value;
+        if (typeof source === 'string' && matcher(source)) {
+          node.source.value = getNewSpecifier(source);
+          hasChanges = true;
+        }
+      }
+      // Handle ExportNamedDeclaration: export { foo } from 'specifier'
+      else if (
+        j.ExportNamedDeclaration.check(node) &&
+        node.source &&
+        typeof node.source.value === 'string'
+      ) {
+        const source = node.source.value;
+        if (matcher(source)) {
+          node.source.value = getNewSpecifier(source);
+          hasChanges = true;
+        }
+      }
+      // Handle ExportAllDeclaration: export * from 'specifier'
+      else if (j.ExportAllDeclaration.check(node)) {
+        const source = node.source.value;
+        if (typeof source === 'string' && matcher(source)) {
+          node.source.value = getNewSpecifier(source);
+          hasChanges = true;
+        }
+      }
+      // Handle CallExpression for dynamic imports, require, and require.resolve
+      else if (j.CallExpression.check(node)) {
+        const { callee, arguments: args } = node;
+
+        // Check if first argument is a string literal
+        if (
+          args.length > 0 &&
+          j.StringLiteral.check(args[0]) &&
+          typeof args[0].value === 'string'
+        ) {
+          const specifier = args[0].value;
+
+          // Dynamic import: import('specifier')
+          if (j.Import.check(callee) && matcher(specifier)) {
+            args[0].value = getNewSpecifier(specifier);
+            hasChanges = true;
           }
-        > => {
-          const source = path.node.source?.value;
-          return typeof source === 'string' && matcher(source);
-        },
-      )
-      .forEach((path) => {
-        const oldSource = String(path.node.source.value);
-        path.node.source.value = getNewSpecifier(oldSource);
-        hasChanges = true;
-      });
-
-    // Example: export * from './path'
-    root
-      .find(j.ExportAllDeclaration)
-      .filter((path) => {
-        const source = path.node.source.value;
-        return typeof source === 'string' && matcher(source);
-      })
-      .forEach((path) => {
-        const oldSource = String(path.node.source.value);
-        path.node.source.value = getNewSpecifier(oldSource);
-        hasChanges = true;
-      });
-
-    // Update dynamic imports: import('specifier')
-    // Example: import('./path')
-    root
-      .find(j.CallExpression, {
-        callee: { type: 'Import' },
-      })
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.CallExpression & {
-            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          // require('specifier')
+          else if (
+            j.Identifier.check(callee) &&
+            callee.name === 'require' &&
+            matcher(specifier)
+          ) {
+            args[0].value = getNewSpecifier(specifier);
+            hasChanges = true;
           }
-        > => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            matcher(args[0].value)
-          );
-        },
-      )
-      .forEach((path) => {
-        const oldValue = path.node.arguments[0].value;
-        path.node.arguments[0].value = getNewSpecifier(oldValue);
-        hasChanges = true;
-      });
-
-    // Update require calls: require('specifier')
-    // Example: const foo = require('./path')
-    root
-      .find(j.CallExpression, {
-        callee: { type: 'Identifier', name: 'require' },
-      })
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.CallExpression & {
-            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
+          // require.resolve('specifier')
+          else if (
+            j.MemberExpression.check(callee) &&
+            j.Identifier.check(callee.object) &&
+            callee.object.name === 'require' &&
+            j.Identifier.check(callee.property) &&
+            callee.property.name === 'resolve' &&
+            matcher(specifier)
+          ) {
+            args[0].value = getNewSpecifier(specifier);
+            hasChanges = true;
           }
-        > => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            matcher(args[0].value)
-          );
-        },
-      )
-      .forEach((path) => {
-        const oldValue = path.node.arguments[0].value;
-        path.node.arguments[0].value = getNewSpecifier(oldValue);
-        hasChanges = true;
-      });
-
-    // Update require.resolve calls: require.resolve('specifier')
-    // Example: const path = require.resolve('./path')
-    root
-      .find(j.CallExpression, {
-        callee: {
-          type: 'MemberExpression',
-          object: { type: 'Identifier', name: 'require' },
-          property: { type: 'Identifier', name: 'resolve' },
-        },
-      })
-      .filter(
-        (
-          path,
-        ): path is jscodeshift.ASTPath<
-          jscodeshift.CallExpression & {
-            arguments: [jscodeshift.StringLiteral, ...ASTNode[]];
-          }
-        > => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            matcher(args[0].value)
-          );
-        },
-      )
-      .forEach((path) => {
-        const oldValue = path.node.arguments[0].value;
-        path.node.arguments[0].value = getNewSpecifier(oldValue);
-        hasChanges = true;
-      });
+        }
+      }
+    });
 
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
@@ -350,6 +260,7 @@ export function updateImportSpecifierPattern(
 
 /**
  * Checks if a file contains imports matching a given specifier.
+ * Optimized with early exits to avoid expensive parsing when possible.
  *
  * @param tree - The virtual file system tree
  * @param filePath - Path to the file to check
@@ -366,96 +277,76 @@ export function hasImportSpecifier(
     return false;
   }
 
+  // Early exit: quick string check before expensive parsing
+  if (!mightContainSpecifier(content, specifier)) {
+    return false;
+  }
+
   try {
-    const j = jscodeshift.withParser('tsx');
     const root = j(content);
 
-    // Check static imports
-    // Example: import { foo } from './path'
-    const hasStaticImport =
-      root
-        .find(j.ImportDeclaration)
-        .filter((path) => path.node.source.value === specifier).length > 0;
+    // Use a single traversal to check all import types
+    let found = false;
+    root.find(j.Node).forEach((path) => {
+      if (found) return; // Early exit if already found
 
-    if (hasStaticImport) {
-      return true;
-    }
+      const node = path.node as ASTNode;
 
-    // Check export declarations
-    // Example: export { foo } from './path' or export * from './path'
-    const hasExportFrom =
-      root
-        .find(j.ExportNamedDeclaration)
-        .filter((path) => path.node.source?.value === specifier).length > 0 ||
-      root
-        .find(j.ExportAllDeclaration)
-        .filter((path) => path.node.source.value === specifier).length > 0;
+      // Check ImportDeclaration
+      if (j.ImportDeclaration.check(node) && node.source.value === specifier) {
+        found = true;
+        return;
+      }
+      // Check ExportNamedDeclaration
+      if (
+        j.ExportNamedDeclaration.check(node) &&
+        node.source?.value === specifier
+      ) {
+        found = true;
+        return;
+      }
+      // Check ExportAllDeclaration
+      if (
+        j.ExportAllDeclaration.check(node) &&
+        node.source.value === specifier
+      ) {
+        found = true;
+        return;
+      }
+      // Check CallExpression for dynamic imports, require, and require.resolve
+      if (j.CallExpression.check(node)) {
+        const { callee, arguments: args } = node;
+        if (
+          args.length > 0 &&
+          j.StringLiteral.check(args[0]) &&
+          args[0].value === specifier
+        ) {
+          // Dynamic import: import('specifier')
+          if (j.Import.check(callee)) {
+            found = true;
+            return;
+          }
+          // require('specifier')
+          if (j.Identifier.check(callee) && callee.name === 'require') {
+            found = true;
+            return;
+          }
+          // require.resolve('specifier')
+          if (
+            j.MemberExpression.check(callee) &&
+            j.Identifier.check(callee.object) &&
+            callee.object.name === 'require' &&
+            j.Identifier.check(callee.property) &&
+            callee.property.name === 'resolve'
+          ) {
+            found = true;
+            return;
+          }
+        }
+      }
+    });
 
-    if (hasExportFrom) {
-      return true;
-    }
-
-    // Check dynamic imports
-    // Example: import('./path')
-    const hasDynamicImport =
-      root
-        .find(j.CallExpression, {
-          callee: { type: 'Import' },
-        })
-        .filter((path) => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            args[0].value === specifier
-          );
-        }).length > 0;
-
-    if (hasDynamicImport) {
-      return true;
-    }
-
-    // Check require calls
-    // Example: const foo = require('./path')
-    const hasRequire =
-      root
-        .find(j.CallExpression, {
-          callee: { type: 'Identifier', name: 'require' },
-        })
-        .filter((path) => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            args[0].value === specifier
-          );
-        }).length > 0;
-
-    if (hasRequire) {
-      return true;
-    }
-
-    // Check require.resolve calls
-    // Example: const path = require.resolve('./path')
-    const hasRequireResolve =
-      root
-        .find(j.CallExpression, {
-          callee: {
-            type: 'MemberExpression',
-            object: { type: 'Identifier', name: 'require' },
-            property: { type: 'Identifier', name: 'resolve' },
-          },
-        })
-        .filter((path) => {
-          const args = path.node.arguments;
-          return (
-            args.length > 0 &&
-            args[0].type === 'StringLiteral' &&
-            args[0].value === specifier
-          );
-        }).length > 0;
-
-    return hasRequireResolve;
+    return found;
   } catch (error) {
     // If parsing fails, log warning and return false
     logger.warn(
