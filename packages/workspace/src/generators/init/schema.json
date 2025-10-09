@@ -8,7 +8,6 @@
   "properties": {
     "skipFormat": {
       "type": "boolean",
-      "aliases": ["skip-format"],
       "description": "Skip formatting files.",
       "default": false,
       "x-priority": "internal"

@@ -1,6 +1,7 @@
 import {
   addDependenciesToPackageJson,
   formatFiles,
+  GeneratorCallback,
   NX_VERSION,
   readJson,
   runTasksInSerial,
@@ -29,8 +30,8 @@ function getInstalledPackageVersion(
 export async function initGenerator(
   tree: Tree,
   options: InitGeneratorSchema,
-): Promise<() => void> {
-  const tasks: (() => void | Promise<void>)[] = [];
+): Promise<GeneratorCallback> {
+  const tasks: GeneratorCallback[] = [];
 
   // Determine the version to use for @nx/devkit and @nx/workspace
   // Use NX_VERSION from @nx/devkit or fallback to the installed nx package version
