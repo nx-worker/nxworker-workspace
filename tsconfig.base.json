@@ -16,7 +16,14 @@
     "baseUrl": ".",
     "paths": {
       "@nxworker/workspace": ["packages/workspace/src/index.ts"]
-    }
+    },
+    "allowUnreachableCode": false,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
   },
   "exclude": ["node_modules", "tmp"]
 }
