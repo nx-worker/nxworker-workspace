@@ -22,7 +22,7 @@ import {
   hasImportSpecifier,
 } from './jscodeshift-utils';
 
-const ENTRYPOINT_EXTENSIONS = Object.freeze([
+const entrypointExtensions = Object.freeze([
   'ts',
   'mts',
   'cts',
@@ -33,23 +33,20 @@ const ENTRYPOINT_EXTENSIONS = Object.freeze([
   'jsx',
 ] as const);
 
-const PRIMARY_ENTRY_BASE_NAMES = Object.freeze([
-  'public-api',
-  'index',
-] as const);
+const primaryEntryBaseNames = Object.freeze(['public-api', 'index'] as const);
 
-const PRIMARY_ENTRY_FILENAMES = buildFileNames(PRIMARY_ENTRY_BASE_NAMES);
-const MAIN_ENTRY_FILENAMES = buildFileNames(['main']);
+const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
+const mainEntryFilenames = buildFileNames(['main']);
 
-const ENTRYPOINT_PATTERNS = buildPatterns(
+const entrypointPatterns = buildPatterns(
   ['', 'src/', 'lib/'],
-  PRIMARY_ENTRY_FILENAMES,
+  primaryEntryFilenames,
 );
-const MAIN_ENTRY_PATTERNS = buildPatterns(['', 'src/'], MAIN_ENTRY_FILENAMES);
+const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
 
 function buildFileNames(baseNames: readonly string[]): string[] {
   return baseNames.flatMap((base) =>
-    ENTRYPOINT_EXTENSIONS.map((ext) => `${base}.${ext}`),
+    entrypointExtensions.map((ext) => `${base}.${ext}`),
   );
 }
 
@@ -105,10 +102,8 @@ function getFallbackEntryPointPaths(project: ProjectConfiguration): string[] {
   const sourceRoot = project.sourceRoot || project.root;
 
   return [
-    ...PRIMARY_ENTRY_FILENAMES.map((fileName) =>
-      path.join(sourceRoot, fileName),
-    ),
-    ...PRIMARY_ENTRY_FILENAMES.map((fileName) =>
+    ...primaryEntryFilenames.map((fileName) => path.join(sourceRoot, fileName)),
+    ...primaryEntryFilenames.map((fileName) =>
       path.join(project.root, 'src', fileName),
     ),
   ];
@@ -1187,7 +1182,7 @@ function pointsToProjectIndex(
  * @returns True if the path matches common index file patterns.
  */
 function isIndexFilePath(pathStr: string): boolean {
-  const indexPatterns = [...ENTRYPOINT_PATTERNS, ...MAIN_ENTRY_PATTERNS];
+  const indexPatterns = [...entrypointPatterns, ...mainEntryPatterns];
 
   return indexPatterns.some((pattern) => pathStr.endsWith(pattern));
 }
@@ -1702,7 +1697,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
 
   if (indexCandidates.size === 0) {
     indexCandidates.add(
-      normalizePath(path.join(sourceRoot, PRIMARY_ENTRY_FILENAMES[0])),
+      normalizePath(path.join(sourceRoot, primaryEntryFilenames[0])),
     );
   }
 
