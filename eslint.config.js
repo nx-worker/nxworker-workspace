@@ -2,6 +2,7 @@ const nx = require('@nx/eslint-plugin');
 const esxPlugin = require('eslint-plugin-es-x');
 const nPlugin = require('eslint-plugin-n');
 const globals = require('globals');
+const tseslint = require('typescript-eslint');
 
 module.exports = [
   ...nx.configs['flat/base'],
@@ -29,6 +30,19 @@ module.exports = [
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-deprecated': 'error',
     },
   },
   {
