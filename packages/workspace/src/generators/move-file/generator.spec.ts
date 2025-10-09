@@ -1788,6 +1788,190 @@ describe('move-file generator', () => {
       expect(consumerContent).toContain("from './common/utils.cts'");
     });
 
+    it('should dynamically detect custom entry point files', async () => {
+      // Update tsconfig to use a custom entry point (main.ts)
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/main.ts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create main.ts file for lib1 instead of index.ts
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/main.ts', 'export {};');
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should dynamically detect entry point in lib directory', async () => {
+      // Update tsconfig to use lib/index.ts
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/lib/index.ts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create lib/index.ts for lib1
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/lib/index.ts', 'export {};');
+
+      // Update lib1 project configuration to have lib as sourceRoot
+      updateJson(tree, 'packages/lib1/project.json', (json) => {
+        json.sourceRoot = 'packages/lib1/lib';
+        return json;
+      });
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should verify index file exists before treating as entry point', async () => {
+      // Update tsconfig to reference a non-existent file
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/nonexistent.ts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Don't create the nonexistent.ts file
+
+      // Create a project with only one file (and the standard index.ts)
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1 because
+      // only index.ts remains (fallback pattern matching)
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should support TypeScript module extensions (.mts, .cts)', async () => {
+      // Test with .cts extension
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.cts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.cts', 'export {};');
+
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should support JavaScript entry points', async () => {
+      // Test with .js extension
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.js'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.js', 'export {};');
+
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
     it('should fallback to common index names when tsconfig has no paths', async () => {
       // Remove paths from tsconfig
       updateJson(tree, 'tsconfig.base.json', (json) => {

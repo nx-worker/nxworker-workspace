@@ -986,7 +986,7 @@ function getProjectImportPath(
       continue;
     }
 
-    if (!pointsToProjectIndex(pathStr, sourceRoot)) {
+    if (!pointsToProjectIndex(tree, pathStr, sourceRoot)) {
       continue;
     }
 
@@ -1065,27 +1065,78 @@ function toFirstPath(pathEntry: unknown): string | null {
 /**
  * Checks whether the provided path string points to the project's index file.
  *
+ * @param tree - The virtual file system tree.
  * @param pathStr - Path value from the tsconfig mapping.
  * @param sourceRoot - Source root of the project.
  * @returns True when the path targets the project's index.
  */
-function pointsToProjectIndex(pathStr: string, sourceRoot: string): boolean {
-  return pathStr.includes(sourceRoot) && isIndexFilePath(pathStr);
+function pointsToProjectIndex(
+  tree: Tree,
+  pathStr: string,
+  sourceRoot: string,
+): boolean {
+  // First, check if path is within the project's source root
+  if (!pathStr.includes(sourceRoot)) {
+    return false;
+  }
+
+  // Try dynamic verification: check if the file actually exists
+  if (tree.exists(pathStr)) {
+    return true;
+  }
+
+  // Fallback to hard-coded pattern matching for common index file patterns
+  return isIndexFilePath(pathStr);
 }
 
 /**
- * Determines if a path string references a supported index file.
+ * Determines if a path string references a supported index file using pattern matching.
+ * This is a fallback when we can't dynamically verify the file exists.
  *
  * @param pathStr - Path value from the tsconfig mapping.
- * @returns True if the path references an index entrypoint.
+ * @returns True if the path matches common index file patterns.
  */
 function isIndexFilePath(pathStr: string): boolean {
-  return (
-    pathStr.endsWith('index.ts') ||
-    pathStr.endsWith('index.mts') ||
-    pathStr.endsWith('index.cts') ||
-    pathStr.endsWith('src/index.ts')
-  );
+  // Common index file patterns
+  const indexPatterns = [
+    'index.ts',
+    'index.mts',
+    'index.cts',
+    'index.tsx',
+    'index.js',
+    'index.mjs',
+    'index.cjs',
+    'index.jsx',
+    'src/index.ts',
+    'src/index.mts',
+    'src/index.cts',
+    'src/index.tsx',
+    'src/index.js',
+    'src/index.mjs',
+    'src/index.cjs',
+    'src/index.jsx',
+    'lib/index.ts',
+    'lib/index.js',
+    // Some projects use main.ts or main.js as entry point
+    'main.ts',
+    'main.mts',
+    'main.cts',
+    'main.tsx',
+    'main.js',
+    'main.cjs',
+    'main.mjs',
+    'main.jsx',
+    'src/main.ts',
+    'src/main.mts',
+    'src/main.cts',
+    'src/main.tsx',
+    'src/main.js',
+    'src/main.cjs',
+    'src/main.mjs',
+    'src/main.jsx',
+  ];
+
+  return indexPatterns.some((pattern) => pathStr.endsWith(pattern));
 }
 
 /**
@@ -1612,7 +1663,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
   if (paths) {
     for (const [, pathEntry] of Object.entries(paths)) {
       const pathStr = toFirstPath(pathEntry);
-      if (pathStr && pointsToProjectIndex(pathStr, sourceRoot)) {
+      if (pathStr && pointsToProjectIndex(tree, pathStr, sourceRoot)) {
         // Extract just the filename from the path
         indexFilePath = pathStr;
         break;
