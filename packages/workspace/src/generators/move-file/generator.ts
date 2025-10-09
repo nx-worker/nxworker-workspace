@@ -244,7 +244,7 @@ export async function moveFileGenerator(
     for (const projectName of sourceProjectNames) {
       const project = projects.get(projectName);
       if (project && isProjectEmpty(tree, project)) {
-        logger.debug(`Project ${projectName} is empty, removing it`);
+        logger.verbose(`Project ${projectName} is empty, removing it`);
         try {
           await removeGenerator(tree, {
             projectName,
@@ -577,7 +577,7 @@ async function executeMove(
     sourceImportPath,
   } = ctx;
 
-  logger.debug(
+  logger.verbose(
     `Moving ${normalizedSource} (project: ${sourceProjectName}) to ${normalizedTarget} (project: ${targetProjectName})`,
   );
 
@@ -652,7 +652,7 @@ function updateRelativeImportsInMovedFile(
     return;
   }
 
-  logger.debug(
+  logger.verbose(
     `Updating relative imports in moved file to maintain correct paths`,
   );
 
@@ -678,7 +678,7 @@ function updateRelativeImportsInMovedFile(
       );
 
       if (newRelativePath !== oldImportPath) {
-        logger.debug(
+        logger.verbose(
           `Updated import '${oldImportPath}' to '${newRelativePath}' in moved file`,
         );
       }
@@ -709,7 +709,7 @@ function updateRelativeImportsToAliasInMovedFile(
     return;
   }
 
-  logger.debug(
+  logger.verbose(
     `Updating relative imports in moved file to use alias imports to source project`,
   );
 
@@ -806,7 +806,7 @@ async function handleMoveStrategy(
 function handleSameProjectMove(tree: Tree, ctx: MoveContext): void {
   const { sourceProject, normalizedSource, normalizedTarget } = ctx;
 
-  logger.debug(
+  logger.verbose(
     `Moving within same project, updating imports to relative paths`,
   );
 
@@ -848,7 +848,7 @@ async function handleExportedMove(
     return;
   }
 
-  logger.debug(
+  logger.verbose(
     `File is exported from ${sourceImportPath}, updating dependent projects`,
   );
 
@@ -901,7 +901,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
     return;
   }
 
-  logger.debug(
+  logger.verbose(
     `File is not exported, updating imports within source project to use target import path`,
   );
 
@@ -923,7 +923,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
 function handleDefaultMove(tree: Tree, ctx: MoveContext): void {
   const { sourceProject, normalizedSource, normalizedTarget } = ctx;
 
-  logger.debug(`Updating imports within source project to relative paths`);
+  logger.verbose(`Updating imports within source project to relative paths`);
 
   updateImportPathsInProject(
     tree,
@@ -957,7 +957,7 @@ function updateTargetProjectImportsIfNeeded(
     return;
   }
 
-  logger.debug(`Updating imports in target project to relative imports`);
+  logger.verbose(`Updating imports in target project to relative imports`);
 
   const targetRoot = targetProject.sourceRoot || targetProject.root;
   const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
@@ -1302,7 +1302,7 @@ async function updateImportPathsInDependentProjects(
         );
 
   candidates.forEach(([dependentName, dependentProject]) => {
-    logger.debug(`Checking project ${dependentName} for imports`);
+    logger.verbose(`Checking project ${dependentName} for imports`);
 
     // If the dependent project is the target project, use relative imports
     if (
@@ -1310,7 +1310,7 @@ async function updateImportPathsInDependentProjects(
       targetRelativePath &&
       dependentName === targetProjectName
     ) {
-      logger.debug(
+      logger.verbose(
         `Updating imports in target project ${dependentName} to use relative paths`,
       );
       updateImportsToRelative(
@@ -1632,7 +1632,7 @@ function ensureFileExported(
   if (!content.includes(exportStatement.trim())) {
     content += exportStatement;
     tree.write(indexPath, content);
-    logger.debug(`Added export to ${indexPath}`);
+    logger.verbose(`Added export to ${indexPath}`);
   }
 }
 
@@ -1686,7 +1686,7 @@ function removeFileExport(
       }
 
       tree.write(indexPath, updatedContent);
-      logger.debug(`Removed export from ${indexPath}`);
+      logger.verbose(`Removed export from ${indexPath}`);
     }
   });
 }

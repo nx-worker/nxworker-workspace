@@ -155,7 +155,7 @@ export function updateImportSpecifier(
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
       tree.write(filePath, updatedContent);
-      logger.debug(`Updated imports in ${filePath} using jscodeshift`);
+      logger.verbose(`Updated imports in ${filePath} using jscodeshift`);
     }
 
     return hasChanges;
@@ -333,7 +333,7 @@ export function updateImportSpecifierPattern(
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
       tree.write(filePath, updatedContent);
-      logger.debug(
+      logger.verbose(
         `Updated imports in ${filePath} using jscodeshift pattern matcher`,
       );
     }
@@ -457,9 +457,10 @@ export function hasImportSpecifier(
 
     return hasRequireResolve;
   } catch (error) {
-    logger.verbose(`Error parsing ${filePath}: ${error}`);
     // If parsing fails, log warning and return false
-    logger.warn(`Unable to parse ${filePath}. Import check may be inaccurate.`);
+    logger.warn(
+      `Unable to parse ${filePath}. Import check may be inaccurate. Error: ${error}`,
+    );
     return false;
   }
 }

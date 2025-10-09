@@ -164,10 +164,10 @@ Short rules (for agents and humans):
 
 When developing generators, executors, or other tools in the `@nxworker/workspace` package:
 
-- **Use `logger.debug()` for all operational logs by default**
+- **Use `logger.verbose()` for all operational logs by default**
 - **Only use `logger.info()` or higher levels when explicitly instructed**
 - This keeps generator/executor output clean, showing only Nx's standard file operations (UPDATE, CREATE, DELETE, etc.)
-- Debug logs are still available when needed via `NX_VERBOSE_LOGGING=true`
+- Verbose logs are available when needed via the `--verbose` flag (e.g., `nx generate ... --verbose`)
 
 **Rationale:** Generators should produce minimal output to avoid cluttering the user experience. Users primarily care about what files changed, not the internal mechanics of how the generator works.
 
