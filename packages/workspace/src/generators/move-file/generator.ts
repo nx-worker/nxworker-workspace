@@ -93,7 +93,9 @@ function buildPatterns(
  */
 function hasSourceFileExtension(filePath: string): boolean {
   const ext = path.extname(filePath);
-  return sourceFileExtensions.includes(ext as typeof sourceFileExtensions[number]);
+  return sourceFileExtensions.includes(
+    ext as (typeof sourceFileExtensions)[number],
+  );
 }
 
 /**
@@ -103,7 +105,9 @@ function hasSourceFileExtension(filePath: string): boolean {
  */
 function removeSourceFileExtension(filePath: string): string {
   const ext = path.extname(filePath);
-  if (sourceFileExtensions.includes(ext as typeof sourceFileExtensions[number])) {
+  if (
+    sourceFileExtensions.includes(ext as (typeof sourceFileExtensions)[number])
+  ) {
     return filePath.slice(0, -ext.length);
   }
   return filePath;
@@ -1576,7 +1580,9 @@ function stripFileExtension(importPath: string): string {
   // Only strip .ts, .tsx, .js, .jsx extensions
   // Preserve .mjs, .mts, .cjs, .cts as they are required for ESM
   const ext = path.extname(importPath);
-  if (strippableExtensions.includes(ext as typeof strippableExtensions[number])) {
+  if (
+    strippableExtensions.includes(ext as (typeof strippableExtensions)[number])
+  ) {
     return importPath.slice(0, -ext.length);
   }
   return importPath;
