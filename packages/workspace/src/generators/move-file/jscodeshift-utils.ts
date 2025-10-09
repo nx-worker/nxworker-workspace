@@ -162,7 +162,7 @@ export function updateImportSpecifierPattern(
     const root = j(content);
     let hasChanges = false;
 
-    // Update static imports: import ... from 'specifier'  
+    // Update static imports: import ... from 'specifier'
     // Example: import { foo } from './path'
     root
       .find(j.ImportDeclaration)
@@ -406,9 +406,7 @@ export function hasImportSpecifier(
     return hasRequireResolve;
   } catch (error) {
     // If parsing fails, log warning and return false
-    logger.warn(
-      `Unable to parse ${filePath}. Import check may be inaccurate.`,
-    );
+    logger.warn(`Unable to parse ${filePath}. Import check may be inaccurate.`);
     return false;
   }
 }
