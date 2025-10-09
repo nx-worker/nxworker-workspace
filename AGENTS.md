@@ -31,12 +31,30 @@ npm ci
 
 ### 2. Formatting
 
+**⚠️ CRITICAL: Always check and fix formatting before committing code!**
+
+#### Check formatting (read-only validation)
+
 ```powershell
+npm run format:check
+# or
 npx nx format:check
 ```
 
 - Runs Prettier over the workspace (pattern defined by Nx). Succeeds on clean tree.
-- Editing files on Windows can trigger Git CRLF-to-LF warnings; run `npx nx format:write` to auto-fix, then re-run `format:check`.
+- **Must pass before committing code** — CI enforces this on pull requests.
+
+#### Apply formatting (auto-fix)
+
+```powershell
+npm run format
+# or
+npx nx format:write
+```
+
+- Automatically formats all files in the workspace using Prettier.
+- **Run this command before every commit** to ensure formatting compliance.
+- On Windows, editing files can trigger Git CRLF-to-LF warnings; this command fixes them automatically.
 
 ### 3. Lint
 
@@ -92,7 +110,7 @@ Nx interprets commands in the following order (per the [Nx CLI reference](https:
 - `nx import <source> <destination>` — bring an external project (and history) into the workspace.
 - `nx repair` — re-run core Nx migrations to fix stale config.
 - `nx sync` / `nx sync:check` — execute sync generators registered in the workspace.
-- `nx format` / `nx format:check` — write or validate Prettier formatting across projects.
+- `nx format` / `nx format:check` — write or validate Prettier formatting across projects. **Use `npm run format` or `npm run format:check` for convenience.**
 
 ### Run Tasks
 
@@ -114,9 +132,11 @@ Nx interprets commands in the following order (per the [Nx CLI reference](https:
 
 ## CI & Validation Expectations
 
+**⚠️ FORMATTING IS MANDATORY: Always run `npm run format` before committing code. CI will fail pull requests with formatting issues.**
+
 - Pull requests are gated by the GitHub Actions workflow (`.github/workflows/ci.yml`). Passing locally means:
   1. `npm ci`
-  2. `npx nx format:check`
+  2. `npx nx format:check` (or `npm run format:check`)
   3. `npx nx affected -t lint test build e2e`
 - Reproduce step 3 locally with the exact command when debugging CI: it will determine the base via `nrwl/nx-set-shas`. On a feature branch without SHAs, fall back to `npx nx run-many -t lint test build e2e`.
 

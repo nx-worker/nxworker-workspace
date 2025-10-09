@@ -36,6 +36,26 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  format:
+    runs-on: ubuntu-24.04-arm # Linux arm64
+    steps:
+      - uses: actions/checkout@v5
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+      - uses: ./.github/actions/set-nx-shas
+        if: ${{ github.event_name == 'pull_request' }}
+
+      - uses: ./.github/actions/setup-node-and-install
+        if: ${{ github.event_name == 'pull_request' }}
+
+      - name: '[PR] Check formatting'
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx nx format:check
+
   lint:
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
@@ -49,9 +69,6 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      - name: '[PR] Check formatting'
-        if: ${{ github.event_name == 'pull_request' }}
-        run: npx nx format:check
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint --output-style=static
 
