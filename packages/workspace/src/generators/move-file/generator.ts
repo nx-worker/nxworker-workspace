@@ -51,17 +51,16 @@ const sourceFileExtensions = Object.freeze([
 ] as const);
 
 /**
- * Regex pattern matching all supported file extensions.
- * Used for removing file extensions from import paths and file names.
- */
-const allExtensionsRegex = /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/;
-
-/**
- * Regex pattern matching file extensions that should be stripped from imports.
+ * File extensions that should be stripped from imports.
  * ESM-specific extensions (.mjs, .mts, .cjs, .cts) are excluded as they are
  * required by the ESM specification.
  */
-const strippableExtensionsRegex = /\.(ts|tsx|js|jsx)$/;
+const strippableExtensions = Object.freeze([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+] as const);
 
 const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
 const mainEntryFilenames = buildFileNames(['main']);
@@ -85,6 +84,33 @@ function buildPatterns(
   return prefixes.flatMap((prefix) =>
     fileNames.map((fileName) => `${prefix}${fileName}`),
   );
+}
+
+/**
+ * Checks if a file has one of the supported source file extensions.
+ * @param filePath - The file path to check
+ * @returns true if the file has a supported extension
+ */
+function hasSourceFileExtension(filePath: string): boolean {
+  const ext = path.extname(filePath);
+  return sourceFileExtensions.includes(
+    ext as (typeof sourceFileExtensions)[number],
+  );
+}
+
+/**
+ * Removes the file extension from a path if it's one of the supported extensions.
+ * @param filePath - The file path to process
+ * @returns The path with extension removed, or the original path if no supported extension
+ */
+function removeSourceFileExtension(filePath: string): string {
+  const ext = path.extname(filePath);
+  if (
+    sourceFileExtensions.includes(ext as (typeof sourceFileExtensions)[number])
+  ) {
+    return filePath.slice(0, -ext.length);
+  }
+  return filePath;
 }
 
 function getProjectEntryPointPaths(
@@ -1051,7 +1077,7 @@ function isFileExported(
 ): boolean {
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
-  const fileWithoutExt = file.replace(allExtensionsRegex, '');
+  const fileWithoutExt = removeSourceFileExtension(file);
   const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
@@ -1340,10 +1366,10 @@ function updateImportPathsToPackageAlias(
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (both without extension)
           const normalizedResolvedImport = normalizePath(
-            resolvedImport.replace(allExtensionsRegex, ''),
+            removeSourceFileExtension(resolvedImport),
           );
           const sourceFileWithoutExt = normalizePath(
-            sourceFilePath.replace(allExtensionsRegex, ''),
+            removeSourceFileExtension(sourceFilePath),
           );
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
@@ -1392,10 +1418,10 @@ function updateImportPathsInProject(
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (both without extension)
           const normalizedResolvedImport = normalizePath(
-            resolvedImport.replace(allExtensionsRegex, ''),
+            removeSourceFileExtension(resolvedImport),
           );
           const sourceFileWithoutExt = normalizePath(
-            sourceFilePath.replace(allExtensionsRegex, ''),
+            removeSourceFileExtension(sourceFilePath),
           );
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
@@ -1553,7 +1579,13 @@ function toAbsoluteWorkspacePath(filePath: string): string {
 function stripFileExtension(importPath: string): string {
   // Only strip .ts, .tsx, .js, .jsx extensions
   // Preserve .mjs, .mts, .cjs, .cts as they are required for ESM
-  return importPath.replace(strippableExtensionsRegex, '');
+  const ext = path.extname(importPath);
+  if (
+    strippableExtensions.includes(ext as (typeof strippableExtensions)[number])
+  ) {
+    return importPath.slice(0, -ext.length);
+  }
+  return importPath;
 }
 
 function getRelativeImportSpecifier(
@@ -1593,7 +1625,7 @@ function ensureFileExported(
   }
 
   // Add export for the moved file
-  const fileWithoutExt = file.replace(allExtensionsRegex, '');
+  const fileWithoutExt = removeSourceFileExtension(file);
   const exportStatement = `export * from './${fileWithoutExt}';\n`;
 
   // Check if export already exists
@@ -1626,7 +1658,7 @@ function removeFileExport(
     }
 
     // Remove export for the file
-    const fileWithoutExt = file.replace(allExtensionsRegex, '');
+    const fileWithoutExt = removeSourceFileExtension(file);
     const escapedFile = escapeRegex(fileWithoutExt);
 
     // Match various export patterns
@@ -1689,7 +1721,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
     }
 
     const normalizedFilePath = normalizePath(filePath);
-    const isSourceFile = allExtensionsRegex.test(normalizedFilePath);
+    const isSourceFile = hasSourceFileExtension(normalizedFilePath);
 
     if (!isSourceFile) {
       return;
