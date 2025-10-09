@@ -12,6 +12,7 @@ import {
 } from '@nx/devkit';
 import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
 import { escapeRegex } from './security-utils/escape-regex';
@@ -19,7 +20,6 @@ import { isValidPathInput } from './security-utils/is-valid-path-input';
 import {
   updateImportSpecifier,
   updateImportSpecifierPattern,
-  hasImportSpecifier,
 } from './jscodeshift-utils';
 
 const entrypointExtensions = Object.freeze([
@@ -71,6 +71,32 @@ const entrypointPatterns = buildPatterns(
 );
 const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
 
+const PROFILING_ENV_VAR = 'NXWORKER_MOVE_FILE_PROFILE';
+const profilingEnabled = readProfilingEnabled();
+
+type ProfilingStats = {
+  total: number;
+  count: number;
+  min: number;
+  max: number;
+};
+
+const profilingData = new Map<string, ProfilingStats>();
+const profilingCounters = new Map<string, number>();
+
+function noop(): void {
+  return undefined;
+}
+
+function readProfilingEnabled(): boolean {
+  const flag = process.env[PROFILING_ENV_VAR];
+  if (!flag) {
+    return false;
+  }
+
+  return !['0', 'false', 'off', 'no'].includes(flag.toLowerCase());
+}
+
 function buildFileNames(baseNames: readonly string[]): string[] {
   return baseNames.flatMap((base) =>
     entrypointExtensions.map((ext) => `${base}.${ext}`),
@@ -111,6 +137,37 @@ function removeSourceFileExtension(filePath: string): string {
     return filePath.slice(0, -ext.length);
   }
   return filePath;
+}
+
+function ensureRelativeSpecifier(specifier: string): string {
+  if (specifier.startsWith('.')) {
+    return specifier;
+  }
+
+  return `./${specifier}`;
+}
+
+function buildRelativeImportCandidateSpecifiers(
+  importerFilePath: string,
+  sourceFilePath: string,
+): string[] {
+  const importerDir = path.dirname(importerFilePath);
+  const relativePath = path.relative(importerDir, sourceFilePath);
+  const normalizedRelative = ensureRelativeSpecifier(
+    normalizePath(relativePath),
+  );
+
+  const withoutExtension = removeSourceFileExtension(normalizedRelative);
+  const candidates = new Set<string>();
+
+  candidates.add(normalizedRelative);
+  candidates.add(withoutExtension);
+
+  sourceFileExtensions.forEach((extension) => {
+    candidates.add(`${withoutExtension}${extension}`);
+  });
+
+  return Array.from(candidates).filter(Boolean);
 }
 
 function getProjectEntryPointPaths(
@@ -175,94 +232,38 @@ export async function moveFileGenerator(
   tree: Tree,
   options: MoveFileGeneratorSchema,
 ) {
-  const projects = getProjects(tree);
-  const projectGraph = await createProjectGraphAsync();
+  const stopTotal = startProfilingSection('moveFileGenerator.total');
+  incrementProfilingCounter('moveFile.invocations');
+  try {
+    const projects = getProjects(tree);
+    const projectGraph = await createProjectGraphAsync();
 
-  // Support comma-separated file paths and glob patterns
-  // We need to be careful about commas inside brace expansions like {ts,js}
-  const patterns = splitPatterns(options.file);
+    const patterns = splitPatterns(options.file);
+    incrementProfilingCounter('moveFile.patterns', patterns.length);
 
-  if (patterns.length === 0) {
-    throw new Error('At least one file path or glob pattern must be provided');
-  }
+    const uniqueFilePaths = await resolveUniqueFilePaths(tree, patterns);
+    const contexts = buildMoveContexts(tree, options, projects, uniqueFilePaths);
+    const sourceProjectNames = collectSourceProjectNames(contexts);
 
-  // Expand glob patterns to actual file paths
-  const filePaths: string[] = [];
-  for (const pattern of patterns) {
-    // Normalize pattern to use forward slashes (Windows compatibility)
-    const normalizedPattern = normalizePath(pattern);
+    await runMoveBatch(
+      tree,
+      options,
+      projects,
+      projectGraph,
+      contexts,
+      uniqueFilePaths,
+    );
 
-    // Check if pattern contains glob characters
-    const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
+    deleteSourceFiles(tree, contexts);
 
-    if (isGlobPattern) {
-      // Use globAsync to find matching files
-      const matches = await globAsync(tree, [normalizedPattern]);
-      if (matches.length === 0) {
-        throw new Error(`No files found matching glob pattern: "${pattern}"`);
-      }
-      filePaths.push(...matches);
-    } else {
-      // Direct file path
-      filePaths.push(normalizedPattern);
+    if (options.removeEmptyProject) {
+      await removeEmptySourceProjects(tree, projects, sourceProjectNames);
     }
-  }
 
-  // Remove duplicates (in case multiple patterns match the same file)
-  const uniqueFilePaths = Array.from(new Set(filePaths));
-
-  if (uniqueFilePaths.length === 0) {
-    throw new Error('At least one file path must be provided');
-  }
-
-  // Validate and resolve all files upfront
-  const contexts = uniqueFilePaths.map((filePath) => {
-    const fileOptions = { ...options, file: filePath };
-    return resolveAndValidate(tree, fileOptions, projects);
-  });
-
-  // Track unique source projects for removal check
-  const sourceProjectNames = new Set<string>();
-  contexts.forEach((ctx) => {
-    sourceProjectNames.add(ctx.sourceProjectName);
-  });
-
-  // Execute all moves without deleting sources yet
-  for (let i = 0; i < contexts.length; i++) {
-    const ctx = contexts[i];
-    const fileOptions = { ...options, file: uniqueFilePaths[i] };
-    await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
-  }
-
-  // Delete all source files after all moves are complete
-  for (const ctx of contexts) {
-    tree.delete(ctx.normalizedSource);
-  }
-
-  // Check if any source projects should be removed
-  if (options.removeEmptyProject) {
-    for (const projectName of sourceProjectNames) {
-      const project = projects.get(projectName);
-      if (project && isProjectEmpty(tree, project)) {
-        logger.debug(`Project ${projectName} is empty, removing it`);
-        try {
-          await removeGenerator(tree, {
-            projectName,
-            skipFormat: true,
-            forceRemove: false,
-          });
-        } catch (error) {
-          logger.error(
-            `Failed to remove empty project ${projectName}: ${error}`,
-          );
-        }
-      }
-    }
-  }
-
-  // Format files once at the end
-  if (!options.skipFormat) {
-    await formatFiles(tree);
+    await formatWorkspace(tree, !!options.skipFormat);
+  } finally {
+    stopTotal();
+    logProfilingSummary();
   }
 }
 
@@ -275,8 +276,7 @@ function splitPatterns(input: string): string[] {
   let current = '';
   let braceDepth = 0;
 
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
+  for (const char of input) {
 
     if (char === '{') {
       braceDepth++;
@@ -374,6 +374,115 @@ function buildTargetPath(
   return normalizePath(path.join(baseRoot, targetDir, fileName));
 }
 
+function validateMoveOptions(
+  options: MoveFileGeneratorSchema,
+  isGlobPattern: boolean,
+): void {
+  if (
+    !isValidPathInput(options.file, {
+      allowUnicode: !!options.allowUnicode,
+      allowGlobPatterns: isGlobPattern,
+    })
+  ) {
+    throw new Error(
+      `Invalid path input for 'file': contains disallowed characters: "${options.file}"`,
+    );
+  }
+
+  if (
+    !isValidPathInput(options.project, {
+      allowUnicode: !!options.allowUnicode,
+    })
+  ) {
+    throw new Error(
+      `Invalid project name: contains disallowed characters: "${options.project}"`,
+    );
+  }
+
+  if (options.deriveProjectDirectory && options.projectDirectory) {
+    throw new Error(
+      'Cannot use both "deriveProjectDirectory" and "projectDirectory" options at the same time',
+    );
+  }
+
+  if (
+    options.projectDirectory &&
+    !isValidPathInput(options.projectDirectory, {
+      allowUnicode: !!options.allowUnicode,
+    })
+  ) {
+    throw new Error(
+      `Invalid path input for 'projectDirectory': contains disallowed characters: "${options.projectDirectory}"`,
+    );
+  }
+}
+
+function getTargetProject(
+  projects: Map<string, ProjectConfiguration>,
+  projectName: string,
+): ProjectConfiguration {
+  const targetProject = projects.get(projectName);
+  if (!targetProject) {
+    throw new Error(`Target project "${projectName}" not found in workspace`);
+  }
+  return targetProject;
+}
+
+function ensureSourceFileExists(tree: Tree, filePath: string): string {
+  const normalizedSource = sanitizePath(filePath);
+  if (!tree.exists(normalizedSource)) {
+    throw new Error(`Source file "${normalizedSource}" not found`);
+  }
+  return normalizedSource;
+}
+
+function resolveSourceProjectInfo(
+  projects: Map<string, ProjectConfiguration>,
+  normalizedSource: string,
+): { project: ProjectConfiguration; name: string } {
+  const sourceProjectInfo = findProjectForFile(projects, normalizedSource);
+  if (!sourceProjectInfo) {
+    throw new Error(
+      `Could not determine source project for file "${normalizedSource}"`,
+    );
+  }
+  return sourceProjectInfo;
+}
+
+function determineProjectDirectory(
+  options: MoveFileGeneratorSchema,
+  normalizedSource: string,
+  sourceProject: ProjectConfiguration,
+): string | undefined {
+  if (options.deriveProjectDirectory) {
+    const derivedDirectory = deriveProjectDirectoryFromSource(
+      normalizedSource,
+      sourceProject,
+    );
+    return derivedDirectory ? sanitizePath(derivedDirectory) : undefined;
+  }
+
+  if (options.projectDirectory) {
+    return sanitizePath(options.projectDirectory);
+  }
+
+  return undefined;
+}
+
+function ensureTargetDoesNotExist(tree: Tree, normalizedTarget: string): void {
+  if (tree.exists(normalizedTarget)) {
+    throw new Error(`Target file "${normalizedTarget}" already exists`);
+  }
+}
+
+function readRequiredFile(tree: Tree, normalizedSource: string): string {
+  const fileContent = tree.read(normalizedSource, 'utf-8');
+  if (!fileContent) {
+    throw new Error(`Could not read file "${normalizedSource}"`);
+  }
+  return fileContent;
+}
+
 /**
  * Normalizes, validates, and gathers metadata about the source and target files.
  *
@@ -387,126 +496,40 @@ function resolveAndValidate(
   options: MoveFileGeneratorSchema,
   projects: Map<string, ProjectConfiguration>,
 ) {
-  // Check if the file input contains glob characters
   const isGlobPattern = /[*?[\]{}]/.test(options.file);
+  validateMoveOptions(options, isGlobPattern);
 
-  // Validate user input to avoid accepting regex-like patterns or dangerous characters
-  if (
-    !isValidPathInput(options.file, {
-      allowUnicode: !!options.allowUnicode,
-      allowGlobPatterns: isGlobPattern,
-    })
-  ) {
-    throw new Error(
-      `Invalid path input for 'file': contains disallowed characters: "${options.file}"`,
-    );
-  }
+  const targetProjectName = options.project;
+  const targetProject = getTargetProject(projects, targetProjectName);
 
-  // Validate project name
-  if (
-    !isValidPathInput(options.project, {
-      allowUnicode: !!options.allowUnicode,
-    })
-  ) {
-    throw new Error(
-      `Invalid project name: contains disallowed characters: "${options.project}"`,
-    );
-  }
+  const normalizedSource = ensureSourceFileExists(tree, options.file);
+  const { project: sourceProject, name: sourceProjectName } =
+    resolveSourceProjectInfo(projects, normalizedSource);
 
-  // Validate project name exists
-  const targetProject = projects.get(options.project);
-  if (!targetProject) {
-    throw new Error(
-      `Target project "${options.project}" not found in workspace`,
-    );
-  }
+  const sanitizedProjectDirectory = determineProjectDirectory(
+    options,
+    normalizedSource,
+    sourceProject,
+  );
 
-  // Validate that deriveProjectDirectory and projectDirectory are not both set
-  if (options.deriveProjectDirectory && options.projectDirectory) {
-    throw new Error(
-      'Cannot use both "deriveProjectDirectory" and "projectDirectory" options at the same time',
-    );
-  }
-
-  // Validate projectDirectory if provided
-  if (
-    options.projectDirectory &&
-    !isValidPathInput(options.projectDirectory, {
-      allowUnicode: !!options.allowUnicode,
-    })
-  ) {
-    throw new Error(
-      `Invalid path input for 'projectDirectory': contains disallowed characters: "${options.projectDirectory}"`,
-    );
-  }
-
-  const normalizedSource = sanitizePath(options.file);
-
-  // Verify source file exists before deriving directory
-  if (!tree.exists(normalizedSource)) {
-    throw new Error(`Source file "${normalizedSource}" not found`);
-  }
-
-  // Find which project the source file belongs to (needed for deriving directory)
-  const sourceProjectInfo = findProjectForFile(projects, normalizedSource);
-
-  if (!sourceProjectInfo) {
-    throw new Error(
-      `Could not determine source project for file "${normalizedSource}"`,
-    );
-  }
-
-  const { project: sourceProject, name: sourceProjectName } = sourceProjectInfo;
-
-  // Derive or use provided projectDirectory
-  let sanitizedProjectDirectory: string | undefined;
-
-  if (options.deriveProjectDirectory) {
-    // Derive the directory from the source file path
-    const derivedDirectory = deriveProjectDirectoryFromSource(
-      normalizedSource,
-      sourceProject,
-    );
-    sanitizedProjectDirectory = derivedDirectory
-      ? sanitizePath(derivedDirectory)
-      : undefined;
-  } else if (options.projectDirectory) {
-    // Sanitize projectDirectory to prevent path traversal
-    sanitizedProjectDirectory = sanitizePath(options.projectDirectory);
-  }
-
-  // Construct target path from project and optional directory
   const normalizedTarget = buildTargetPath(
     targetProject,
     normalizedSource,
     sanitizedProjectDirectory,
   );
 
-  // Verify target file does not exist
-  if (tree.exists(normalizedTarget)) {
-    throw new Error(`Target file "${normalizedTarget}" already exists`);
-  }
+  ensureTargetDoesNotExist(tree, normalizedTarget);
 
-  const targetProjectName = options.project;
-
-  // Read the file content
-  const fileContent = tree.read(normalizedSource, 'utf-8');
-  if (!fileContent) {
-    throw new Error(`Could not read file "${normalizedSource}"`);
-  }
-
-  // Get the relative path within the source project to check if it's exported
+  const fileContent = readRequiredFile(tree, normalizedSource);
   const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
   const relativeFilePathInSource = path.relative(sourceRoot, normalizedSource);
 
-  // Check if file is exported from source project entrypoint
   const isExported = isFileExported(
     tree,
     sourceProject,
     relativeFilePathInSource,
   );
 
-  // Get import paths for both projects
   const sourceImportPath = getProjectImportPath(
     tree,
     sourceProjectName,
@@ -518,7 +541,6 @@ function resolveAndValidate(
     targetProject,
   );
 
-  // Check if target project already has imports to this file
   const hasImportsInTarget =
     !!targetImportPath &&
     checkForImportsInProject(
@@ -527,7 +549,6 @@ function resolveAndValidate(
       sourceImportPath || normalizedSource,
     );
 
-  // Check if moving within the same project
   const isSameProject = sourceProjectName === targetProjectName;
 
   return {
@@ -549,6 +570,250 @@ function resolveAndValidate(
 }
 
 type MoveContext = ReturnType<typeof resolveAndValidate>;
+
+async function resolveUniqueFilePaths(
+  tree: Tree,
+  patterns: string[],
+): Promise<string[]> {
+  if (patterns.length === 0) {
+    throw new Error('At least one file path or glob pattern must be provided');
+  }
+
+  const filePaths: string[] = [];
+  const literalPatterns: string[] = [];
+  const globPatterns: string[] = [];
+
+  for (const pattern of patterns) {
+    const normalizedPattern = normalizePath(pattern);
+    if (/[*?[\]{}]/.test(normalizedPattern)) {
+      globPatterns.push(normalizedPattern);
+    } else {
+      literalPatterns.push(normalizedPattern);
+    }
+  }
+
+  filePaths.push(...literalPatterns);
+
+  if (globPatterns.length > 0) {
+    const uniqueGlobPatterns = Array.from(new Set(globPatterns));
+    const stopGlob = startProfilingSection('moveFile.globExpansion');
+    try {
+      const globResults = await Promise.all(
+        uniqueGlobPatterns.map(async (globPattern) => {
+          const matches = await globAsync(tree, [globPattern]);
+          if (matches.length === 0) {
+            throw new Error(
+              `No files found matching glob pattern: "${globPattern}"`,
+            );
+          }
+          incrementProfilingCounter('moveFile.globMatches', matches.length);
+          return matches;
+        }),
+      );
+
+      for (const matches of globResults) {
+        filePaths.push(...matches);
+      }
+    } finally {
+      stopGlob();
+    }
+  }
+
+  const uniqueFilePaths = Array.from(new Set(filePaths));
+  if (uniqueFilePaths.length === 0) {
+    throw new Error('At least one file path must be provided');
+  }
+
+  incrementProfilingCounter('moveFile.resolvedFiles', uniqueFilePaths.length);
+  return uniqueFilePaths;
+}
+
+function buildMoveContexts(
+  tree: Tree,
+  options: MoveFileGeneratorSchema,
+  projects: Map<string, ProjectConfiguration>,
+  uniqueFilePaths: string[],
+): MoveContext[] {
+  const contexts = uniqueFilePaths.map((filePath) => {
+    const stopResolve = startProfilingSection('moveFile.resolveAndValidate');
+    try {
+      const fileOptions = { ...options, file: filePath };
+      return resolveAndValidate(tree, fileOptions, projects);
+    } finally {
+      stopResolve();
+    }
+  });
+
+  incrementProfilingCounter('moveFile.contexts', contexts.length);
+  return contexts;
+}
+
+function collectSourceProjectNames(contexts: MoveContext[]): Set<string> {
+  const sourceProjectNames = new Set<string>();
+  contexts.forEach((ctx) => {
+    sourceProjectNames.add(ctx.sourceProjectName);
+  });
+
+  incrementProfilingCounter('moveFile.sourceProjects', sourceProjectNames.size);
+  return sourceProjectNames;
+}
+
+async function runMoveBatch(
+  tree: Tree,
+  options: MoveFileGeneratorSchema,
+  projects: Map<string, ProjectConfiguration>,
+  projectGraph: ProjectGraph,
+  contexts: MoveContext[],
+  uniqueFilePaths: string[],
+): Promise<void> {
+  for (let i = 0; i < contexts.length; i++) {
+    const ctx = contexts[i];
+    const fileOptions = { ...options, file: uniqueFilePaths[i] };
+    await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
+  }
+}
+
+function deleteSourceFiles(tree: Tree, contexts: MoveContext[]): void {
+  const stopDeleteSources = startProfilingSection('moveFile.deleteSources');
+  try {
+    contexts.forEach((ctx) => {
+      tree.delete(ctx.normalizedSource);
+    });
+  } finally {
+    stopDeleteSources();
+  }
+
+  incrementProfilingCounter('moveFile.sourcesDeleted', contexts.length);
+}
+
+async function removeEmptySourceProjects(
+  tree: Tree,
+  projects: Map<string, ProjectConfiguration>,
+  sourceProjectNames: Set<string>,
+): Promise<void> {
+  const stopRemovalCheck = startProfilingSection(
+    'moveFile.removeEmptyProjects',
+  );
+  try {
+    for (const projectName of sourceProjectNames) {
+      const project = projects.get(projectName);
+      if (project && isProjectEmpty(tree, project)) {
+        logger.debug(`Project ${projectName} is empty, removing it`);
+        try {
+          await removeGenerator(tree, {
+            projectName,
+            skipFormat: true,
+            forceRemove: false,
+          });
+          incrementProfilingCounter('moveFile.projectsRemoved');
+        } catch (error) {
+          logger.error(
+            `Failed to remove empty project ${projectName}: ${error}`,
+          );
+        }
+      }
+    }
+  } finally {
+    stopRemovalCheck();
+  }
+}
+
+async function formatWorkspace(tree: Tree, skipFormat: boolean): Promise<void> {
+  if (skipFormat) {
+    return;
+  }
+
+  const stopFormat = startProfilingSection('moveFile.formatFiles');
+  try {
+    await formatFiles(tree);
+  } finally {
+    stopFormat();
+  }
+}
+
+function startProfilingSection(section: string): () => void {
+  if (!profilingEnabled) {
+    return noop;
+  }
+
+  const start = performance.now();
+  return () => {
+    const duration = performance.now() - start;
+    updateProfilingStats(section, duration);
+  };
+}
+
+function updateProfilingStats(section: string, duration: number): void {
+  const existing = profilingData.get(section);
+  if (!existing) {
+    profilingData.set(section, {
+      total: duration,
+      count: 1,
+      min: duration,
+      max: duration,
+    });
+    return;
+  }
+
+  existing.total += duration;
+  existing.count += 1;
+  existing.min = Math.min(existing.min, duration);
+  existing.max = Math.max(existing.max, duration);
+}
+
+function incrementProfilingCounter(counter: string, amount = 1): void {
+  if (!profilingEnabled) {
+    return;
+  }
+
+  const current = profilingCounters.get(counter) ?? 0;
+  profilingCounters.set(counter, current + amount);
+}
+
+function logProfilingSummary(): void {
+  if (!profilingEnabled) {
+    return;
+  }
+
+  const sections = Array.from(profilingData.entries());
+  const counters = Array.from(profilingCounters.entries());
+
+  if (sections.length === 0 && counters.length === 0) {
+    return;
+  }
+
+  const lines: string[] = ['move-file profiling summary'];
+
+  if (sections.length > 0) {
+    lines.push('sections:');
+    for (const [section, stats] of sections) {
+      const average = stats.total / stats.count;
+      lines.push(
+        `  ${section}: count=${stats.count}, total=${formatDuration(
+          stats.total,
+        )}, avg=${formatDuration(average)}, min=${formatDuration(
+          stats.min,
+        )}, max=${formatDuration(stats.max)}`,
+      );
+    }
+  }
+
+  if (counters.length > 0) {
+    lines.push('counters:');
+    for (const [counter, value] of counters) {
+      lines.push(`  ${counter}: ${value}`);
+    }
+  }
+
+  logger.debug(lines.join('\n'));
+
+  profilingData.clear();
+  profilingCounters.clear();
+}
+
+function formatDuration(duration: number): string {
+  return `${duration.toFixed(2)}ms`;
+}
 
 /**
  * Coordinates the move workflow by executing the individual move steps in order.
@@ -1290,16 +1555,16 @@ async function updateImportPathsInDependentProjects(
   const candidates: Array<[string, ProjectConfiguration]> =
     dependentProjectNames.length
       ? dependentProjectNames
-          .map((name) => {
-            const project = projects.get(name);
-            return project ? [name, project] : null;
-          })
-          .filter(
-            (entry): entry is [string, ProjectConfiguration] => entry !== null,
-          )
+        .map((name) => {
+          const project = projects.get(name);
+          return project ? [name, project] : null;
+        })
+        .filter(
+          (entry): entry is [string, ProjectConfiguration] => entry !== null,
+        )
       : Array.from(projects.entries()).filter(([, project]) =>
-          checkForImportsInProject(tree, project, sourceImportPath),
-        );
+        checkForImportsInProject(tree, project, sourceImportPath),
+      );
 
   candidates.forEach(([dependentName, dependentProject]) => {
     logger.debug(`Checking project ${dependentName} for imports`);
@@ -1353,6 +1618,11 @@ function updateImportPathsToPackageAlias(
       !filesToExclude.includes(normalizedFilePath)
     ) {
       // Use jscodeshift to update imports that reference the source file
+      const candidateSpecifiers = buildRelativeImportCandidateSpecifiers(
+        normalizedFilePath,
+        sourceFilePath,
+      );
+
       updateImportSpecifierPattern(
         tree,
         normalizedFilePath,
@@ -1374,6 +1644,7 @@ function updateImportPathsToPackageAlias(
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
         () => targetPackageAlias,
+        { candidateSpecifiers },
       );
     }
   });
@@ -1404,6 +1675,11 @@ function updateImportPathsInProject(
         targetFilePath,
       );
 
+      const candidateSpecifiers = buildRelativeImportCandidateSpecifiers(
+        normalizedFilePath,
+        sourceFilePath,
+      );
+
       // Use jscodeshift to update imports that reference the source file
       updateImportSpecifierPattern(
         tree,
@@ -1426,6 +1702,7 @@ function updateImportPathsInProject(
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
         () => relativeSpecifier,
+        { candidateSpecifiers },
       );
     }
   });
@@ -1441,6 +1718,18 @@ function checkForImportsInProject(
 ): boolean {
   const fileExtensions = sourceFileExtensions;
   let hasImports = false;
+  const normalizedImportPath = normalizePath(importPath);
+  const searchTargets = new Set<string>([
+    importPath,
+    normalizedImportPath,
+    ensureRelativeSpecifier(normalizedImportPath),
+  ]);
+
+  [...searchTargets].forEach((target) => {
+    searchTargets.add(`'${target}'`);
+    searchTargets.add(`"${target}"`);
+    searchTargets.add(`\`${target}\``);
+  });
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (hasImports) {
@@ -1448,8 +1737,14 @@ function checkForImportsInProject(
     }
 
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
-      // Use jscodeshift to check for imports
-      if (hasImportSpecifier(tree, filePath, importPath)) {
+      const content = tree.read(filePath, 'utf-8');
+      if (!content) {
+        return;
+      }
+
+      if (
+        Array.from(searchTargets).some((target) => content.includes(target))
+      ) {
         hasImports = true;
       }
     }

@@ -2,6 +2,30 @@ import { Tree, logger } from '@nx/devkit';
 import * as jscodeshift from 'jscodeshift';
 import type { ASTNode } from 'jscodeshift';
 
+const j = jscodeshift.withParser('tsx');
+
+function contentContainsSpecifier(content: string, specifier: string): boolean {
+  return (
+    content.includes(specifier) ||
+    content.includes(`'${specifier}'`) ||
+    content.includes(`"${specifier}"`) ||
+    content.includes(`\`${specifier}\``)
+  );
+}
+
+function shouldProcessContent(
+  content: string,
+  candidateSpecifiers: string[] | undefined,
+): boolean {
+  if (!candidateSpecifiers || candidateSpecifiers.length === 0) {
+    return true;
+  }
+
+  return candidateSpecifiers.some((candidate) =>
+    contentContainsSpecifier(content, candidate),
+  );
+}
+
 /**
  * Updates import specifiers in a file using jscodeshift.
  *
@@ -22,8 +46,11 @@ export function updateImportSpecifier(
     return false;
   }
 
+  if (!contentContainsSpecifier(content, oldSpecifier)) {
+    return false;
+  }
+
   try {
-    const j = jscodeshift.withParser('tsx');
     const root = j(content);
     let hasChanges = false;
 
@@ -182,14 +209,20 @@ export function updateImportSpecifierPattern(
   filePath: string,
   matcher: (specifier: string) => boolean,
   getNewSpecifier: (oldSpecifier: string) => string,
+  options?: {
+    candidateSpecifiers?: string[];
+  },
 ): boolean {
   const content = tree.read(filePath, 'utf-8');
   if (!content || content.trim().length === 0) {
     return false;
   }
 
+  if (!shouldProcessContent(content, options?.candidateSpecifiers)) {
+    return false;
+  }
+
   try {
-    const j = jscodeshift.withParser('tsx');
     const root = j(content);
     let hasChanges = false;
 
