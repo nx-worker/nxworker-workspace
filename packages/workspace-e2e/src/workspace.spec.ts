@@ -465,7 +465,7 @@ describe('workspace', () => {
   describe('OS-specific edge cases', () => {
     let testLibName: string;
 
-    beforeEach(() => {
+    beforeAll(() => {
       testLibName = uniqueId('libtest-');
       execSync(
         `npx nx generate @nx/js:library ${testLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1071,7 +1071,7 @@ describe('workspace', () => {
   describe('Architecture-specific edge cases', () => {
     let archLibName: string;
 
-    beforeEach(() => {
+    beforeAll(() => {
       archLibName = uniqueId('libarch-');
       execSync(
         `npx nx generate @nx/js:library ${archLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1228,7 +1228,7 @@ describe('workspace', () => {
   describe('Failure scenarios (OS-specific)', () => {
     let failLibName: string;
 
-    beforeEach(() => {
+    beforeAll(() => {
       failLibName = uniqueId('libfail-');
       execSync(
         `npx nx generate @nx/js:library ${failLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1332,7 +1332,7 @@ describe('workspace', () => {
     const nodeVersion = process.version;
     const nodeMajor = parseInt(nodeVersion.split('.')[0].substring(1), 10);
 
-    beforeEach(() => {
+    beforeAll(() => {
       nodeLibName = uniqueId('libnode-');
       execSync(
         `npx nx generate @nx/js:library ${nodeLibName} --unitTestRunner=none --bundler=none --no-interactive`,
