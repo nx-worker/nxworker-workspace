@@ -6,6 +6,11 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 const itSkipWindows = process.platform === 'win32' ? it.skip : it;
 const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
 
+// Use beforeEach on Windows for better performance, beforeAll on other platforms
+// Windows has slower file system operations, so creating libraries per-test is faster
+// than the upfront cost of sequential creation in beforeAll
+const beforeAllOrEach = process.platform === 'win32' ? beforeEach : beforeAll;
+
 /**
  * Extracts supported major versions from @nx/devkit peer dependency.
  * Parses the peerDependencies field in package.json to determine which
@@ -465,7 +470,7 @@ describe('workspace', () => {
   describe('OS-specific edge cases', () => {
     let testLibName: string;
 
-    beforeAll(() => {
+    beforeAllOrEach(() => {
       testLibName = uniqueId('libtest-');
       execSync(
         `npx nx generate @nx/js:library ${testLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1071,7 +1076,7 @@ describe('workspace', () => {
   describe('Architecture-specific edge cases', () => {
     let archLibName: string;
 
-    beforeAll(() => {
+    beforeAllOrEach(() => {
       archLibName = uniqueId('libarch-');
       execSync(
         `npx nx generate @nx/js:library ${archLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1228,7 +1233,7 @@ describe('workspace', () => {
   describe('Failure scenarios (OS-specific)', () => {
     let failLibName: string;
 
-    beforeAll(() => {
+    beforeAllOrEach(() => {
       failLibName = uniqueId('libfail-');
       execSync(
         `npx nx generate @nx/js:library ${failLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1332,7 +1337,7 @@ describe('workspace', () => {
     const nodeVersion = process.version;
     const nodeMajor = parseInt(nodeVersion.split('.')[0].substring(1), 10);
 
-    beforeAll(() => {
+    beforeAllOrEach(() => {
       nodeLibName = uniqueId('libnode-');
       execSync(
         `npx nx generate @nx/js:library ${nodeLibName} --unitTestRunner=none --bundler=none --no-interactive`,

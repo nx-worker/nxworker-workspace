@@ -2,6 +2,15 @@
 
 This document describes the end-to-end test coverage for the `move-file` generator, with a focus on cross-platform and cross-architecture compatibility.
 
+## Performance Optimizations
+
+The test suite uses platform-aware optimizations:
+
+- **Unix systems (Linux, macOS)**: Uses `beforeAll` hooks to create test libraries once and reuse them across tests, significantly reducing test execution time
+- **Windows**: Uses `beforeEach` hooks to create libraries per-test due to Windows' slower file system operations and process creation overhead, which makes the upfront cost of sequential library creation in `beforeAll` slower than per-test creation
+
+This approach provides optimal performance on each platform while maintaining identical test coverage.
+
 ## Test Suite Overview
 
 The e2e test suite includes **24 test cases** in the main test suite, plus additional version-compatibility tests organized into the following categories:
