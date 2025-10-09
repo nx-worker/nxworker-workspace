@@ -35,6 +35,34 @@ const entrypointExtensions = Object.freeze([
 
 const primaryEntryBaseNames = Object.freeze(['public-api', 'index'] as const);
 
+/**
+ * File extensions for TypeScript and JavaScript source files.
+ * Used for identifying files to process during import updates.
+ */
+const sourceFileExtensions = Object.freeze([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mts',
+  '.mjs',
+  '.cts',
+  '.cjs',
+] as const);
+
+/**
+ * Regex pattern matching all supported file extensions.
+ * Used for removing file extensions from import paths and file names.
+ */
+const allExtensionsRegex = /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/;
+
+/**
+ * Regex pattern matching file extensions that should be stripped from imports.
+ * ESM-specific extensions (.mjs, .mts, .cjs, .cts) are excluded as they are
+ * required by the ESM specification.
+ */
+const strippableExtensionsRegex = /\.(ts|tsx|js|jsx)$/;
+
 const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
 const mainEntryFilenames = buildFileNames(['main']);
 
@@ -1023,7 +1051,7 @@ function isFileExported(
 ): boolean {
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
-  const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
+  const fileWithoutExt = file.replace(allExtensionsRegex, '');
   const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
@@ -1287,16 +1315,7 @@ function updateImportPathsToPackageAlias(
   targetPackageAlias: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.mjs',
-    '.cts',
-    '.cjs',
-  ];
+  const fileExtensions = sourceFileExtensions;
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -1321,10 +1340,10 @@ function updateImportPathsToPackageAlias(
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (both without extension)
           const normalizedResolvedImport = normalizePath(
-            resolvedImport.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
+            resolvedImport.replace(allExtensionsRegex, ''),
           );
           const sourceFileWithoutExt = normalizePath(
-            sourceFilePath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
+            sourceFilePath.replace(allExtensionsRegex, ''),
           );
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
@@ -1343,16 +1362,7 @@ function updateImportPathsInProject(
   sourceFilePath: string,
   targetFilePath: string,
 ): void {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.mjs',
-    '.cts',
-    '.cjs',
-  ];
+  const fileExtensions = sourceFileExtensions;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
@@ -1382,10 +1392,10 @@ function updateImportPathsInProject(
           const resolvedImport = path.join(importerDir, specifier);
           // Normalize and compare with source file (both without extension)
           const normalizedResolvedImport = normalizePath(
-            resolvedImport.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
+            resolvedImport.replace(allExtensionsRegex, ''),
           );
           const sourceFileWithoutExt = normalizePath(
-            sourceFilePath.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, ''),
+            sourceFilePath.replace(allExtensionsRegex, ''),
           );
           return normalizedResolvedImport === sourceFileWithoutExt;
         },
@@ -1403,16 +1413,7 @@ function checkForImportsInProject(
   project: ProjectConfiguration,
   importPath: string,
 ): boolean {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.mjs',
-    '.cts',
-    '.cjs',
-  ];
+  const fileExtensions = sourceFileExtensions;
   let hasImports = false;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
@@ -1441,16 +1442,7 @@ function updateImportsToRelative(
   targetRelativePath: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.mjs',
-    '.cts',
-    '.cjs',
-  ];
+  const fileExtensions = sourceFileExtensions;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
@@ -1484,16 +1476,7 @@ function updateImportsByAliasInProject(
   sourceImportPath: string,
   targetImportPath: string,
 ): void {
-  const fileExtensions = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mts',
-    '.mjs',
-    '.cts',
-    '.cjs',
-  ];
+  const fileExtensions = sourceFileExtensions;
 
   visitNotIgnoredFiles(tree, project.root, (filePath) => {
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
@@ -1570,7 +1553,7 @@ function toAbsoluteWorkspacePath(filePath: string): string {
 function stripFileExtension(importPath: string): string {
   // Only strip .ts, .tsx, .js, .jsx extensions
   // Preserve .mjs, .mts, .cjs, .cts as they are required for ESM
-  return importPath.replace(/\.(ts|tsx|js|jsx)$/, '');
+  return importPath.replace(strippableExtensionsRegex, '');
 }
 
 function getRelativeImportSpecifier(
@@ -1610,7 +1593,7 @@ function ensureFileExported(
   }
 
   // Add export for the moved file
-  const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
+  const fileWithoutExt = file.replace(allExtensionsRegex, '');
   const exportStatement = `export * from './${fileWithoutExt}';\n`;
 
   // Check if export already exists
@@ -1643,10 +1626,7 @@ function removeFileExport(
     }
 
     // Remove export for the file
-    const fileWithoutExt = file.replace(
-      /\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/,
-      '',
-    );
+    const fileWithoutExt = file.replace(allExtensionsRegex, '');
     const escapedFile = escapeRegex(fileWithoutExt);
 
     // Match various export patterns
@@ -1709,9 +1689,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
     }
 
     const normalizedFilePath = normalizePath(filePath);
-    const isSourceFile = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/.test(
-      normalizedFilePath,
-    );
+    const isSourceFile = allExtensionsRegex.test(normalizedFilePath);
 
     if (!isSourceFile) {
       return;
