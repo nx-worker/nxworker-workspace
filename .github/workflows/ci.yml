@@ -52,7 +52,7 @@ jobs:
       - uses: ./.github/actions/setup-node-and-install
         if: ${{ github.event_name == 'pull_request' }}
 
-      - name: Check formatting
+      - name: '[PR] Check formatting'
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
 
