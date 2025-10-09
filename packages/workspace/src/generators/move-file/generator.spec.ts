@@ -1683,6 +1683,111 @@ describe('move-file generator', () => {
       });
     });
 
+    it('should detect empty project with different index file name (index.cts)', async () => {
+      // Update tsconfig to use index.cts
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.cts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      // Create index.cts file for lib1
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.cts', 'export {};');
+
+      // Create a project with only one file
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The remove generator should have been called for lib1
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should handle moving .cjs files', async () => {
+      // Create a .cjs file
+      tree.write(
+        'packages/lib1/src/lib/utils.cjs',
+        'module.exports = { util: () => "test" };',
+      );
+
+      // Create a consumer file that imports the .cjs file
+      tree.write(
+        'packages/lib1/src/lib/consumer.ts',
+        "import { util } from './utils.cjs';\nexport const value = util();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils.cjs',
+        project: 'lib1',
+        projectDirectory: 'common',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The file should have been moved
+      expect(tree.exists('packages/lib1/src/lib/utils.cjs')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/common/utils.cjs')).toBe(true);
+
+      // The import should have been updated (preserving .cjs extension)
+      const consumerContent = tree.read(
+        'packages/lib1/src/lib/consumer.ts',
+        'utf-8',
+      );
+      expect(consumerContent).toContain("from './common/utils.cjs'");
+    });
+
+    it('should handle moving .cts files', async () => {
+      // Create a .cts file
+      tree.write(
+        'packages/lib1/src/lib/utils.cts',
+        'export const util = () => "test";',
+      );
+
+      // Create a consumer file that imports the .cts file
+      tree.write(
+        'packages/lib1/src/lib/consumer.ts',
+        "import { util } from './utils.cts';\nexport const value = util();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils.cts',
+        project: 'lib1',
+        projectDirectory: 'common',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // The file should have been moved
+      expect(tree.exists('packages/lib1/src/lib/utils.cts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/common/utils.cts')).toBe(true);
+
+      // The import should have been updated (preserving .cts extension)
+      const consumerContent = tree.read(
+        'packages/lib1/src/lib/consumer.ts',
+        'utf-8',
+      );
+      expect(consumerContent).toContain("from './common/utils.cts'");
+    });
+
     it('should fallback to common index names when tsconfig has no paths', async () => {
       // Remove paths from tsconfig
       updateJson(tree, 'tsconfig.base.json', (json) => {
