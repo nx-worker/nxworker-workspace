@@ -37,20 +37,23 @@ jobs:
           if-no-files-found: error
 
   format:
-    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04-arm # Linux arm64
     steps:
       - uses: actions/checkout@v5
+        if: ${{ github.event_name == 'pull_request' }}
         with:
           # We need to fetch all branches and commits so that Nx affected has a base to compare against.
           fetch-depth: 0
           filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
 
       - uses: ./.github/actions/set-nx-shas
+        if: ${{ github.event_name == 'pull_request' }}
 
       - uses: ./.github/actions/setup-node-and-install
+        if: ${{ github.event_name == 'pull_request' }}
 
       - name: Check formatting
+        if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
 
   lint:
