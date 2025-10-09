@@ -1904,7 +1904,7 @@ describe('move-file generator', () => {
       });
     });
 
-    it('should support TypeScript module extensions (.mts, .cts)', async () => {
+    it('should support TypeScript module extensions (.cts)', async () => {
       // Test with .cts extension
       updateJson(tree, 'tsconfig.base.json', (json) => {
         json.compilerOptions.paths = {
