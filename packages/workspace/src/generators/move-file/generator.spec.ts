@@ -1904,7 +1904,7 @@ describe('move-file generator', () => {
       });
     });
 
-    it('should support TypeScript module extensions (.cts)', async () => {
+    it('should support TypeScript CommonJS module extension (.cts)', async () => {
       // Test with .cts extension
       updateJson(tree, 'tsconfig.base.json', (json) => {
         json.compilerOptions.paths = {
@@ -1916,6 +1916,40 @@ describe('move-file generator', () => {
 
       tree.delete('packages/lib1/src/index.ts');
       tree.write('packages/lib1/src/index.cts', 'export {};');
+
+      tree.write(
+        'packages/lib1/src/lib/only-file.ts',
+        'export const onlyFile = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/only-file.ts',
+        project: 'lib2',
+        removeEmptyProject: true,
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      expect(removeGeneratorMock).toHaveBeenCalledWith(tree, {
+        projectName: 'lib1',
+        skipFormat: true,
+        forceRemove: false,
+      });
+    });
+
+    it('should support TypeScript ES module extension (.mts)', async () => {
+      // Test with .mts extension
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths = {
+          '@test/lib1': ['packages/lib1/src/index.mts'],
+          '@test/lib2': ['packages/lib2/src/index.ts'],
+        };
+        return json;
+      });
+
+      tree.delete('packages/lib1/src/index.ts');
+      tree.write('packages/lib1/src/index.mts', 'export {};');
 
       tree.write(
         'packages/lib1/src/lib/only-file.ts',
