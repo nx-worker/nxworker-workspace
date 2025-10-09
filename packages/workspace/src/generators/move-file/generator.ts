@@ -494,7 +494,7 @@ function resolveAndValidate(
 
   // Check if target project already has imports to this file
   const hasImportsInTarget =
-    targetImportPath &&
+    !!targetImportPath &&
     checkForImportsInProject(
       tree,
       targetProject,

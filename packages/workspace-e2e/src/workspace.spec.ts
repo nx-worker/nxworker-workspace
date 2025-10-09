@@ -65,7 +65,14 @@ function getSupportedNxMajorVersions(): number[] {
 
 describe('workspace', () => {
   let projectDirectory: string;
-  let libNames: Record<string, string>;
+  interface LibNames {
+    lib1: string;
+    lib2: string;
+    lib3: string;
+    lib4: string;
+    lib5: string;
+  }
+  let libNames: LibNames;
   beforeAll(async () => {
     projectDirectory = await createTestProject();
     libNames = {
@@ -96,7 +103,12 @@ describe('workspace', () => {
           rmSync(projectDirectory, { recursive: true, force: true });
           break;
         } catch (err) {
-          if (err.code === 'EBUSY' || err.code === 'ENOTEMPTY') {
+          if (
+            err &&
+            typeof err === 'object' &&
+            'code' in err &&
+            (err.code === 'EBUSY' || err.code === 'ENOTEMPTY')
+          ) {
             attempts++;
             await sleep(delay);
           } else {
@@ -1534,7 +1546,12 @@ describe('Nx version compatibility (basic happy paths)', () => {
               rmSync(projectDirectory, { recursive: true, force: true });
               break;
             } catch (err) {
-              if (err.code === 'EBUSY' || err.code === 'ENOTEMPTY') {
+              if (
+                err &&
+                typeof err === 'object' &&
+                'code' in err &&
+                (err.code === 'EBUSY' || err.code === 'ENOTEMPTY')
+              ) {
                 attempts++;
                 await sleep(delay);
               } else {
@@ -1782,7 +1799,12 @@ async function createTestProject(nxVersion?: number) {
       rmSync(projectDirectory, { recursive: true, force: true });
       break;
     } catch (err) {
-      if (err.code === 'EBUSY' || err.code === 'ENOTEMPTY') {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        (err.code === 'EBUSY' || err.code === 'ENOTEMPTY')
+      ) {
         attempts++;
         // Use an async sleep instead of Atomics.wait which is not intended for this use
         // and can be unreliable across environments.
