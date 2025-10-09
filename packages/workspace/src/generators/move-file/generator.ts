@@ -1130,20 +1130,21 @@ async function updateImportPathsInDependentProjects(
     sourceProjectName,
   );
 
-  const candidates = dependentProjectNames.length
-    ? dependentProjectNames
-    : Array.from(projects.entries())
-        .filter(([, project]) =>
+  const candidates: Array<[string, ProjectConfiguration]> =
+    dependentProjectNames.length
+      ? dependentProjectNames
+          .map((name) => {
+            const project = projects.get(name);
+            return project ? [name, project] : null;
+          })
+          .filter(
+            (entry): entry is [string, ProjectConfiguration] => entry !== null,
+          )
+      : Array.from(projects.entries()).filter(([, project]) =>
           checkForImportsInProject(tree, project, sourceImportPath),
-        )
-        .map(([name]) => name);
+        );
 
-  candidates.forEach((dependentName) => {
-    const dependentProject = projects.get(dependentName);
-    if (!dependentProject) {
-      return;
-    }
-
+  candidates.forEach(([dependentName, dependentProject]) => {
     logger.debug(`Checking project ${dependentName} for imports`);
 
     // If the dependent project is the target project, use relative imports
