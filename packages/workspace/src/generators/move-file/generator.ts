@@ -1132,10 +1132,14 @@ async function updateImportPathsInDependentProjects(
 
   const candidates: Array<[string, ProjectConfiguration]> =
     dependentProjectNames.length
-      ? dependentProjectNames.map((name) => {
-          const project = projects.get(name);
-          return project ? [name, project] : null;
-        }).filter((entry): entry is [string, ProjectConfiguration] => entry !== null)
+      ? dependentProjectNames
+          .map((name) => {
+            const project = projects.get(name);
+            return project ? [name, project] : null;
+          })
+          .filter(
+            (entry): entry is [string, ProjectConfiguration] => entry !== null,
+          )
       : Array.from(projects.entries()).filter(([, project]) =>
           checkForImportsInProject(tree, project, sourceImportPath),
         );
