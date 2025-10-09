@@ -1,6 +1,6 @@
 # @nxworker/workspace:move-file
 
-The `@nxworker/workspace:move-file` generator safely moves one or more files between Nx projects and keeps every import, export, and dependent project aligned.
+The `@nxworker/workspace:move-file` generator safely moves files — single paths, glob patterns, and/or comma-separated lists — between Nx projects and keeps every import, export, and dependent project aligned. It can optionally remove empty source projects.
 
 ## Requirements
 
@@ -22,7 +22,8 @@ The generator moves the specified file to the target project, creating any missi
 | --- | --- | --- | --- |
 | `file` | `string` | – | Source file path relative to the workspace root. Supports glob patterns (e.g., `packages/lib1/**/*.ts`) and comma-separated list of patterns to move multiple files at once. |
 | `project` | `string` | – | Name of the target Nx project. Provides a dropdown in Nx Console. |
-| `projectDirectory` | `string` | – | Optional subdirectory within the target project's base folder (e.g., `utils` or `features/auth`). For library projects, files are placed at `sourceRoot/lib/<projectDirectory>`. For application projects, files are placed at `sourceRoot/app/<projectDirectory>`. When not specified, files go to `sourceRoot/lib` for libraries or `sourceRoot/app` for applications. |
+| `projectDirectory` | `string` | – | Optional subdirectory within the target project's base folder (e.g., `utils` or `features/auth`). For library projects, files are placed at `sourceRoot/lib/<projectDirectory>`. For application projects, files are placed at `sourceRoot/app/<projectDirectory>`. When not specified, files go to `sourceRoot/lib` for libraries or `sourceRoot/app` for applications. Cannot be used together with `deriveProjectDirectory`. |
+| `deriveProjectDirectory` | `boolean` | `false` | Automatically derive the project directory from the source file path. When enabled, the directory structure from the source project will be preserved in the target project (e.g., moving `libs/ui/src/lib/components/button/button.ts` to project `design-system` will place it at `packages/design-system/src/lib/components/button/button.ts`). This is especially useful for bulk moves with glob patterns. Cannot be used together with `projectDirectory`. |
 | `skipExport` | `boolean` | `false` | Skip adding the moved file to the target project's entrypoint if you plan to manage exports manually. |
 | `removeEmptyProject` | `boolean` | `false` | Automatically remove source projects that become empty after moving files (only index file and configuration files remain). Requires `@nx/workspace` peer dependency. |
 | `allowUnicode` | `boolean` | `false` | Permit Unicode characters in file paths (less restrictive; use with caution). |
@@ -88,6 +89,29 @@ nx generate @nxworker/workspace:move-file \
   'packages/lib1/**/*.spec.ts' \
   --project lib2
 
+# Derive project directory from source path for a single file
+# Source: libs/ui/src/lib/components/button/button.component.ts
+# Target: packages/design-system/src/lib/components/button/button.component.ts
+nx generate @nxworker/workspace:move-file \
+  'libs/ui/src/lib/components/button/button.component.ts' \
+  --project design-system \
+  --derive-project-directory
+
+# Derive project directory for bulk moves with glob pattern
+# Source: libs/ui/src/lib/components/**/*.ts
+# Target: packages/design-system/src/lib/components/**/*.ts (preserving directory structure)
+nx generate @nxworker/workspace:move-file \
+  'libs/ui/src/lib/components/**/*.ts' \
+  --project design-system \
+  --derive-project-directory
+
+# Derive project directory for multiple component files
+# Target: Each file preserves its directory structure in the target project
+nx generate @nxworker/workspace:move-file \
+  'libs/ui/src/lib/features/auth/**/*.{ts,html,css}' \
+  --project design-system \
+  --derive-project-directory
+
 # Move multiple files using comma-separated glob patterns
 # Target: All .ts and .css files from lib1 to lib2
 nx generate @nxworker/workspace:move-file \
@@ -111,6 +135,8 @@ nx generate @nxworker/workspace:move-file \
   - Dynamic `import()` expressions, including chained `.then()` access
 - Updates dependent projects when exported files move, ensuring they resolve the target project's import alias
 - Removes stale exports from the source entrypoint and adds exports to the target entrypoint unless `--skip-export` is set
+- Supports comma-separated file paths and/or glob patterns to bulk move files
+- Removes source projects that become empty when `--remove-empty-project` is enabled
 - Places files in the target project at `sourceRoot/lib/<projectDirectory>` for libraries or `sourceRoot/app/<projectDirectory>` for applications, with the base directory (`lib` or `app`) always included in the path
 
 ## Security Hardening
