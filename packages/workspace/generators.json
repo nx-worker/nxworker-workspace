@@ -1,5 +1,10 @@
 {
   "generators": {
+    "init": {
+      "factory": "./src/generators/init/generator",
+      "schema": "./src/generators/init/schema.json",
+      "description": "Initialize the @nxworker/workspace plugin by installing required peer dependencies"
+    },
     "move-file": {
       "factory": "./src/generators/move-file/generator",
       "schema": "./src/generators/move-file/schema.json",

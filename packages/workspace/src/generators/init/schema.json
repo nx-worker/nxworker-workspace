@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "NxworkerWorkspaceInit",
+  "cli": "nx",
+  "title": "Initialize @nxworker/workspace plugin",
+  "description": "Initialize the @nxworker/workspace plugin by installing required peer dependencies.",
+  "type": "object",
+  "properties": {
+    "skipFormat": {
+      "type": "boolean",
+      "description": "Skip formatting files.",
+      "default": false,
+      "x-priority": "internal"
+    },
+    "skipPackageJson": {
+      "type": "boolean",
+      "description": "Skip adding package.json dependencies",
+      "default": false,
+      "x-priority": "internal"
+    }
+  }
+}
