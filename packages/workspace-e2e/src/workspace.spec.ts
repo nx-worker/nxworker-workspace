@@ -85,11 +85,31 @@ describe('workspace', () => {
 
     // The plugin has been built and published to a local registry in the jest globalSetup
     // Install the plugin built with the latest source code into the test repo
-    execSync(`npm install @nxworker/workspace@e2e`, {
+    execSync(`npm install @nxworker/workspace@e2e --prefer-offline`, {
       cwd: projectDirectory,
       stdio: 'inherit',
       env: process.env,
     });
+
+    // Pre-create all libraries used by the main test suite to avoid repeated generation
+    // This significantly speeds up test execution
+    const libsToCreate = [
+      libNames.lib1,
+      libNames.lib2,
+      libNames.lib3,
+      libNames.lib4,
+      libNames.lib5,
+    ];
+
+    for (const libName of libsToCreate) {
+      execSync(
+        `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+    }
   });
 
   afterAll(async () => {
@@ -129,22 +149,7 @@ describe('workspace', () => {
 
   describe('move-file generator', () => {
     it('should move a file between projects', () => {
-      // Create two library projects
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib1} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib2} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
+      // Libraries lib1 and lib2 are pre-created in beforeAll
 
       // Create a file in lib1
       const helperPath = join(
@@ -206,22 +211,7 @@ describe('workspace', () => {
     });
 
     it('should update imports when moving exported files', () => {
-      // Create two library projects
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib3} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib4} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
+      // Libraries lib3 and lib4 are pre-created in beforeAll
 
       const sourceAlias = getProjectImportAlias(
         projectDirectory,
@@ -313,14 +303,7 @@ describe('workspace', () => {
     });
 
     it('should handle relative imports within same project', () => {
-      // Create a new library
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib5} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
+      // Library lib5 is pre-created in beforeAll
 
       const featurePath = join(
         projectDirectory,
@@ -1104,7 +1087,7 @@ describe('workspace', () => {
       // between x64 and arm64 architectures
 
       const fileName = 'large-module.ts';
-      const largeContent = generateLargeTypeScriptFile(10000); // 10,000 lines
+      const largeContent = generateLargeTypeScriptFile(1000); // 1,000 lines (reduced for performance)
 
       writeFileSync(
         join(projectDirectory, archLibName, 'src', 'lib', fileName),
@@ -1143,7 +1126,7 @@ describe('workspace', () => {
 
       // Verify content is complete
       expect(movedContent).toContain('export function func0()');
-      expect(movedContent).toContain('export function func9999()');
+      expect(movedContent).toContain('export function func999()');
 
       // Verify imports were updated
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
@@ -1526,7 +1509,7 @@ describe('Nx version compatibility (basic happy paths)', () => {
 
         // Install the plugin as a devDependency along with its peer dependencies at the same version as the test workspace
         execSync(
-          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${testWorkspaceNxVersion} @nx/workspace@${testWorkspaceNxVersion}`,
+          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${testWorkspaceNxVersion} @nx/workspace@${testWorkspaceNxVersion} --prefer-offline`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',

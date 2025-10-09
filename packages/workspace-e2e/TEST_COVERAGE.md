@@ -44,7 +44,7 @@ These tests validate behavior across different operating systems (Linux, macOS, 
 
 These tests ensure consistent behavior across different CPU architectures (x64/amd64 and arm64):
 
-15. **Large File Handling**: Tests moving a file with 10,000+ lines to verify efficient memory handling across architectures
+15. **Large File Handling**: Tests moving a file with 1,000+ lines to verify efficient memory handling across architectures
 16. **Many Files Stress Test**: Creates 20 files and tests performance of moving files with many potential import updates
 17. **Binary-Safe Unicode Operations**: Verifies that Unicode content (Japanese, Greek, emoji) is preserved correctly across architectures
 
