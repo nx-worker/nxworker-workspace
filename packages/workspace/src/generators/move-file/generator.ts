@@ -62,9 +62,49 @@ function buildPatterns(
   );
 }
 
-function getProjectEntryPointPaths(project: ProjectConfiguration): string[] {
+function getProjectEntryPointPaths(
+  tree: Tree,
+  project: ProjectConfiguration,
+): string[] {
   const sourceRoot = project.sourceRoot || project.root;
-  const candidates = [
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+
+  const addCandidate = (value: string | null | undefined) => {
+    if (!value) {
+      return;
+    }
+    const normalized = normalizePath(value);
+    if (seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    candidates.push(normalized);
+  };
+
+  const compilerPaths = readCompilerPaths(tree);
+  if (compilerPaths) {
+    for (const [, pathEntry] of Object.entries(compilerPaths)) {
+      const pathStr = toFirstPath(pathEntry);
+      if (!pathStr) {
+        continue;
+      }
+
+      if (pointsToProjectIndex(tree, pathStr, sourceRoot)) {
+        addCandidate(pathStr);
+      }
+    }
+  }
+
+  getFallbackEntryPointPaths(project).forEach(addCandidate);
+
+  return candidates;
+}
+
+function getFallbackEntryPointPaths(project: ProjectConfiguration): string[] {
+  const sourceRoot = project.sourceRoot || project.root;
+
+  return [
     ...PRIMARY_ENTRY_FILENAMES.map((fileName) =>
       path.join(sourceRoot, fileName),
     ),
@@ -72,8 +112,6 @@ function getProjectEntryPointPaths(project: ProjectConfiguration): string[] {
       path.join(project.root, 'src', fileName),
     ),
   ];
-
-  return Array.from(new Set(candidates));
 }
 
 /**
@@ -988,7 +1026,7 @@ function isFileExported(
   project: ProjectConfiguration,
   file: string,
 ): boolean {
-  const indexPaths = getProjectEntryPointPaths(project);
+  const indexPaths = getProjectEntryPointPaths(tree, project);
 
   const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
   const escapedFile = escapeRegex(fileWithoutExt);
@@ -1121,18 +1159,24 @@ function pointsToProjectIndex(
   pathStr: string,
   sourceRoot: string,
 ): boolean {
+  const normalizedPathStr = normalizePath(pathStr);
+  const normalizedSourceRoot = normalizePath(sourceRoot);
+
   // First, check if path is within the project's source root
-  if (!pathStr.includes(sourceRoot)) {
+  if (
+    normalizedPathStr !== normalizedSourceRoot &&
+    !normalizedPathStr.startsWith(`${normalizedSourceRoot}/`)
+  ) {
     return false;
   }
 
   // Try dynamic verification: check if the file actually exists
-  if (tree.exists(pathStr)) {
+  if (tree.exists(normalizedPathStr)) {
     return true;
   }
 
   // Fallback to hard-coded pattern matching for common index file patterns
-  return isIndexFilePath(pathStr);
+  return isIndexFilePath(normalizedPathStr);
 }
 
 /**
@@ -1560,7 +1604,7 @@ function ensureFileExported(
   project: ProjectConfiguration,
   file: string,
 ): void {
-  const indexPaths = getProjectEntryPointPaths(project);
+  const indexPaths = getProjectEntryPointPaths(tree, project);
 
   // Find the first existing index file
   const indexPath = indexPaths.find((p) => tree.exists(p)) || indexPaths[0];
@@ -1590,7 +1634,7 @@ function removeFileExport(
   project: ProjectConfiguration,
   file: string,
 ): void {
-  const indexPaths = getProjectEntryPointPaths(project);
+  const indexPaths = getProjectEntryPointPaths(tree, project);
 
   // Find existing index files
   indexPaths.forEach((indexPath) => {
@@ -1650,24 +1694,17 @@ function removeFileExport(
  */
 function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
   const sourceRoot = project.sourceRoot || project.root;
+  const indexCandidates = new Set(
+    getProjectEntryPointPaths(tree, project).map((candidate) =>
+      normalizePath(candidate),
+    ),
+  );
 
-  // Try to find the index file from tsconfig.base.json path mappings
-  const paths = readCompilerPaths(tree);
-  let indexFilePath: string | null = null;
-
-  if (paths) {
-    for (const [, pathEntry] of Object.entries(paths)) {
-      const pathStr = toFirstPath(pathEntry);
-      if (pathStr && pointsToProjectIndex(tree, pathStr, sourceRoot)) {
-        // Extract just the filename from the path
-        indexFilePath = pathStr;
-        break;
-      }
-    }
+  if (indexCandidates.size === 0) {
+    indexCandidates.add(
+      normalizePath(path.join(sourceRoot, PRIMARY_ENTRY_FILENAMES[0])),
+    );
   }
-
-  // Fallback: list of common index file names if not found in tsconfig
-  const fallbackIndexFileNames = PRIMARY_ENTRY_FILENAMES;
 
   let hasNonIndexSourceFiles = false;
 
@@ -1676,38 +1713,20 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
       return; // Short-circuit if we already found a non-index file
     }
 
-    // Check if this is a source file (not a config file)
-    const isSourceFile = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/.test(filePath);
+    const normalizedFilePath = normalizePath(filePath);
+    const isSourceFile = /\.(ts|tsx|js|jsx|mts|mjs|cts|cjs)$/.test(
+      normalizedFilePath,
+    );
 
-    // Skip if it's not a source file
     if (!isSourceFile) {
       return;
     }
 
-    // Check if this file is the index file
-    let isIndexFile = false;
-
-    if (indexFilePath) {
-      // If we found the index path from tsconfig, use exact match
-      isIndexFile = normalizePath(filePath) === normalizePath(indexFilePath);
-    } else {
-      // Fallback to checking common index file names at sourceRoot
-      // Normalize paths to handle cross-platform differences (Windows backslashes)
-      const normalizedFilePath = normalizePath(filePath);
-      const normalizedSourceRoot = normalizePath(sourceRoot);
-      const relativePath = path.relative(
-        normalizedSourceRoot,
-        normalizedFilePath,
-      );
-      const fileName = path.basename(normalizedFilePath);
-      isIndexFile =
-        fallbackIndexFileNames.includes(fileName) &&
-        path.dirname(relativePath) === '.';
+    if (indexCandidates.has(normalizedFilePath)) {
+      return;
     }
 
-    if (!isIndexFile) {
-      hasNonIndexSourceFiles = true;
-    }
+    hasNonIndexSourceFiles = true;
   });
 
   return !hasNonIndexSourceFiles;
