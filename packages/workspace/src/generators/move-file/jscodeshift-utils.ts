@@ -77,8 +77,11 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
+        const args = path.node.arguments;
+        if (args[0].type === 'StringLiteral') {
+          args[0].value = newSpecifier;
+          hasChanges = true;
+        }
       });
 
     // Update require calls: require('oldSpecifier')
@@ -95,8 +98,11 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
+        const args = path.node.arguments;
+        if (args[0].type === 'StringLiteral') {
+          args[0].value = newSpecifier;
+          hasChanges = true;
+        }
       });
 
     // Update require.resolve calls: require.resolve('oldSpecifier')
@@ -117,8 +123,11 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        path.node.arguments[0].value = newSpecifier;
-        hasChanges = true;
+        const args = path.node.arguments;
+        if (args[0].type === 'StringLiteral') {
+          args[0].value = newSpecifier;
+          hasChanges = true;
+        }
       });
 
     if (hasChanges) {
