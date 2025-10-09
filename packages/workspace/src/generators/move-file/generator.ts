@@ -722,8 +722,10 @@ async function handleExportedMove(
     sourceProjectName,
     sourceImportPath,
     targetImportPath,
-    targetProjectName,
-    relativeFilePathInTarget,
+    {
+      targetProjectName,
+      targetRelativePath: relativeFilePathInTarget,
+    },
   );
 
   // Remove the export from source index BEFORE updating imports to package alias
@@ -933,15 +935,38 @@ function isFileExported(
   file: string,
 ): boolean {
   const indexPaths = [
+    path.join(project.sourceRoot || project.root, 'public-api.ts'),
+    path.join(project.sourceRoot || project.root, 'public-api.mts'),
+    path.join(project.sourceRoot || project.root, 'public-api.cts'),
+    path.join(project.sourceRoot || project.root, 'public-api.mjs'),
+    path.join(project.sourceRoot || project.root, 'public-api.cjs'),
+    path.join(project.sourceRoot || project.root, 'public-api.js'),
+    path.join(project.sourceRoot || project.root, 'public-api.tsx'),
+    path.join(project.sourceRoot || project.root, 'public-api.jsx'),
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
     path.join(project.sourceRoot || project.root, 'index.cts'),
     path.join(project.sourceRoot || project.root, 'index.mjs'),
     path.join(project.sourceRoot || project.root, 'index.cjs'),
     path.join(project.sourceRoot || project.root, 'index.js'),
+    path.join(project.sourceRoot || project.root, 'index.tsx'),
+    path.join(project.sourceRoot || project.root, 'index.jsx'),
+    path.join(project.root, 'src', 'public-api.ts'),
+    path.join(project.root, 'src', 'public-api.mts'),
+    path.join(project.root, 'src', 'public-api.cts'),
+    path.join(project.root, 'src', 'public-api.mjs'),
+    path.join(project.root, 'src', 'public-api.cjs'),
+    path.join(project.root, 'src', 'public-api.js'),
+    path.join(project.root, 'src', 'public-api.tsx'),
+    path.join(project.root, 'src', 'public-api.jsx'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
     path.join(project.root, 'src', 'index.cts'),
+    path.join(project.root, 'src', 'index.mjs'),
+    path.join(project.root, 'src', 'index.cjs'),
+    path.join(project.root, 'src', 'index.js'),
+    path.join(project.root, 'src', 'index.tsx'),
+    path.join(project.root, 'src', 'index.jsx'),
   ];
 
   const fileWithoutExt = file.replace(/\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/, '');
@@ -1099,6 +1124,14 @@ function pointsToProjectIndex(
 function isIndexFilePath(pathStr: string): boolean {
   // Common index file patterns
   const indexPatterns = [
+    'public-api.ts',
+    'public-api.mts',
+    'public-api.cts',
+    'public-api.tsx',
+    'public-api.js',
+    'public-api.mjs',
+    'public-api.cjs',
+    'public-api.jsx',
     'index.ts',
     'index.mts',
     'index.cts',
@@ -1107,6 +1140,14 @@ function isIndexFilePath(pathStr: string): boolean {
     'index.mjs',
     'index.cjs',
     'index.jsx',
+    'src/public-api.ts',
+    'src/public-api.mts',
+    'src/public-api.cts',
+    'src/public-api.tsx',
+    'src/public-api.js',
+    'src/public-api.mjs',
+    'src/public-api.cjs',
+    'src/public-api.jsx',
     'src/index.ts',
     'src/index.mts',
     'src/index.cts',
@@ -1115,6 +1156,14 @@ function isIndexFilePath(pathStr: string): boolean {
     'src/index.mjs',
     'src/index.cjs',
     'src/index.jsx',
+    'lib/public-api.ts',
+    'lib/public-api.mts',
+    'lib/public-api.cts',
+    'lib/public-api.tsx',
+    'lib/public-api.js',
+    'lib/public-api.mjs',
+    'lib/public-api.cjs',
+    'lib/public-api.jsx',
     'lib/index.ts',
     'lib/index.js',
     // Some projects use main.ts or main.js as entry point
@@ -1177,9 +1226,9 @@ async function updateImportPathsInDependentProjects(
   sourceProjectName: string,
   sourceImportPath: string,
   targetImportPath: string,
-  targetProjectName?: string,
-  targetRelativePath?: string,
+  target?: { targetProjectName?: string; targetRelativePath?: string },
 ): Promise<void> {
+  const { targetProjectName, targetRelativePath } = target ?? {};
   const dependentProjectNames = getDependentProjectNames(
     projectGraph,
     sourceProjectName,
@@ -1188,16 +1237,16 @@ async function updateImportPathsInDependentProjects(
   const candidates: Array<[string, ProjectConfiguration]> =
     dependentProjectNames.length
       ? dependentProjectNames
-          .map((name) => {
-            const project = projects.get(name);
-            return project ? [name, project] : null;
-          })
-          .filter(
-            (entry): entry is [string, ProjectConfiguration] => entry !== null,
-          )
+        .map((name) => {
+          const project = projects.get(name);
+          return project ? [name, project] : null;
+        })
+        .filter(
+          (entry): entry is [string, ProjectConfiguration] => entry !== null,
+        )
       : Array.from(projects.entries()).filter(([, project]) =>
-          checkForImportsInProject(tree, project, sourceImportPath),
-        );
+        checkForImportsInProject(tree, project, sourceImportPath),
+      );
 
   candidates.forEach(([dependentName, dependentProject]) => {
     logger.debug(`Checking project ${dependentName} for imports`);
@@ -1552,12 +1601,38 @@ function ensureFileExported(
   file: string,
 ): void {
   const indexPaths = [
+    path.join(project.sourceRoot || project.root, 'public-api.ts'),
+    path.join(project.sourceRoot || project.root, 'public-api.mts'),
+    path.join(project.sourceRoot || project.root, 'public-api.cts'),
+    path.join(project.sourceRoot || project.root, 'public-api.mjs'),
+    path.join(project.sourceRoot || project.root, 'public-api.cjs'),
+    path.join(project.sourceRoot || project.root, 'public-api.js'),
+    path.join(project.sourceRoot || project.root, 'public-api.tsx'),
+    path.join(project.sourceRoot || project.root, 'public-api.jsx'),
+    path.join(project.root, 'src', 'public-api.ts'),
+    path.join(project.root, 'src', 'public-api.mts'),
+    path.join(project.root, 'src', 'public-api.cts'),
+    path.join(project.root, 'src', 'public-api.mjs'),
+    path.join(project.root, 'src', 'public-api.cjs'),
+    path.join(project.root, 'src', 'public-api.js'),
+    path.join(project.root, 'src', 'public-api.tsx'),
+    path.join(project.root, 'src', 'public-api.jsx'),
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
     path.join(project.sourceRoot || project.root, 'index.cts'),
+    path.join(project.sourceRoot || project.root, 'index.mjs'),
+    path.join(project.sourceRoot || project.root, 'index.cjs'),
+    path.join(project.sourceRoot || project.root, 'index.js'),
+    path.join(project.sourceRoot || project.root, 'index.tsx'),
+    path.join(project.sourceRoot || project.root, 'index.jsx'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
     path.join(project.root, 'src', 'index.cts'),
+    path.join(project.root, 'src', 'index.mjs'),
+    path.join(project.root, 'src', 'index.cjs'),
+    path.join(project.root, 'src', 'index.js'),
+    path.join(project.root, 'src', 'index.tsx'),
+    path.join(project.root, 'src', 'index.jsx'),
   ];
 
   // Find the first existing index file
@@ -1589,12 +1664,38 @@ function removeFileExport(
   file: string,
 ): void {
   const indexPaths = [
+    path.join(project.sourceRoot || project.root, 'public-api.ts'),
+    path.join(project.sourceRoot || project.root, 'public-api.mts'),
+    path.join(project.sourceRoot || project.root, 'public-api.cts'),
+    path.join(project.sourceRoot || project.root, 'public-api.mjs'),
+    path.join(project.sourceRoot || project.root, 'public-api.cjs'),
+    path.join(project.sourceRoot || project.root, 'public-api.js'),
+    path.join(project.sourceRoot || project.root, 'public-api.tsx'),
+    path.join(project.sourceRoot || project.root, 'public-api.jsx'),
+    path.join(project.root, 'src', 'public-api.ts'),
+    path.join(project.root, 'src', 'public-api.mts'),
+    path.join(project.root, 'src', 'public-api.cts'),
+    path.join(project.root, 'src', 'public-api.mjs'),
+    path.join(project.root, 'src', 'public-api.cjs'),
+    path.join(project.root, 'src', 'public-api.js'),
+    path.join(project.root, 'src', 'public-api.tsx'),
+    path.join(project.root, 'src', 'public-api.jsx'),
     path.join(project.sourceRoot || project.root, 'index.ts'),
     path.join(project.sourceRoot || project.root, 'index.mts'),
     path.join(project.sourceRoot || project.root, 'index.cts'),
+    path.join(project.sourceRoot || project.root, 'index.mjs'),
+    path.join(project.sourceRoot || project.root, 'index.cjs'),
+    path.join(project.sourceRoot || project.root, 'index.js'),
+    path.join(project.sourceRoot || project.root, 'index.tsx'),
+    path.join(project.sourceRoot || project.root, 'index.jsx'),
     path.join(project.root, 'src', 'index.ts'),
     path.join(project.root, 'src', 'index.mts'),
     path.join(project.root, 'src', 'index.cts'),
+    path.join(project.root, 'src', 'index.mjs'),
+    path.join(project.root, 'src', 'index.cjs'),
+    path.join(project.root, 'src', 'index.js'),
+    path.join(project.root, 'src', 'index.tsx'),
+    path.join(project.root, 'src', 'index.jsx'),
   ];
 
   // Find existing index files
@@ -1673,6 +1774,14 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
 
   // Fallback: list of common index file names if not found in tsconfig
   const fallbackIndexFileNames = [
+    'public-api.ts',
+    'public-api.mts',
+    'public-api.cts',
+    'public-api.mjs',
+    'public-api.cjs',
+    'public-api.js',
+    'public-api.tsx',
+    'public-api.jsx',
     'index.ts',
     'index.mts',
     'index.cts',
