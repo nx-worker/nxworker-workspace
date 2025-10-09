@@ -40,3 +40,5 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
+# Test packages generated during test runs
+/packages/lib*/
