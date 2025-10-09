@@ -33,10 +33,7 @@ const entrypointExtensions = Object.freeze([
   'jsx',
 ] as const);
 
-const primaryEntryBaseNames = Object.freeze([
-  'public-api',
-  'index',
-] as const);
+const primaryEntryBaseNames = Object.freeze(['public-api', 'index'] as const);
 
 const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
 const mainEntryFilenames = buildFileNames(['main']);
@@ -105,9 +102,7 @@ function getFallbackEntryPointPaths(project: ProjectConfiguration): string[] {
   const sourceRoot = project.sourceRoot || project.root;
 
   return [
-    ...primaryEntryFilenames.map((fileName) =>
-      path.join(sourceRoot, fileName),
-    ),
+    ...primaryEntryFilenames.map((fileName) => path.join(sourceRoot, fileName)),
     ...primaryEntryFilenames.map((fileName) =>
       path.join(project.root, 'src', fileName),
     ),
