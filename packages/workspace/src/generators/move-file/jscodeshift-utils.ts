@@ -77,11 +77,8 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          args[0].value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.arguments[0].value = newSpecifier;
+        hasChanges = true;
       });
 
     // Update require calls: require('oldSpecifier')
@@ -98,11 +95,8 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          args[0].value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.arguments[0].value = newSpecifier;
+        hasChanges = true;
       });
 
     // Update require.resolve calls: require.resolve('oldSpecifier')
@@ -123,11 +117,8 @@ export function updateImportSpecifier(
         );
       })
       .forEach((path) => {
-        const args = path.node.arguments;
-        if (args[0].type === 'StringLiteral') {
-          args[0].value = newSpecifier;
-          hasChanges = true;
-        }
+        path.node.arguments[0].value = newSpecifier;
+        hasChanges = true;
       });
 
     if (hasChanges) {
@@ -171,7 +162,7 @@ export function updateImportSpecifierPattern(
     const root = j(content);
     let hasChanges = false;
 
-    // Update static imports: import ... from 'specifier'
+    // Update static imports: import ... from 'specifier'  
     // Example: import { foo } from './path'
     root
       .find(j.ImportDeclaration)
@@ -413,9 +404,11 @@ export function hasImportSpecifier(
         }).length > 0;
 
     return hasRequireResolve;
-  } catch {
+  } catch (error) {
     // If parsing fails, log warning and return false
-    logger.warn(`Unable to parse ${filePath}. Import check may be inaccurate.`);
+    logger.warn(
+      `Unable to parse ${filePath}. Import check may be inaccurate.`,
+    );
     return false;
   }
 }
