@@ -25,8 +25,11 @@ The existing optimizations provide **outstanding performance**:
 **JavaScript Single-Threaded Execution**
 - Synchronous operations execute sequentially regardless of Promise.all() usage
 - The Nx Tree API is entirely synchronous (read, write, delete)
-- AST parsing with jscodeshift is synchronous
-- No actual I/O concurrency to exploit
+- jscodeshift **does support async transforms** (can return Promise), but this doesn't help because:
+  - The bottleneck is the synchronous Tree API, not transform execution
+  - Async transforms are designed for I/O operations, not synchronous tree mutations
+  - Our transforms use cached AST parsing, already avoiding redundant work
+- No actual I/O concurrency to exploit with synchronous tree operations
 
 **Existing Optimizations Are Highly Effective**
 - AST Cache: Prevents redundant parsing

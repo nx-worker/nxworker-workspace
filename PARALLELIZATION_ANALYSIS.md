@@ -45,7 +45,7 @@ The existing optimizations (AST caching, file tree caching, pattern analysis, sm
 ### 1. JavaScript Single-Threaded Execution
 - **All synchronous operations execute sequentially** regardless of Promise.all() usage
 - The Nx Tree API methods (read, write, delete) are synchronous
-- AST parsing with jscodeshift is synchronous
+- jscodeshift **supports async transforms** (returns Promise), but our current implementation uses synchronous operations within transforms
 - Only async I/O operations benefit from Promise-based concurrency
 
 ### 2. Synchronous Tree Mutations
@@ -56,6 +56,8 @@ tree.delete(filePath);          // Synchronous
 tree.read(filePath, 'utf-8');   // Synchronous
 ```
 
+**Note on jscodeshift async support**: While jscodeshift transforms CAN be async (returning a Promise), the bottleneck in our implementation is the synchronous Nx Tree API, not the transform execution itself. Making our transforms async would not improve performance because the tree operations remain synchronous.
+
 ### 3. Existing Caching is Highly Effective
 The current implementation already includes:
 - **AST Cache**: Prevents redundant parsing
@@ -65,7 +67,32 @@ The current implementation already includes:
 
 These optimizations already provide near-optimal performance.
 
-### 4. Worker Thread Overhead
+### 4. jscodeshift Async Transform Support
+
+**jscodeshift DOES support async transforms**, as documented in their codebase:
+
+```javascript
+// Async transform example from jscodeshift test fixtures
+module.exports = function(fileInfo, api, options) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve(api.jscodeshift(fileInfo.source)
+        .findVariableDeclarators('sum')
+        .renameTo('addition')
+        .toSource());
+    }, 100);
+  });
+}
+```
+
+The jscodeshift Worker uses `await transform()`, enabling async transform execution. However, **this doesn't help our use case** because:
+
+1. **The bottleneck is NOT the transform execution** - it's the synchronous Nx Tree API calls
+2. **Our transforms already use caching** - repeated parsing is already avoided
+3. **Async transforms would still execute sequentially** when processing multiple files because each transform must complete before writing to the tree
+4. **The tree operations cannot be made async** - `tree.write()`, `tree.read()`, and `tree.delete()` are inherently synchronous
+
+### 5. Worker Thread Overhead
 Using Worker Threads for parallelization would require:
 - Serializing/deserializing data between threads
 - Spinning up and managing worker threads
@@ -131,7 +158,22 @@ await Promise.all(
 - **Cons**: High overhead (serialization, thread management), complexity
 - **Verdict**: ❌ Rejected - overhead exceeds benefits for file sizes involved
 
-### 2. Batch Processing with Event Loop Yielding
+### 2. Async jscodeshift Transforms
+- **Pros**: Supported by jscodeshift (as of v17.1.2), could enable parallel transform execution
+- **Cons**: Bottleneck is synchronous Tree API, not transform execution; would add complexity without performance gain
+- **Verdict**: ❌ Rejected - wouldn't address the actual bottleneck
+
+**Detailed Analysis of Async Transforms:**
+
+While jscodeshift supports async transforms (returning Promises), this feature is designed for transforms that need to perform async I/O operations (e.g., fetching data, reading external files). Our transforms don't need async I/O - they:
+1. Read from the synchronous Tree API (`tree.read()`)
+2. Parse AST (synchronous, cached)
+3. Transform AST (synchronous)
+4. Write to the synchronous Tree API (`tree.write()`)
+
+Making the transform function async wouldn't parallelize these operations because the Tree API calls remain synchronous. The transforms would still execute sequentially when processing multiple files.
+
+### 3. Batch Processing with Event Loop Yielding
 - **Pros**: Prevents blocking event loop
 - **Cons**: Doesn't improve throughput, adds overhead
 - **Verdict**: ❌ Rejected - no performance benefit
