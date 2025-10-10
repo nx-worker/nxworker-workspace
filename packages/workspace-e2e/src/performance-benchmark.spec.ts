@@ -3,13 +3,15 @@ import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 
+const ciOnlyDescribe = process.env['CI'] ? describe : describe.skip;
+
 /**
  * Performance benchmark tests for the move-file generator.
  * These tests measure the execution time of the generator with various
  * file sizes and counts to validate the performance optimizations.
  */
 
-describe('move-file generator performance benchmarks', () => {
+ciOnlyDescribe('move-file generator performance benchmarks', () => {
   let projectDirectory: string;
   let benchmarkLib1: string;
   let benchmarkLib2: string;
