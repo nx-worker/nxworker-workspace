@@ -20,11 +20,13 @@ The benchmark simulates two approaches to glob pattern processing:
 ## Test Scenarios
 
 ### Test Case 1: 3 Patterns (Typical)
+
 - Patterns: `api-*.ts`, `service-*.ts`, `util-*.ts`
 - Files: 550
 - Expected improvement: ~3× faster
 
 ### Test Case 2: 10 Patterns (Heavy)
+
 - Patterns: 10 different glob patterns
 - Files: 550
 - Expected improvement: ~9× faster
@@ -57,6 +59,7 @@ The benchmark simulates two approaches to glob pattern processing:
 ## How It Works
 
 The benchmark:
+
 1. Creates a simulated file structure with 550 files
 2. Simulates the overhead of file tree traversal (~25ms per traversal)
 3. Runs both sequential and batched approaches
