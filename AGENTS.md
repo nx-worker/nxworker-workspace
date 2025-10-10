@@ -144,6 +144,7 @@ Nx interprets commands in the following order (per the [Nx CLI reference](https:
 
 Short rules (for agents and humans):
 
+- GitHub Copilot coding agent must always propose PR titles in `type(scope): short subject` form; do not surface alternative formats.
 - Use a Conventional Commits header as the PR title and squash commit: type(scope): short subject
 - Keep bodies/footers for details, e.g. BREAKING CHANGE: or Closes #123
 - Examples: `feat(workspace): add generator`, `fix(e2e): stop local registry`
