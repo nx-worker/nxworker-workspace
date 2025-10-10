@@ -51,6 +51,35 @@ const sourceFileExtensions = Object.freeze([
 ] as const);
 
 /**
+ * Cache for source files per project to avoid repeated tree traversals.
+ * Key: project root path, Value: array of source file paths
+ */
+const projectSourceFilesCache = new Map<string, string[]>();
+
+/**
+ * Gets all source files in a project with caching to avoid repeated traversals.
+ * @param tree - The virtual file system tree
+ * @param projectRoot - Root path of the project
+ * @returns Array of source file paths
+ */
+function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
+  const cached = projectSourceFilesCache.get(projectRoot);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const sourceFiles: string[] = [];
+  visitNotIgnoredFiles(tree, projectRoot, (filePath) => {
+    if (sourceFileExtensions.some((ext) => filePath.endsWith(ext))) {
+      sourceFiles.push(normalizePath(filePath));
+    }
+  });
+
+  projectSourceFilesCache.set(projectRoot, sourceFiles);
+  return sourceFiles;
+}
+
+/**
  * File extensions that should be stripped from imports.
  * ESM-specific extensions (.mjs, .mts, .cjs, .cts) are excluded as they are
  * required by the ESM specification.
@@ -610,6 +639,16 @@ async function executeMove(
   );
 
   createTargetFile(tree, normalizedTarget, fileContent);
+
+  // Invalidate cache for projects that will be modified
+  const sourceProject = projects.get(sourceProjectName);
+  const targetProject = projects.get(targetProjectName);
+  if (sourceProject) {
+    projectSourceFilesCache.delete(sourceProject.root);
+  }
+  if (targetProject && targetProject.root !== sourceProject?.root) {
+    projectSourceFilesCache.delete(targetProject.root);
+  }
 
   updateMovedFileImportsIfNeeded(tree, ctx);
 
@@ -1369,42 +1408,38 @@ function updateImportPathsToPackageAlias(
   targetPackageAlias: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = sourceFileExtensions;
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
+  const sourceFiles = getProjectSourceFiles(tree, project.root);
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
-    // Normalize path separators for cross-platform compatibility
-    const normalizedFilePath = normalizePath(filePath);
-
-    if (
-      fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      !filesToExclude.includes(normalizedFilePath)
-    ) {
-      // Use jscodeshift to update imports that reference the source file
-      updateImportSpecifierPattern(
-        tree,
-        normalizedFilePath,
-        (specifier) => {
-          // Match relative imports that reference the source file
-          if (!specifier.startsWith('.')) {
-            return false;
-          }
-          // Resolve the import specifier to an absolute path
-          const importerDir = path.dirname(normalizedFilePath);
-          const resolvedImport = path.join(importerDir, specifier);
-          // Normalize and compare with source file (both without extension)
-          const normalizedResolvedImport = normalizePath(
-            removeSourceFileExtension(resolvedImport),
-          );
-          const sourceFileWithoutExt = normalizePath(
-            removeSourceFileExtension(sourceFilePath),
-          );
-          return normalizedResolvedImport === sourceFileWithoutExt;
-        },
-        () => targetPackageAlias,
-      );
+  for (const normalizedFilePath of sourceFiles) {
+    if (filesToExclude.includes(normalizedFilePath)) {
+      continue;
     }
-  });
+
+    // Use jscodeshift to update imports that reference the source file
+    updateImportSpecifierPattern(
+      tree,
+      normalizedFilePath,
+      (specifier) => {
+        // Match relative imports that reference the source file
+        if (!specifier.startsWith('.')) {
+          return false;
+        }
+        // Resolve the import specifier to an absolute path
+        const importerDir = path.dirname(normalizedFilePath);
+        const resolvedImport = path.join(importerDir, specifier);
+        // Normalize and compare with source file (both without extension)
+        const normalizedResolvedImport = normalizePath(
+          removeSourceFileExtension(resolvedImport),
+        );
+        const sourceFileWithoutExt = normalizePath(
+          removeSourceFileExtension(sourceFilePath),
+        );
+        return normalizedResolvedImport === sourceFileWithoutExt;
+      },
+      () => targetPackageAlias,
+    );
+  }
 }
 
 /**
@@ -1416,47 +1451,45 @@ function updateImportPathsInProject(
   sourceFilePath: string,
   targetFilePath: string,
 ): void {
-  const fileExtensions = sourceFileExtensions;
+  const sourceFiles = getProjectSourceFiles(tree, project.root);
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
-    // Normalize path separators for cross-platform compatibility
-    const normalizedFilePath = normalizePath(filePath);
-
+  for (const normalizedFilePath of sourceFiles) {
     if (
-      fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      normalizedFilePath !== sourceFilePath &&
-      normalizedFilePath !== targetFilePath
+      normalizedFilePath === sourceFilePath ||
+      normalizedFilePath === targetFilePath
     ) {
-      const relativeSpecifier = getRelativeImportSpecifier(
-        normalizedFilePath,
-        targetFilePath,
-      );
-
-      // Use jscodeshift to update imports that reference the source file
-      updateImportSpecifierPattern(
-        tree,
-        normalizedFilePath,
-        (specifier) => {
-          // Match relative imports that reference the source file
-          if (!specifier.startsWith('.')) {
-            return false;
-          }
-          // Resolve the import specifier to an absolute path
-          const importerDir = path.dirname(normalizedFilePath);
-          const resolvedImport = path.join(importerDir, specifier);
-          // Normalize and compare with source file (both without extension)
-          const normalizedResolvedImport = normalizePath(
-            removeSourceFileExtension(resolvedImport),
-          );
-          const sourceFileWithoutExt = normalizePath(
-            removeSourceFileExtension(sourceFilePath),
-          );
-          return normalizedResolvedImport === sourceFileWithoutExt;
-        },
-        () => relativeSpecifier,
-      );
+      continue;
     }
-  });
+
+    const relativeSpecifier = getRelativeImportSpecifier(
+      normalizedFilePath,
+      targetFilePath,
+    );
+
+    // Use jscodeshift to update imports that reference the source file
+    updateImportSpecifierPattern(
+      tree,
+      normalizedFilePath,
+      (specifier) => {
+        // Match relative imports that reference the source file
+        if (!specifier.startsWith('.')) {
+          return false;
+        }
+        // Resolve the import specifier to an absolute path
+        const importerDir = path.dirname(normalizedFilePath);
+        const resolvedImport = path.join(importerDir, specifier);
+        // Normalize and compare with source file (both without extension)
+        const normalizedResolvedImport = normalizePath(
+          removeSourceFileExtension(resolvedImport),
+        );
+        const sourceFileWithoutExt = normalizePath(
+          removeSourceFileExtension(sourceFilePath),
+        );
+        return normalizedResolvedImport === sourceFileWithoutExt;
+      },
+      () => relativeSpecifier,
+    );
+  }
 }
 
 /**
@@ -1467,23 +1500,16 @@ function checkForImportsInProject(
   project: ProjectConfiguration,
   importPath: string,
 ): boolean {
-  const fileExtensions = sourceFileExtensions;
-  let hasImports = false;
+  const sourceFiles = getProjectSourceFiles(tree, project.root);
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
-    if (hasImports) {
-      return; // Short-circuit if we already found imports
+  for (const filePath of sourceFiles) {
+    // Use jscodeshift to check for imports
+    if (hasImportSpecifier(tree, filePath, importPath)) {
+      return true;
     }
+  }
 
-    if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
-      // Use jscodeshift to check for imports
-      if (hasImportSpecifier(tree, filePath, importPath)) {
-        hasImports = true;
-      }
-    }
-  });
-
-  return hasImports;
+  return false;
 }
 
 /**
@@ -1496,32 +1522,28 @@ function updateImportsToRelative(
   targetRelativePath: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const fileExtensions = sourceFileExtensions;
+  const sourceFiles = getProjectSourceFiles(tree, project.root);
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
-    // Normalize path separators for cross-platform compatibility
-    const normalizedFilePath = normalizePath(filePath);
-
-    if (
-      fileExtensions.some((ext) => filePath.endsWith(ext)) &&
-      !excludeFilePaths.includes(normalizedFilePath)
-    ) {
-      const projectRoot = project.sourceRoot || project.root;
-      const targetFilePath = path.join(projectRoot, targetRelativePath);
-      const relativeSpecifier = getRelativeImportSpecifier(
-        filePath,
-        targetFilePath,
-      );
-
-      // Use jscodeshift to update imports from source import path to relative path
-      updateImportSpecifier(
-        tree,
-        filePath,
-        sourceImportPath,
-        relativeSpecifier,
-      );
+  for (const normalizedFilePath of sourceFiles) {
+    if (excludeFilePaths.includes(normalizedFilePath)) {
+      continue;
     }
-  });
+
+    const projectRoot = project.sourceRoot || project.root;
+    const targetFilePath = path.join(projectRoot, targetRelativePath);
+    const relativeSpecifier = getRelativeImportSpecifier(
+      normalizedFilePath,
+      targetFilePath,
+    );
+
+    // Use jscodeshift to update imports from source import path to relative path
+    updateImportSpecifier(
+      tree,
+      normalizedFilePath,
+      sourceImportPath,
+      relativeSpecifier,
+    );
+  }
 }
 
 function updateImportsByAliasInProject(
@@ -1530,14 +1552,12 @@ function updateImportsByAliasInProject(
   sourceImportPath: string,
   targetImportPath: string,
 ): void {
-  const fileExtensions = sourceFileExtensions;
+  const sourceFiles = getProjectSourceFiles(tree, project.root);
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
-    if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
-      // Use jscodeshift to update imports from source to target path
-      updateImportSpecifier(tree, filePath, sourceImportPath, targetImportPath);
-    }
-  });
+  for (const filePath of sourceFiles) {
+    // Use jscodeshift to update imports from source to target path
+    updateImportSpecifier(tree, filePath, sourceImportPath, targetImportPath);
+  }
 }
 
 function buildReverseDependencyMap(
@@ -1741,6 +1761,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
     );
   }
 
+  // Don't use cache for isProjectEmpty check as we need the current state
   let hasNonIndexSourceFiles = false;
 
   visitNotIgnoredFiles(tree, sourceRoot, (filePath) => {
