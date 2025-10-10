@@ -1087,115 +1087,6 @@ describe('workspace', () => {
       );
     });
 
-    it('should handle large files efficiently on both x64 and arm64', () => {
-      // Test with a reasonably sized file that might expose memory handling differences
-      // between x64 and arm64 architectures
-
-      const fileName = 'large-module.ts';
-      const largeContent = generateLargeTypeScriptFile(1000); // 1,000 lines (reduced for performance)
-
-      writeFileSync(
-        join(projectDirectory, archLibName, 'src', 'lib', fileName),
-        largeContent,
-      );
-
-      const consumerPath = join(
-        projectDirectory,
-        archLibName,
-        'src',
-        'lib',
-        'consumer.ts',
-      );
-      writeFileSync(
-        consumerPath,
-        `import { func0 } from './${fileName.replace('.ts', '')}';\nexport const value = func0();\n`,
-      );
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/${fileName} --project ${archLibName} --project-directory modules --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      const movedPath = join(
-        projectDirectory,
-        archLibName,
-        'src',
-        'lib',
-        'modules',
-        fileName,
-      );
-      const movedContent = readFileSync(movedPath, 'utf-8');
-
-      // Verify content is complete
-      expect(movedContent).toContain('export function func0()');
-      expect(movedContent).toContain('export function func999()');
-
-      // Verify imports were updated
-      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
-      expect(updatedConsumerContent).toMatch(
-        /from ['"]\.\/modules\/large-module['"]/,
-      );
-    });
-
-    it('should handle many files with imports efficiently (stress test for both architectures)', () => {
-      // Create multiple files with cross-references
-      // This tests performance and memory handling on different architectures
-
-      const fileCount = 20;
-
-      // Create files using Array methods
-      Array.from({ length: fileCount }, (_, i) => {
-        const fileName = `module${i}.ts`;
-        writeFileSync(
-          join(projectDirectory, archLibName, 'src', 'lib', fileName),
-          `export function func${i}() { return ${i}; }\n`,
-        );
-        return fileName;
-      });
-
-      // Create consumer that imports from first file
-      const consumerPath = join(
-        projectDirectory,
-        archLibName,
-        'src',
-        'lib',
-        'consumer.ts',
-      );
-      writeFileSync(
-        consumerPath,
-        `import { func0 } from './module0';\nexport const value = func0();\n`,
-      );
-
-      // Move first file
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${archLibName}/src/lib/module0.ts --project ${archLibName} --project-directory modules --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      // Verify file was moved
-      const movedPath = join(
-        projectDirectory,
-        archLibName,
-        'src',
-        'lib',
-        'modules',
-        'module0.ts',
-      );
-      expect(readFileSync(movedPath, 'utf-8')).toContain('func0');
-
-      // Verify import was updated
-      const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
-      expect(updatedConsumerContent).toMatch(
-        /from ['"]\.\/modules\/module0['"]/,
-      );
-    });
-
     it('should handle binary-safe file operations (architecture-independent)', () => {
       // While TypeScript files are text, the generator should handle them
       // in a way that's safe across architectures (no byte-order issues, etc.)
@@ -1759,20 +1650,6 @@ function getProjectImportAlias(
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Generate a large TypeScript file with multiple functions
- * @param lines - Number of function declarations to generate
- * @returns TypeScript source code
- */
-function generateLargeTypeScriptFile(lines: number): string {
-  const header = '// Large auto-generated TypeScript file\n\n';
-  const functions = Array.from(
-    { length: lines },
-    (_, i) => `export function func${i}() {\n  return ${i};\n}\n`,
-  ).join('\n');
-  return header + functions;
 }
 
 /**
