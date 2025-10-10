@@ -74,7 +74,7 @@ const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
 /**
  * Cache for file tree structure to optimize repeated visitNotIgnoredFiles calls.
  * Key: directory path, Value: array of file paths in that directory.
- * 
+ *
  * This cache is cleared when the tree is modified to ensure consistency.
  */
 class FileTreeCache {
@@ -117,7 +117,7 @@ const fileTreeCache = new FileTreeCache();
 /**
  * Cached version of visitNotIgnoredFiles that reuses the file list
  * when visiting the same directory multiple times.
- * 
+ *
  * @param tree - The virtual file system tree
  * @param dirPath - Directory to visit
  * @param visitor - Function called for each file
@@ -131,11 +131,12 @@ function visitNotIgnoredFilesCached(
 
   if (!files) {
     // Cache miss - build the file list
-    files = [];
+    const fileList: string[] = [];
     visitNotIgnoredFiles(tree, dirPath, (filePath) => {
-      files!.push(filePath);
+      fileList.push(filePath);
     });
-    fileTreeCache.set(dirPath, files);
+    fileTreeCache.set(dirPath, fileList);
+    files = fileList;
   }
 
   // Visit all cached files

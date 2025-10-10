@@ -143,7 +143,7 @@ const TREE_TRAVERSAL_COST_MS = 25; // Tree traversal cost in milliseconds
 // In benchmark-glob-performance.js
 const fileCount = 500; // Number of files in the workspace
 
-// In benchmark-cache-performance.js  
+// In benchmark-cache-performance.js
 const fileCount = 100; // Number of files per project
 ```
 
@@ -153,4 +153,3 @@ const fileCount = 100; // Number of files per project
 - [Performance Optimization Guide](../docs/performance-optimization.md)
 - [Glob Optimization Details](../GLOB_OPTIMIZATION.md)
 - [Smart Caching Documentation](../docs/smart-caching.md)
-
