@@ -60,33 +60,40 @@ export function updateImportSpecifier(
   try {
     let hasChanges = false;
 
-    // Single-pass traversal: visit all nodes once and handle different types
-    root.find(j.Node).forEach((path) => {
+    // Optimized: Filter to only relevant node types before traversal
+    // This reduces the number of nodes we need to check dramatically
+    const relevantNodes = root.find(j.Node, (node) => {
+      return (
+        j.ImportDeclaration.check(node) ||
+        j.ExportNamedDeclaration.check(node) ||
+        j.ExportAllDeclaration.check(node) ||
+        j.CallExpression.check(node)
+      );
+    });
+
+    relevantNodes.forEach((path) => {
       const node = path.node as ASTNode;
 
       // Handle ImportDeclaration: import ... from 'oldSpecifier'
-      if (
-        j.ImportDeclaration.check(node) &&
-        node.source.value === oldSpecifier
-      ) {
-        node.source.value = newSpecifier;
-        hasChanges = true;
+      if (j.ImportDeclaration.check(node)) {
+        if (node.source.value === oldSpecifier) {
+          node.source.value = newSpecifier;
+          hasChanges = true;
+        }
       }
       // Handle ExportNamedDeclaration: export { foo } from 'oldSpecifier'
-      else if (
-        j.ExportNamedDeclaration.check(node) &&
-        node.source?.value === oldSpecifier
-      ) {
-        node.source.value = newSpecifier;
-        hasChanges = true;
+      else if (j.ExportNamedDeclaration.check(node)) {
+        if (node.source?.value === oldSpecifier) {
+          node.source.value = newSpecifier;
+          hasChanges = true;
+        }
       }
       // Handle ExportAllDeclaration: export * from 'oldSpecifier'
-      else if (
-        j.ExportAllDeclaration.check(node) &&
-        node.source.value === oldSpecifier
-      ) {
-        node.source.value = newSpecifier;
-        hasChanges = true;
+      else if (j.ExportAllDeclaration.check(node)) {
+        if (node.source.value === oldSpecifier) {
+          node.source.value = newSpecifier;
+          hasChanges = true;
+        }
       }
       // Handle CallExpression for dynamic imports, require, and require.resolve
       else if (j.CallExpression.check(node)) {
@@ -177,8 +184,17 @@ export function updateImportSpecifierPattern(
   try {
     let hasChanges = false;
 
-    // Single-pass traversal: visit all nodes once and handle different types
-    root.find(j.Node).forEach((path) => {
+    // Optimized: Filter to only relevant node types before traversal
+    const relevantNodes = root.find(j.Node, (node) => {
+      return (
+        j.ImportDeclaration.check(node) ||
+        j.ExportNamedDeclaration.check(node) ||
+        j.ExportAllDeclaration.check(node) ||
+        j.CallExpression.check(node)
+      );
+    });
+
+    relevantNodes.forEach((path) => {
       const node = path.node as ASTNode;
 
       // Handle ImportDeclaration: import ... from 'specifier'
@@ -190,15 +206,13 @@ export function updateImportSpecifierPattern(
         }
       }
       // Handle ExportNamedDeclaration: export { foo } from 'specifier'
-      else if (
-        j.ExportNamedDeclaration.check(node) &&
-        node.source &&
-        typeof node.source.value === 'string'
-      ) {
-        const source = node.source.value;
-        if (matcher(source)) {
-          node.source.value = getNewSpecifier(source);
-          hasChanges = true;
+      else if (j.ExportNamedDeclaration.check(node)) {
+        if (node.source && typeof node.source.value === 'string') {
+          const source = node.source.value;
+          if (matcher(source)) {
+            node.source.value = getNewSpecifier(source);
+            hasChanges = true;
+          }
         }
       }
       // Handle ExportAllDeclaration: export * from 'specifier'
@@ -303,36 +317,46 @@ export function hasImportSpecifier(
   }
 
   try {
-    // Use a single traversal to check all import types
+    // Optimized: Filter to only relevant node types and use early termination
     let found = false;
-    root.find(j.Node).forEach((path) => {
-      if (found) return; // Early exit if already found
+
+    const relevantNodes = root.find(j.Node, (node) => {
+      return (
+        j.ImportDeclaration.check(node) ||
+        j.ExportNamedDeclaration.check(node) ||
+        j.ExportAllDeclaration.check(node) ||
+        j.CallExpression.check(node)
+      );
+    });
+
+    relevantNodes.forEach((path) => {
+      if (found) return; // Early termination if already found
 
       const node = path.node as ASTNode;
 
       // Check ImportDeclaration
-      if (j.ImportDeclaration.check(node) && node.source.value === specifier) {
-        found = true;
-        return;
+      if (j.ImportDeclaration.check(node)) {
+        if (node.source.value === specifier) {
+          found = true;
+          return;
+        }
       }
       // Check ExportNamedDeclaration
-      if (
-        j.ExportNamedDeclaration.check(node) &&
-        node.source?.value === specifier
-      ) {
-        found = true;
-        return;
+      else if (j.ExportNamedDeclaration.check(node)) {
+        if (node.source?.value === specifier) {
+          found = true;
+          return;
+        }
       }
       // Check ExportAllDeclaration
-      if (
-        j.ExportAllDeclaration.check(node) &&
-        node.source.value === specifier
-      ) {
-        found = true;
-        return;
+      else if (j.ExportAllDeclaration.check(node)) {
+        if (node.source.value === specifier) {
+          found = true;
+          return;
+        }
       }
       // Check CallExpression for dynamic imports, require, and require.resolve
-      if (j.CallExpression.check(node)) {
+      else if (j.CallExpression.check(node)) {
         const { callee, arguments: args } = node;
         if (
           args.length > 0 &&
