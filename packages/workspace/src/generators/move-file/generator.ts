@@ -57,6 +57,14 @@ const sourceFileExtensions = Object.freeze([
 const projectSourceFilesCache = new Map<string, string[]>();
 
 /**
+ * Clears all caches. Should be called when starting a new generator operation
+ * to ensure fresh state.
+ */
+function clearAllCaches(): void {
+  projectSourceFilesCache.clear();
+}
+
+/**
  * Gets all source files in a project with caching to avoid repeated traversals.
  * @param tree - The virtual file system tree
  * @param projectRoot - Root path of the project
@@ -204,6 +212,9 @@ export async function moveFileGenerator(
   tree: Tree,
   options: MoveFileGeneratorSchema,
 ) {
+  // Clear all caches at the start of generator execution
+  clearAllCaches();
+
   const projects = getProjects(tree);
   const projectGraph = await createProjectGraphAsync();
 
