@@ -372,14 +372,15 @@ export async function moveFileGenerator(
   });
 
   // Execute all moves without deleting sources yet
-  // Process moves in parallel for better performance when moving multiple files
-  // This is safe because each move operates on different source/target files
-  await Promise.all(
-    contexts.map((ctx, i) => {
-      const fileOptions = { ...options, file: uniqueFilePaths[i] };
-      return executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
-    }),
-  );
+  // Note: These must be executed sequentially, not in parallel, because:
+  // 1. Multiple files might be moved to the same target project
+  // 2. updateProjectSourceFilesCache() modifies shared cache arrays
+  // 3. Concurrent modifications could cause race conditions
+  for (let i = 0; i < contexts.length; i++) {
+    const ctx = contexts[i];
+    const fileOptions = { ...options, file: uniqueFilePaths[i] };
+    await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
+  }
 
   // Delete all source files after all moves are complete
   for (const ctx of contexts) {
@@ -1499,7 +1500,7 @@ async function updateImportPathsInDependentProjects(
     // Parallel filter: check all projects concurrently for imports
     const projectEntries = Array.from(projects.entries());
     const results = await Promise.all(
-      projectEntries.map(async ([name, project]) => {
+      projectEntries.map(([name, project]) => {
         const hasImports = checkForImportsInProject(
           tree,
           project,

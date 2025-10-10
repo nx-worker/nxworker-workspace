@@ -113,7 +113,7 @@ const candidates = projects.filter(([, project]) =>
 
 // To:
 const results = await Promise.all(
-  projectEntries.map(async ([name, project]) => {
+  projectEntries.map(([name, project]) => {
     const hasImports = checkForImportsInProject(tree, project, sourceImportPath);
     return hasImports ? ([name, project]) : null;
   })
@@ -122,34 +122,47 @@ const results = await Promise.all(
 
 **Result**: No measurable performance improvement because `checkForImportsInProject` uses synchronous operations.
 
-### 2. Parallel Batch File Moves
+**Note**: Removed unnecessary `async` keyword from the map callback since the function doesn't use `await`.
+
+### 2. ~~Parallel Batch File Moves~~ (Reverted)
 **File**: `generator.ts` - batch move execution
 
+**Original attempt** (reverted due to safety concerns):
 ```typescript
-// Changed from sequential:
-for (let i = 0; i < contexts.length; i++) {
-  await executeMove(...);
-}
-
-// To Promise.all:
+// This was UNSAFE - reverted
 await Promise.all(
   contexts.map((ctx, i) => executeMove(...))
 );
 ```
 
-**Result**: No measurable performance improvement because tree operations are synchronous.
+**Why it was unsafe**: 
+- Multiple files might be moved to the same target project
+- `updateProjectSourceFilesCache()` modifies shared cache arrays
+- Concurrent array modifications (splice, push) could cause race conditions
+- Cache corruption could lead to incorrect import updates
+
+**Final implementation** (sequential):
+```typescript
+// Sequential execution to prevent race conditions
+for (let i = 0; i < contexts.length; i++) {
+  await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
+}
+```
+
+**Result**: Batch moves remain sequential to ensure cache consistency and correctness.
 
 ## Operations Analyzed for Parallelization
 
 ### Safe for Parallelization (Read-Only)
 ✓ File content reading (but already cached)
 ✓ AST parsing (but synchronous, so no benefit)
-✓ Import checking across different projects (but synchronous operations)
+✓ Import checking across different projects (but synchronous operations, no actual concurrency)
 
 ### Unsafe for Parallelization (Mutations)
 ✗ Tree write operations (must maintain consistency)
-✗ Cache updates (must be atomic)
+✗ Cache updates (must be atomic - shared cache arrays modified by multiple operations)
 ✗ Index file modifications (same file, multiple writes)
+✗ **Batch file moves** (shared cache corruption risk when moving to same target project)
 
 ## Alternative Approaches Considered
 

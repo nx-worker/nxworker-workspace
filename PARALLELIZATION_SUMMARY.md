@@ -50,11 +50,13 @@ The existing optimizations provide **outstanding performance**:
 
 1. **Parallel Project Import Checking** (`updateImportPathsInDependentProjects`)
    - Changed from sequential `.filter()` to `Promise.all()`
+   - Removed unnecessary `async` keyword from map callback
    - No performance impact (operations still synchronous)
 
-2. **Parallel Batch File Moves** (batch move execution)
-   - Changed from sequential `for` loop to `Promise.all()`
-   - No performance impact (tree operations still synchronous)
+2. **~~Parallel Batch File Moves~~ (Reverted)**
+   - Initially attempted to use `Promise.all()` for batch moves
+   - **Reverted due to safety concerns**: Multiple files to same target project cause race conditions in shared cache arrays
+   - Remains sequential to prevent cache corruption
 
 ### Performance Impact
 
