@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Performance Optimization Tracking
+    url: https://github.com/nx-worker/nxworker-workspace/blob/main/PERFORMANCE_OPTIMIZATION_SUGGESTIONS.md
+    about: View all performance optimization suggestions and their priorities
