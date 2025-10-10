@@ -21,6 +21,7 @@ import {
   updateImportSpecifierPattern,
   hasImportSpecifier,
 } from './jscodeshift-utils';
+import { filterProjectsWithImportsParallel } from './parallel-utils';
 
 const entrypointExtensions = Object.freeze([
   'ts',
@@ -1315,19 +1316,29 @@ async function updateImportPathsInDependentProjects(
     sourceProjectName,
   );
 
-  const candidates: Array<[string, ProjectConfiguration]> =
-    dependentProjectNames.length
-      ? dependentProjectNames
-          .map((name) => {
-            const project = projects.get(name);
-            return project ? [name, project] : null;
-          })
-          .filter(
-            (entry): entry is [string, ProjectConfiguration] => entry !== null,
-          )
-      : Array.from(projects.entries()).filter(([, project]) =>
-          checkForImportsInProject(tree, project, sourceImportPath),
-        );
+  let candidates: Array<[string, ProjectConfiguration]>;
+
+  if (dependentProjectNames.length) {
+    // We have dependency graph info, use it
+    candidates = dependentProjectNames
+      .map((name) => {
+        const project = projects.get(name);
+        return project ? [name, project] : null;
+      })
+      .filter(
+        (entry): entry is [string, ProjectConfiguration] => entry !== null,
+      );
+  } else {
+    // No dependency graph, scan all projects in parallel
+    logger.verbose(
+      `No dependency graph available, scanning all projects in parallel for imports to ${sourceImportPath}`,
+    );
+    candidates = await filterProjectsWithImportsParallel(
+      tree,
+      Array.from(projects.entries()),
+      sourceImportPath,
+    );
+  }
 
   candidates.forEach(([dependentName, dependentProject]) => {
     logger.verbose(`Checking project ${dependentName} for imports`);
