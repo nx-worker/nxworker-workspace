@@ -7,12 +7,14 @@ This document describes the smart file cache optimization implemented to improve
 ## Problem Statement
 
 The move-file generator performs many file system operations during execution:
+
 - Multiple `tree.exists()` calls to check file existence
 - Repeated parsing of tsconfig.json files to read path mappings
 - Full project file tree traversals when files are moved
 - Sequential processing of dependent projects
 
 These operations, while individually fast, accumulate significantly when:
+
 - Moving multiple files in a batch
 - Working with large workspaces (10+ projects, 100+ files)
 - Updating imports across many dependent projects
@@ -39,6 +41,7 @@ function cachedTreeExists(tree: Tree, filePath: string): boolean {
 ```
 
 **Benefits:**
+
 - Eliminates redundant file existence checks
 - Particularly effective for index files and tsconfig files that are checked multiple times
 - Cache is updated when files are created or deleted
@@ -48,6 +51,7 @@ function cachedTreeExists(tree: Tree, filePath: string): boolean {
 Instead of invalidating and re-scanning entire projects when a file moves, update the cache incrementally.
 
 **Before:**
+
 ```typescript
 // Invalidate cache for projects that will be modified
 if (sourceProject) {
@@ -56,6 +60,7 @@ if (sourceProject) {
 ```
 
 **After:**
+
 ```typescript
 function updateProjectSourceFilesCache(
   projectRoot: string,
@@ -79,6 +84,7 @@ function updateProjectSourceFilesCache(
 ```
 
 **Benefits:**
+
 - Avoids re-scanning entire project directories
 - Maintains accurate cache during batch operations
 - O(1) cache updates instead of O(n) tree traversals
@@ -94,7 +100,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
   if (compilerPathsCache !== undefined) {
     return compilerPathsCache;
   }
-  
+
   // ... parse tsconfig files and cache result
   compilerPathsCache = paths;
   return paths;
@@ -102,6 +108,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
 ```
 
 **Benefits:**
+
 - Eliminates repeated parsing of tsconfig.base.json
 - Particularly effective when determining import paths for multiple projects
 - Single parse per generator execution
@@ -118,6 +125,7 @@ candidates.forEach(([, dependentProject]) => {
 ```
 
 **Benefits:**
+
 - Triggers cache population upfront
 - Subsequent operations use cached data
 - Improves performance when updating imports across multiple projects
@@ -145,6 +153,7 @@ The implementation maintains cache consistency through:
 ### Functions Updated
 
 **File Existence Checks:**
+
 - `resolveAndValidate()` - source file validation
 - `isFileExported()` - index file checks
 - `readCompilerPaths()` - tsconfig file checks
@@ -153,6 +162,7 @@ The implementation maintains cache consistency through:
 - `removeFileExport()` - index file operations
 
 **Cache Management:**
+
 - `executeMove()` - incremental cache updates
 - `createTargetFile()` - existence cache update
 - `moveFileGenerator()` - file deletion cache updates
@@ -162,6 +172,7 @@ The implementation maintains cache consistency through:
 ### Baseline (Before Optimization)
 
 **Benchmark Tests:**
+
 - Small file move: ~1970ms
 - Medium file move: ~2086ms
 - Large file move: ~2712ms
@@ -171,6 +182,7 @@ The implementation maintains cache consistency through:
 - Many irrelevant files (50): ~2054ms
 
 **Stress Tests:**
+
 - 10+ projects: ~37975ms
 - 100+ large files: ~9754ms
 - 50 intra-project dependencies: ~2269ms
@@ -179,6 +191,7 @@ The implementation maintains cache consistency through:
 ### After Smart File Cache Optimization
 
 **Benchmark Tests:**
+
 - Small file move: ~1996ms (↑1.3% - within margin of error)
 - Medium file move: ~2103ms (↑0.8% - within margin of error)
 - Large file move: ~2670ms (↓1.5% improvement)
@@ -188,6 +201,7 @@ The implementation maintains cache consistency through:
 - Many irrelevant files (50): ~2057ms (↑0.1% - within margin of error)
 
 **Stress Tests:**
+
 - 10+ projects: ~2220ms (↑**94.2% improvement!** - note: baseline was incorrect, re-ran)
 - 100+ large files: ~5266ms (↑**46.0% improvement!**)
 - 50 intra-project dependencies: ~2252ms (↑0.7% improvement)
@@ -250,6 +264,7 @@ The move-file generator now includes three major optimization layers:
 ### Combined Performance Impact
 
 From original baseline to current state:
+
 - Single file operations: Consistent performance (~2000ms)
 - Batch operations: 40-95% improvement in stress scenarios
 - Large workspaces: Significant scalability improvements

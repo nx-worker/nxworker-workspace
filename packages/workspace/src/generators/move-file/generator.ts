@@ -106,7 +106,7 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 /**
  * Updates the project source files cache incrementally when a file is moved.
  * This is more efficient than invalidating and re-scanning the entire project.
- * 
+ *
  * @param projectRoot - Root path of the project
  * @param oldPath - Path of the file being moved
  * @param newPath - New path of the file (or null if file is being removed from project)
@@ -414,7 +414,7 @@ export async function moveFileGenerator(
   const fileExistenceCacheSize = fileExistenceCache.size;
   const projectCacheSize = projectSourceFilesCache.size;
   const tsconfigCached = compilerPathsCache !== undefined;
-  
+
   logger.verbose(
     `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
   );
@@ -1785,7 +1785,8 @@ function ensureFileExported(
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
   // Find the first existing index file
-  const indexPath = indexPaths.find((p) => cachedTreeExists(tree, p)) || indexPaths[0];
+  const indexPath =
+    indexPaths.find((p) => cachedTreeExists(tree, p)) || indexPaths[0];
 
   let content = '';
   if (cachedTreeExists(tree, indexPath)) {
