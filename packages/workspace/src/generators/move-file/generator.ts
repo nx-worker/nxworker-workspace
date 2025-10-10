@@ -372,11 +372,14 @@ export async function moveFileGenerator(
   });
 
   // Execute all moves without deleting sources yet
-  for (let i = 0; i < contexts.length; i++) {
-    const ctx = contexts[i];
-    const fileOptions = { ...options, file: uniqueFilePaths[i] };
-    await executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
-  }
+  // Process moves in parallel for better performance when moving multiple files
+  // This is safe because each move operates on different source/target files
+  await Promise.all(
+    contexts.map((ctx, i) => {
+      const fileOptions = { ...options, file: uniqueFilePaths[i] };
+      return executeMove(tree, fileOptions, projects, projectGraph, ctx, true);
+    }),
+  );
 
   // Delete all source files after all moves are complete
   for (const ctx of contexts) {
