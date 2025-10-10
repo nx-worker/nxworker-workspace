@@ -4,6 +4,7 @@ import {
   updateImportSpecifier,
   updateImportSpecifierPattern,
   hasImportSpecifier,
+  clearCache,
 } from './jscodeshift-utils';
 
 describe('jscodeshift-utils', () => {
@@ -11,6 +12,8 @@ describe('jscodeshift-utils', () => {
 
   beforeEach(() => {
     tree = createTreeWithEmptyWorkspace();
+    // Clear cache before each test to ensure test isolation
+    clearCache();
   });
 
   describe('updateImportSpecifier', () => {

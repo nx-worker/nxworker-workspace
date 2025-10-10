@@ -1,9 +1,6 @@
 import { Tree, logger } from '@nx/devkit';
-import * as jscodeshift from 'jscodeshift';
 import type { ASTNode } from 'jscodeshift';
-
-// Create parser instance once and reuse it for better performance
-const j = jscodeshift.withParser('tsx');
+import { astCache, j } from './ast-cache';
 
 /**
  * Quick check if content might contain imports/requires before expensive parsing.
@@ -43,7 +40,8 @@ export function updateImportSpecifier(
   oldSpecifier: string,
   newSpecifier: string,
 ): boolean {
-  const content = tree.read(filePath, 'utf-8');
+  // Get content from cache or read from tree
+  const content = astCache.getContent(tree, filePath);
   if (!content || content.trim().length === 0) {
     return false;
   }
@@ -53,8 +51,13 @@ export function updateImportSpecifier(
     return false;
   }
 
+  // Get parsed AST from cache or parse content
+  const root = astCache.getAST(tree, filePath);
+  if (!root) {
+    return false;
+  }
+
   try {
-    const root = j(content);
     let hasChanges = false;
 
     // Single-pass traversal: visit all nodes once and handle different types
@@ -123,6 +126,8 @@ export function updateImportSpecifier(
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
       tree.write(filePath, updatedContent);
+      // Invalidate cache since file was modified
+      astCache.invalidate(filePath);
       logger.verbose(`Updated imports in ${filePath} using jscodeshift`);
     }
 
@@ -152,7 +157,8 @@ export function updateImportSpecifierPattern(
   matcher: (specifier: string) => boolean,
   getNewSpecifier: (oldSpecifier: string) => string,
 ): boolean {
-  const content = tree.read(filePath, 'utf-8');
+  // Get content from cache or read from tree
+  const content = astCache.getContent(tree, filePath);
   if (!content || content.trim().length === 0) {
     return false;
   }
@@ -162,8 +168,13 @@ export function updateImportSpecifierPattern(
     return false;
   }
 
+  // Get parsed AST from cache or parse content
+  const root = astCache.getAST(tree, filePath);
+  if (!root) {
+    return false;
+  }
+
   try {
-    const root = j(content);
     let hasChanges = false;
 
     // Single-pass traversal: visit all nodes once and handle different types
@@ -243,6 +254,8 @@ export function updateImportSpecifierPattern(
     if (hasChanges) {
       const updatedContent = root.toSource({ quote: 'single' });
       tree.write(filePath, updatedContent);
+      // Invalidate cache since file was modified
+      astCache.invalidate(filePath);
       logger.verbose(
         `Updated imports in ${filePath} using jscodeshift pattern matcher`,
       );
@@ -272,7 +285,8 @@ export function hasImportSpecifier(
   filePath: string,
   specifier: string,
 ): boolean {
-  const content = tree.read(filePath, 'utf-8');
+  // Get content from cache or read from tree
+  const content = astCache.getContent(tree, filePath);
   if (!content || content.trim().length === 0) {
     return false;
   }
@@ -282,9 +296,13 @@ export function hasImportSpecifier(
     return false;
   }
 
-  try {
-    const root = j(content);
+  // Get parsed AST from cache or parse content
+  const root = astCache.getAST(tree, filePath);
+  if (!root) {
+    return false;
+  }
 
+  try {
     // Use a single traversal to check all import types
     let found = false;
     root.find(j.Node).forEach((path) => {
@@ -354,4 +372,23 @@ export function hasImportSpecifier(
     );
     return false;
   }
+}
+
+/**
+ * Clears all cached ASTs and content. Should be called at the start of each move operation
+ * to ensure a clean state.
+ */
+export function clearCache(): void {
+  astCache.clear();
+}
+
+/**
+ * Gets cache statistics for monitoring/debugging.
+ */
+export function getCacheStats(): {
+  contentCacheSize: number;
+  astCacheSize: number;
+  failedParseCount: number;
+} {
+  return astCache.getStats();
 }

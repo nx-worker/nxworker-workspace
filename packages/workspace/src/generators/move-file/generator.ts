@@ -20,6 +20,8 @@ import {
   updateImportSpecifier,
   updateImportSpecifierPattern,
   hasImportSpecifier,
+  clearCache,
+  getCacheStats,
 } from './jscodeshift-utils';
 
 const entrypointExtensions = Object.freeze([
@@ -214,6 +216,8 @@ export async function moveFileGenerator(
 ) {
   // Clear all caches at the start of generator execution
   clearAllCaches();
+  // Clear AST cache at the start of each move operation
+  clearCache();
 
   const projects = getProjects(tree);
   const projectGraph = await createProjectGraphAsync();
@@ -332,6 +336,12 @@ export async function moveFileGenerator(
   if (!options.skipFormat) {
     await formatFiles(tree);
   }
+
+  // Log cache statistics for performance monitoring
+  const cacheStats = getCacheStats();
+  logger.verbose(
+    `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
+  );
 }
 
 /**
