@@ -130,6 +130,113 @@ describe('move-file generator', () => {
     });
   });
 
+  describe('lazy project graph resolution', () => {
+    it('should not create project graph for same-project moves', async () => {
+      // Reset the mock to track calls
+      createProjectGraphAsyncMock.mockClear();
+
+      tree.write(
+        'packages/lib1/src/lib/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      tree.write(
+        'packages/lib1/src/lib/main.ts',
+        "import { helper } from './utils/helper';\n\nexport const result = helper();",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/utils/helper.ts',
+        project: 'lib1',
+        projectDirectory: 'features',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Verify project graph was never created for same-project move
+      expect(createProjectGraphAsyncMock).not.toHaveBeenCalled();
+
+      // Verify the move still worked correctly
+      expect(tree.exists('packages/lib1/src/lib/features/helper.ts')).toBe(
+        true,
+      );
+      expect(tree.exists('packages/lib1/src/lib/utils/helper.ts')).toBe(false);
+
+      const mainContent = tree.read('packages/lib1/src/lib/main.ts', 'utf-8');
+      expect(mainContent).toContain(
+        "import { helper } from './features/helper'",
+      );
+    });
+
+    it('should create project graph only for cross-project exported moves', async () => {
+      // Reset the mock to track calls
+      createProjectGraphAsyncMock.mockClear();
+
+      // Create an exported file in lib1
+      tree.write(
+        'packages/lib1/src/lib/exported-util.ts',
+        'export function exportedUtil() { return "exported"; }',
+      );
+
+      // Export it from lib1's index
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export * from './lib/exported-util';",
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/exported-util.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Verify project graph was created for cross-project exported move
+      expect(createProjectGraphAsyncMock).toHaveBeenCalledTimes(1);
+
+      // Verify the move worked correctly
+      expect(tree.exists('packages/lib2/src/lib/utils/exported-util.ts')).toBe(
+        true,
+      );
+      expect(tree.exists('packages/lib1/src/lib/exported-util.ts')).toBe(false);
+    });
+
+    it('should not create project graph for cross-project non-exported moves', async () => {
+      // Reset the mock to track calls
+      createProjectGraphAsyncMock.mockClear();
+
+      // Create a non-exported file in lib1
+      tree.write(
+        'packages/lib1/src/lib/internal-util.ts',
+        'export function internalUtil() { return "internal"; }',
+      );
+
+      // DO NOT export it from index
+      tree.write('packages/lib1/src/index.ts', '');
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/internal-util.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Verify project graph was not created for non-exported move
+      expect(createProjectGraphAsyncMock).not.toHaveBeenCalled();
+
+      // Verify the move worked correctly
+      expect(tree.exists('packages/lib2/src/lib/utils/internal-util.ts')).toBe(
+        true,
+      );
+      expect(tree.exists('packages/lib1/src/lib/internal-util.ts')).toBe(false);
+    });
+  });
+
   describe('moving a file that is not exported', () => {
     it('should move the file and update relative imports', async () => {
       // Setup: Create a file in lib1
