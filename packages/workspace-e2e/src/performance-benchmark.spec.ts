@@ -6,7 +6,26 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 /**
  * Performance benchmark tests for the move-file generator.
  * These tests measure the execution time of the generator with various
- * file sizes and counts to validate the performance optimizations.
+ * file sizes and counts to validate the jscodeshift performance optimizations.
+ *
+ * The tests are organized into the following categories:
+ *
+ * 1. Single file operations - Tests with different file sizes (small, medium, large)
+ * 2. Multiple file operations - Tests with multiple files and many imports
+ * 3. Import update performance - Tests early exit optimization with irrelevant files
+ * 4. Complex workspace scenarios - Comprehensive tests simulating realistic large workspaces:
+ *    - Many projects (10+ projects with cross-project dependencies)
+ *    - Many large files (100+ files with 500+ lines each)
+ *    - Complex cross-project dependency graph (8 projects in chain)
+ *    - Complex intra-project dependencies (50 files, 5 dependency levels)
+ *    - Realistic large workspace (combines all factors)
+ *
+ * These benchmarks validate that the jscodeshift optimizations (early exit via string
+ * pre-filtering, single-pass AST traversal, parser reuse) deliver measurable benefits
+ * in scenarios that closely match real-world usage.
+ *
+ * Each test outputs timing information and includes performance expectations to help
+ * identify regressions.
  */
 
 describe('move-file generator performance benchmarks', () => {
