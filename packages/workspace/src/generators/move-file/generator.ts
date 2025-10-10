@@ -23,6 +23,7 @@ import {
   clearCache,
   getCacheStats,
 } from './jscodeshift-utils';
+import { treeReadCache } from './tree-cache';
 
 const entrypointExtensions = Object.freeze([
   'ts',
@@ -78,6 +79,7 @@ function clearAllCaches(): void {
   projectSourceFilesCache.clear();
   fileExistenceCache.clear();
   compilerPathsCache = undefined;
+  treeReadCache.clear();
 }
 
 /**
@@ -381,6 +383,8 @@ export async function moveFileGenerator(
     tree.delete(ctx.normalizedSource);
     // Update file existence cache
     updateFileExistenceCache(ctx.normalizedSource, false);
+    // Invalidate tree read cache
+    treeReadCache.invalidateFile(ctx.normalizedSource);
   }
 
   // Check if any source projects should be removed
@@ -414,12 +418,16 @@ export async function moveFileGenerator(
   const fileExistenceCacheSize = fileExistenceCache.size;
   const projectCacheSize = projectSourceFilesCache.size;
   const tsconfigCached = compilerPathsCache !== undefined;
+  const treeStats = treeReadCache.getStats();
 
   logger.verbose(
     `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
   );
   logger.verbose(
     `File cache stats: ${projectCacheSize} project caches, ${fileExistenceCacheSize} file existence checks, tsconfig cached: ${tsconfigCached}`,
+  );
+  logger.verbose(
+    `Tree cache stats: ${treeStats.contentCacheSize} file reads cached, ${treeStats.childrenCacheSize} directory listings cached`,
   );
 }
 
@@ -646,8 +654,8 @@ function resolveAndValidate(
 
   const targetProjectName = options.project;
 
-  // Read the file content
-  const fileContent = tree.read(normalizedSource, 'utf-8');
+  // Read the file content using cached read for better performance
+  const fileContent = treeReadCache.read(tree, normalizedSource, 'utf-8');
   if (!fileContent) {
     throw new Error(`Could not read file "${normalizedSource}"`);
   }
@@ -777,6 +785,8 @@ function createTargetFile(
   tree.write(normalizedTarget, fileContent);
   // Update file existence cache
   updateFileExistenceCache(normalizedTarget, true);
+  // Invalidate tree read cache for this file
+  treeReadCache.invalidateFile(normalizedTarget);
 }
 
 /**
@@ -821,7 +831,7 @@ function updateRelativeImportsInMovedFile(
   normalizedSource: string,
   normalizedTarget: string,
 ): void {
-  const content = tree.read(normalizedTarget, 'utf-8');
+  const content = treeReadCache.read(tree, normalizedTarget, 'utf-8');
   if (!content) {
     return;
   }
@@ -878,7 +888,7 @@ function updateRelativeImportsToAliasInMovedFile(
   sourceProject: ProjectConfiguration,
   sourceImportPath: string,
 ): void {
-  const content = tree.read(normalizedTarget, 'utf-8');
+  const content = treeReadCache.read(tree, normalizedTarget, 'utf-8');
   if (!content) {
     return;
   }
@@ -1210,6 +1220,8 @@ async function finalizeMove(
   options: MoveFileGeneratorSchema,
 ): Promise<void> {
   tree.delete(normalizedSource);
+  // Invalidate tree read cache
+  treeReadCache.invalidateFile(normalizedSource);
 
   if (!options.skipFormat) {
     await formatFiles(tree);
@@ -1258,7 +1270,7 @@ function isFileExported(
     if (!cachedTreeExists(tree, indexPath)) {
       return false;
     }
-    const content = tree.read(indexPath, 'utf-8');
+    const content = treeReadCache.read(tree, indexPath, 'utf-8');
     if (!content) {
       return false;
     }
@@ -1324,7 +1336,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
   const tsconfigFiles = ['tsconfig.base.json', 'tsconfig.json'];
 
   // Add any tsconfig.*.json files found at the root
-  const rootFiles = tree.children('');
+  const rootFiles = treeReadCache.children(tree, '');
   const additionalTsconfigFiles = rootFiles
     .filter((file) => file.startsWith('tsconfig.') && file.endsWith('.json'))
     .filter((file) => !tsconfigFiles.includes(file));
@@ -1337,7 +1349,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
     }
 
     try {
-      const tsconfigContent = tree.read(tsconfigPath, 'utf-8');
+      const tsconfigContent = treeReadCache.read(tree, tsconfigPath, 'utf-8');
       if (!tsconfigContent) {
         continue;
       }
@@ -1790,7 +1802,7 @@ function ensureFileExported(
 
   let content = '';
   if (cachedTreeExists(tree, indexPath)) {
-    content = tree.read(indexPath, 'utf-8') || '';
+    content = treeReadCache.read(tree, indexPath, 'utf-8') || '';
   }
 
   // Add export for the moved file
@@ -1801,6 +1813,7 @@ function ensureFileExported(
   if (!content.includes(exportStatement.trim())) {
     content += exportStatement;
     tree.write(indexPath, content);
+    treeReadCache.invalidateFile(indexPath);
     logger.verbose(`Added export to ${indexPath}`);
   }
 }
@@ -1821,7 +1834,7 @@ function removeFileExport(
       return;
     }
 
-    const content = tree.read(indexPath, 'utf-8');
+    const content = treeReadCache.read(tree, indexPath, 'utf-8');
     if (!content) {
       return;
     }
@@ -1855,6 +1868,7 @@ function removeFileExport(
       }
 
       tree.write(indexPath, updatedContent);
+      treeReadCache.invalidateFile(indexPath);
       logger.verbose(`Removed export from ${indexPath}`);
     }
   });
