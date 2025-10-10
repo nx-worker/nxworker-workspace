@@ -71,6 +71,7 @@ npx nx release             # build, version, publish
 
 - Prefer `npx nx graph` to inspect project dependencies.
 - Run `npx nx reset` if cache artifacts become stale or if Verdaccio instances are left running unexpectedly.
+- For faster e2e tests during development, the test suite only tests the minimum supported Nx version (19.x) by default. Use `npx nx e2e workspace-e2e --configuration=ci` to test all supported versions (19, 20, 21).
 
 ## Troubleshooting
 

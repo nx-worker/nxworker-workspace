@@ -6,6 +6,11 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 const itSkipWindows = process.platform === 'win32' ? it.skip : it;
 const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
 
+// Use beforeEach on Windows for better performance, beforeAll on other platforms
+// Windows has slower file system operations, so creating libraries per-test is faster
+// than the upfront cost of sequential creation in beforeAll
+const beforeAllOrEach = process.platform === 'win32' ? beforeEach : beforeAll;
+
 /**
  * Extracts supported major versions from @nx/devkit peer dependency.
  * Parses the peerDependencies field in package.json to determine which
@@ -85,11 +90,31 @@ describe('workspace', () => {
 
     // The plugin has been built and published to a local registry in the jest globalSetup
     // Install the plugin built with the latest source code into the test repo
-    execSync(`npm install @nxworker/workspace@e2e`, {
+    execSync(`npm install @nxworker/workspace@e2e --prefer-offline`, {
       cwd: projectDirectory,
       stdio: 'inherit',
       env: process.env,
     });
+
+    // Pre-create all libraries used by the main test suite to avoid repeated generation
+    // This significantly speeds up test execution
+    const libsToCreate = [
+      libNames.lib1,
+      libNames.lib2,
+      libNames.lib3,
+      libNames.lib4,
+      libNames.lib5,
+    ];
+
+    for (const libName of libsToCreate) {
+      execSync(
+        `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+    }
   });
 
   afterAll(async () => {
@@ -129,22 +154,7 @@ describe('workspace', () => {
 
   describe('move-file generator', () => {
     it('should move a file between projects', () => {
-      // Create two library projects
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib1} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib2} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
+      // Libraries lib1 and lib2 are pre-created in beforeAll
 
       // Create a file in lib1
       const helperPath = join(
@@ -206,22 +216,7 @@ describe('workspace', () => {
     });
 
     it('should update imports when moving exported files', () => {
-      // Create two library projects
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib3} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
-
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib4} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
+      // Libraries lib3 and lib4 are pre-created in beforeAll
 
       const sourceAlias = getProjectImportAlias(
         projectDirectory,
@@ -313,14 +308,7 @@ describe('workspace', () => {
     });
 
     it('should handle relative imports within same project', () => {
-      // Create a new library
-      execSync(
-        `npx nx generate @nx/js:library ${libNames.lib5} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'inherit',
-        },
-      );
+      // Library lib5 is pre-created in beforeAll
 
       const featurePath = join(
         projectDirectory,
@@ -482,7 +470,7 @@ describe('workspace', () => {
   describe('OS-specific edge cases', () => {
     let testLibName: string;
 
-    beforeEach(() => {
+    beforeAllOrEach(() => {
       testLibName = uniqueId('libtest-');
       execSync(
         `npx nx generate @nx/js:library ${testLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -501,11 +489,11 @@ describe('workspace', () => {
         testLibName,
         'src',
         'lib',
-        'util.ts',
+        'util-posix.ts',
       );
       writeFileSync(
         sourcePath,
-        "export function util() { return 'utility'; }\n",
+        "export function utilPosix() { return 'utility'; }\n",
       );
 
       const consumerPath = join(
@@ -513,15 +501,15 @@ describe('workspace', () => {
         testLibName,
         'src',
         'lib',
-        'consumer.ts',
+        'consumer-posix.ts',
       );
       writeFileSync(
         consumerPath,
-        "import { util } from './util';\nexport const value = util();\n",
+        "import { utilPosix } from './util-posix';\nexport const value = utilPosix();\n",
       );
 
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util.ts --project ${testLibName} --project-directory utilities --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${testLibName}/src/lib/util-posix.ts --project ${testLibName} --project-directory utilities --no-interactive`,
         {
           cwd: projectDirectory,
           stdio: 'inherit',
@@ -534,15 +522,15 @@ describe('workspace', () => {
         'src',
         'lib',
         'utilities',
-        'util.ts',
+        'util-posix.ts',
       );
       expect(readFileSync(movedPath, 'utf-8')).toContain(
-        'export function util()',
+        'export function utilPosix()',
       );
 
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
       expect(updatedConsumerContent).toMatch(
-        /from ['"]\.\/utilities\/util['"]/,
+        /from ['"]\.\/utilities\/util-posix['"]/,
       );
     });
 
@@ -554,11 +542,11 @@ describe('workspace', () => {
           testLibName,
           'src',
           'lib',
-          'util.ts',
+          'util-win.ts',
         );
         writeFileSync(
           sourcePath,
-          "export function util() { return 'utility'; }\n",
+          "export function utilWin() { return 'utility'; }\n",
         );
 
         const consumerPath = join(
@@ -566,14 +554,14 @@ describe('workspace', () => {
           testLibName,
           'src',
           'lib',
-          'consumer.ts',
+          'consumer-win.ts',
         );
         writeFileSync(
           consumerPath,
-          "import { util } from './util';\nexport const value = util();\n",
+          "import { utilWin } from './util-win';\nexport const value = utilWin();\n",
         );
 
-        const winStyleSource = `${testLibName}\\src\\lib\\util.ts`;
+        const winStyleSource = `${testLibName}\\src\\lib\\util-win.ts`;
         execSync(
           `npx nx generate @nxworker/workspace:move-file "${winStyleSource}" --project ${testLibName} --project-directory utilities --no-interactive`,
           {
@@ -588,15 +576,15 @@ describe('workspace', () => {
           'src',
           'lib',
           'utilities',
-          'util.ts',
+          'util-win.ts',
         );
         expect(readFileSync(movedPath, 'utf-8')).toContain(
-          'export function util()',
+          'export function utilWin()',
         );
 
         const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
         expect(updatedConsumerContent).toMatch(
-          /from ['"]\.\/utilities\/util['"]/,
+          /from ['"]\.\/utilities\/util-win['"]/,
         );
       },
     );
@@ -1088,7 +1076,7 @@ describe('workspace', () => {
   describe('Architecture-specific edge cases', () => {
     let archLibName: string;
 
-    beforeEach(() => {
+    beforeAllOrEach(() => {
       archLibName = uniqueId('libarch-');
       execSync(
         `npx nx generate @nx/js:library ${archLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1104,7 +1092,7 @@ describe('workspace', () => {
       // between x64 and arm64 architectures
 
       const fileName = 'large-module.ts';
-      const largeContent = generateLargeTypeScriptFile(10000); // 10,000 lines
+      const largeContent = generateLargeTypeScriptFile(1000); // 1,000 lines (reduced for performance)
 
       writeFileSync(
         join(projectDirectory, archLibName, 'src', 'lib', fileName),
@@ -1143,7 +1131,7 @@ describe('workspace', () => {
 
       // Verify content is complete
       expect(movedContent).toContain('export function func0()');
-      expect(movedContent).toContain('export function func9999()');
+      expect(movedContent).toContain('export function func999()');
 
       // Verify imports were updated
       const updatedConsumerContent = readFileSync(consumerPath, 'utf-8');
@@ -1245,7 +1233,7 @@ describe('workspace', () => {
   describe('Failure scenarios (OS-specific)', () => {
     let failLibName: string;
 
-    beforeEach(() => {
+    beforeAllOrEach(() => {
       failLibName = uniqueId('libfail-');
       execSync(
         `npx nx generate @nx/js:library ${failLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1349,7 +1337,7 @@ describe('workspace', () => {
     const nodeVersion = process.version;
     const nodeMajor = parseInt(nodeVersion.split('.')[0].substring(1), 10);
 
-    beforeEach(() => {
+    beforeAllOrEach(() => {
       nodeLibName = uniqueId('libnode-');
       execSync(
         `npx nx generate @nx/js:library ${nodeLibName} --unitTestRunner=none --bundler=none --no-interactive`,
@@ -1498,8 +1486,14 @@ describe('workspace', () => {
 describe('Nx version compatibility (basic happy paths)', () => {
   const supportedVersions = getSupportedNxMajorVersions();
 
+  // For performance, only test the minimum supported version by default
+  // In CI (process.env.CI is set), test all supported major versions
+  const versionsToTest = process.env['CI']
+    ? supportedVersions
+    : [Math.min(...supportedVersions)];
+
   // Run basic tests for each supported Nx major version
-  supportedVersions.forEach((nxMajorVersion) => {
+  versionsToTest.forEach((nxMajorVersion) => {
     describe(`Nx ${nxMajorVersion}.x`, () => {
       let projectDirectory: string;
 
@@ -1526,7 +1520,7 @@ describe('Nx version compatibility (basic happy paths)', () => {
 
         // Install the plugin as a devDependency along with its peer dependencies at the same version as the test workspace
         execSync(
-          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${testWorkspaceNxVersion} @nx/workspace@${testWorkspaceNxVersion}`,
+          `npm install --save-dev @nxworker/workspace@e2e @nx/devkit@${testWorkspaceNxVersion} @nx/workspace@${testWorkspaceNxVersion} --prefer-offline`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',

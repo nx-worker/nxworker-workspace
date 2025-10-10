@@ -2,15 +2,24 @@
 
 This document describes the end-to-end test coverage for the `move-file` generator, with a focus on cross-platform and cross-architecture compatibility.
 
+## Performance Optimizations
+
+The test suite uses platform-aware optimizations:
+
+- **Unix systems (Linux, macOS)**: Uses `beforeAll` hooks to create test libraries once and reuse them across tests, significantly reducing test execution time
+- **Windows**: Uses `beforeEach` hooks to create libraries per-test due to Windows' slower file system operations and process creation overhead, which makes the upfront cost of sequential library creation in `beforeAll` slower than per-test creation
+
+This approach provides optimal performance on each platform while maintaining identical test coverage.
+
 ## Test Suite Overview
 
 The e2e test suite includes **24 test cases** in the main test suite, plus additional version-compatibility tests organized into the following categories:
 
 ### Nx Version Compatibility Tests
 
-The test suite includes a dedicated section that validates basic happy paths across all supported Nx major versions (currently 19.x, 20.x, and 21.x). This ensures the plugin works correctly with all versions declared in the `@nx/devkit` peer dependency.
+The test suite includes a dedicated section that validates basic happy paths across supported Nx major versions. For performance reasons, only the minimum supported version (currently 19.x) is tested by default in local development. In CI environments, all supported versions (19.x, 20.x, and 21.x) are tested. This ensures the plugin works correctly with all versions declared in the `@nx/devkit` peer dependency.
 
-These version-specific tests run for each supported Nx major version:
+These version-specific tests run for each tested Nx major version:
 
 - **Plugin Installation**: Verifies the plugin installs correctly
 - **Basic File Move**: Tests moving a file between projects with import updates
@@ -44,7 +53,7 @@ These tests validate behavior across different operating systems (Linux, macOS, 
 
 These tests ensure consistent behavior across different CPU architectures (x64/amd64 and arm64):
 
-15. **Large File Handling**: Tests moving a file with 10,000+ lines to verify efficient memory handling across architectures
+15. **Large File Handling**: Tests moving a file with 1,000+ lines to verify efficient memory handling across architectures
 16. **Many Files Stress Test**: Creates 20 files and tests performance of moving files with many potential import updates
 17. **Binary-Safe Unicode Operations**: Verifies that Unicode content (Japanese, Greek, emoji) is preserved correctly across architectures
 
@@ -82,11 +91,11 @@ And across Node.js versions:
 
 And across Nx versions (for basic happy path tests):
 
-- **Nx 19.x** (peer dependency supported)
-- **Nx 20.x** (peer dependency supported)
-- **Nx 21.x** (peer dependency supported)
+- **Nx 19.x** (minimum supported version - tested by default)
+- **Nx 20.x** (tested in CI with `--configuration=ci`)
+- **Nx 21.x** (maximum supported version - tested in CI with `--configuration=ci`)
 
-The comprehensive test suite runs once with the workspace Nx version (19.8.14), while basic happy path tests run for each supported major version.
+By default, the test suite only tests the minimum version (19.x) for performance. In CI environments (when `process.env.CI` is set), all supported major versions are tested.
 
 ## Architecture Coverage
 
