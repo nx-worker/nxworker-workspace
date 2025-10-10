@@ -384,6 +384,517 @@ describe('move-file generator performance benchmarks', () => {
       expect(duration).toBeLessThan(60000);
     });
   });
+
+  describe('complex workspace scenarios', () => {
+    it('should efficiently handle workspace with many projects (10+)', () => {
+      const projectCount = 10;
+      const projects: string[] = [];
+
+      console.log(`Creating ${projectCount} projects...`);
+
+      // Create many projects
+      for (let i = 0; i < projectCount; i++) {
+        const projectName = uniqueId(`many-proj-${i}-`);
+        projects.push(projectName);
+        execSync(
+          `npx nx generate @nx/js:library ${projectName} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe', // Reduce output noise
+          },
+        );
+      }
+
+      console.log(
+        `Created ${projectCount} projects, setting up dependencies...`,
+      );
+
+      // Create a source file in the first project
+      const sourceFile = 'shared-util.ts';
+      writeFileSync(
+        join(projectDirectory, projects[0], 'src', 'lib', sourceFile),
+        'export function sharedUtil() { return "shared"; }\n',
+      );
+
+      // Export from index
+      const indexPath = join(projectDirectory, projects[0], 'src', 'index.ts');
+      writeFileSync(
+        indexPath,
+        `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
+      );
+
+      // Create cross-project dependencies: each project imports from project[0]
+      const project0Alias = getProjectImportAlias(
+        projectDirectory,
+        projects[0],
+      );
+      for (let i = 1; i < projectCount; i++) {
+        const consumerFile = 'consumer.ts';
+        writeFileSync(
+          join(projectDirectory, projects[i], 'src', 'lib', consumerFile),
+          `import { sharedUtil } from '${project0Alias}';\nexport const value = sharedUtil();\n`,
+        );
+      }
+
+      console.log(
+        `Setup complete. Benchmarking move with ${projectCount} projects...`,
+      );
+
+      // Benchmark moving the source file (should update all consumers across projects)
+      const startTime = performance.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${projects[0]}/src/lib/${sourceFile} --project ${projects[1]} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      console.log(
+        `Moving file across ${projectCount} projects took: ${duration.toFixed(2)}ms`,
+      );
+
+      // Verify source was moved
+      const movedPath = join(
+        projectDirectory,
+        projects[1],
+        'src',
+        'lib',
+        sourceFile,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('sharedUtil');
+
+      // Verify at least one consumer was updated
+      const project1Alias = getProjectImportAlias(
+        projectDirectory,
+        projects[1],
+      );
+      const consumerPath = join(
+        projectDirectory,
+        projects[2],
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      expect(readFileSync(consumerPath, 'utf-8')).toContain(project1Alias);
+
+      // Should handle many projects efficiently
+      expect(duration).toBeLessThan(120000); // 2 minutes for 10 projects
+    });
+
+    it('should efficiently handle many large files (100+ files with 500+ lines each)', () => {
+      const fileCount = 100;
+      const linesPerFile = 500;
+
+      console.log(`Creating ${fileCount} large files...`);
+
+      // Create many large files in benchmarkLib1
+      for (let i = 0; i < fileCount; i++) {
+        const fileName = `large-${i}.ts`;
+        const content = generateLargeTypeScriptFile(linesPerFile);
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+          content,
+        );
+      }
+
+      // Create a source file that will be moved
+      const sourceFile = 'source-in-many-files.ts';
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile),
+        'export function sourceInManyFiles() { return "source"; }\n',
+      );
+
+      // Export from index
+      const indexPath = join(
+        projectDirectory,
+        benchmarkLib1,
+        'src',
+        'index.ts',
+      );
+      writeFileSync(
+        indexPath,
+        `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
+      );
+
+      // Create a consumer that imports the source
+      const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
+      const consumerFile = 'consumer-in-many.ts';
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', consumerFile),
+        `import { sourceInManyFiles } from '${lib1Alias}';\nexport const value = sourceInManyFiles();\n`,
+      );
+
+      console.log(
+        `Created ${fileCount} files with ~${linesPerFile} lines each. Benchmarking move...`,
+      );
+
+      // Benchmark the move - should be fast due to early exit on files without imports
+      const startTime = performance.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${sourceFile} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      console.log(
+        `Moving file with ${fileCount} large files in workspace took: ${duration.toFixed(2)}ms`,
+      );
+
+      // Verify source was moved
+      const movedPath = join(
+        projectDirectory,
+        benchmarkLib2,
+        'src',
+        'lib',
+        sourceFile,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('sourceInManyFiles');
+
+      // Verify consumer was updated
+      const lib2Alias = getProjectImportAlias(projectDirectory, benchmarkLib2);
+      const consumerPath = join(
+        projectDirectory,
+        benchmarkLib1,
+        'src',
+        'lib',
+        consumerFile,
+      );
+      expect(readFileSync(consumerPath, 'utf-8')).toContain(lib2Alias);
+
+      // Should handle many large files efficiently due to early exit optimization
+      expect(duration).toBeLessThan(120000); // 2 minutes for 100 files
+    });
+
+    it('should efficiently handle complex cross-project dependency graph', () => {
+      const projectCount = 8;
+      const projects: string[] = [];
+
+      console.log(
+        `Creating ${projectCount} projects with cross-project dependencies...`,
+      );
+
+      // Create projects
+      for (let i = 0; i < projectCount; i++) {
+        const projectName = uniqueId(`cross-dep-${i}-`);
+        projects.push(projectName);
+        execSync(
+          `npx nx generate @nx/js:library ${projectName} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }
+
+      // Create utility files in each project and set up cross-dependencies
+      // Project i depends on project i-1 (chain dependency)
+      for (let i = 0; i < projectCount; i++) {
+        const utilFile = `util-${i}.ts`;
+        writeFileSync(
+          join(projectDirectory, projects[i], 'src', 'lib', utilFile),
+          `export function util${i}() { return ${i}; }\n`,
+        );
+
+        // Export from index
+        const indexPath = join(
+          projectDirectory,
+          projects[i],
+          'src',
+          'index.ts',
+        );
+        writeFileSync(
+          indexPath,
+          `export * from './lib/${utilFile.replace('.ts', '')}';\n`,
+        );
+
+        // If not the first project, create a dependency on the previous project
+        if (i > 0) {
+          const prevProjectAlias = getProjectImportAlias(
+            projectDirectory,
+            projects[i - 1],
+          );
+          const consumerFile = `consumer-${i}.ts`;
+          writeFileSync(
+            join(projectDirectory, projects[i], 'src', 'lib', consumerFile),
+            `import { util${i - 1} } from '${prevProjectAlias}';\nexport const value${i} = util${i - 1}();\n`,
+          );
+        }
+      }
+
+      console.log(
+        `Setup complete. Benchmarking move in complex dependency graph...`,
+      );
+
+      // Move a file from the middle of the chain
+      const middleIndex = Math.floor(projectCount / 2);
+      const sourceFile = `util-${middleIndex}.ts`;
+
+      const startTime = performance.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${projects[middleIndex]}/src/lib/${sourceFile} --project ${projects[middleIndex + 1]} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      console.log(
+        `Moving file in complex dependency graph (${projectCount} projects) took: ${duration.toFixed(2)}ms`,
+      );
+
+      // Verify source was moved
+      const movedPath = join(
+        projectDirectory,
+        projects[middleIndex + 1],
+        'src',
+        'lib',
+        sourceFile,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain(`util${middleIndex}`);
+
+      // Verify dependent was updated (if exists)
+      if (middleIndex + 1 < projectCount - 1) {
+        const targetAlias = getProjectImportAlias(
+          projectDirectory,
+          projects[middleIndex + 1],
+        );
+        const dependentPath = join(
+          projectDirectory,
+          projects[middleIndex + 2],
+          'src',
+          'lib',
+          `consumer-${middleIndex + 2}.ts`,
+        );
+        expect(readFileSync(dependentPath, 'utf-8')).toContain(targetAlias);
+      }
+
+      expect(duration).toBeLessThan(90000); // 90 seconds for complex graph
+    });
+
+    it('should efficiently handle complex intra-project dependencies', () => {
+      const fileCount = 50;
+      const depthLevels = 5;
+
+      console.log(
+        `Creating ${fileCount} files with ${depthLevels} levels of intra-project dependencies...`,
+      );
+
+      // Create a pyramid of dependencies within benchmarkLib1
+      // Level 0: 1 base file
+      // Level 1: files that import from level 0
+      // Level 2: files that import from level 1, etc.
+
+      const filesByLevel: string[][] = [];
+
+      for (let level = 0; level < depthLevels; level++) {
+        const filesInLevel: string[] = [];
+        const filesInThisLevel = Math.ceil(fileCount / depthLevels);
+
+        for (let i = 0; i < filesInThisLevel; i++) {
+          const fileName = `level-${level}-file-${i}.ts`;
+          filesInLevel.push(fileName);
+
+          let content = '';
+          if (level === 0) {
+            // Base level - no imports
+            content = `export function level${level}File${i}() { return '${level}-${i}'; }\n`;
+          } else {
+            // Import from a file in the previous level
+            const prevFileName = filesByLevel[level - 1][
+              i % filesByLevel[level - 1].length
+            ].replace('.ts', '');
+            content = `import { level${level - 1}File${i % filesByLevel[level - 1].length} } from './${prevFileName}';\nexport function level${level}File${i}() { return level${level - 1}File${i % filesByLevel[level - 1].length}(); }\n`;
+          }
+
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+            content,
+          );
+        }
+
+        filesByLevel.push(filesInLevel);
+      }
+
+      console.log(
+        `Created ${depthLevels} levels of dependencies. Benchmarking move...`,
+      );
+
+      // Move a file from the middle level
+      const middleLevel = Math.floor(depthLevels / 2);
+      const sourceFile = filesByLevel[middleLevel][0];
+
+      const startTime = performance.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${sourceFile} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      console.log(
+        `Moving file with ${fileCount} intra-project dependencies (${depthLevels} levels) took: ${duration.toFixed(2)}ms`,
+      );
+
+      // Verify source was moved
+      const movedPath = join(
+        projectDirectory,
+        benchmarkLib2,
+        'src',
+        'lib',
+        sourceFile,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain(
+        `level${middleLevel}File0`,
+      );
+
+      // Verify at least one dependent was updated
+      if (middleLevel + 1 < depthLevels) {
+        const dependentFile = filesByLevel[middleLevel + 1][0];
+        const dependentPath = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          dependentFile,
+        );
+        const dependentContent = readFileSync(dependentPath, 'utf-8');
+        // Should now import from the target project
+        const lib2Alias = getProjectImportAlias(
+          projectDirectory,
+          benchmarkLib2,
+        );
+        expect(dependentContent).toContain(lib2Alias);
+      }
+
+      expect(duration).toBeLessThan(90000); // 90 seconds for complex intra-dependencies
+    });
+
+    it('should efficiently handle realistic large workspace scenario', () => {
+      const projectCount = 6;
+      const filesPerProject = 30;
+      const linesPerFile = 200;
+
+      console.log(
+        `Creating realistic workspace: ${projectCount} projects, ${filesPerProject} files each, ${linesPerFile} lines per file...`,
+      );
+
+      const projects: string[] = [];
+
+      // Create projects
+      for (let i = 0; i < projectCount; i++) {
+        const projectName = uniqueId(`realistic-${i}-`);
+        projects.push(projectName);
+        execSync(
+          `npx nx generate @nx/js:library ${projectName} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }
+
+      // Create files in each project
+      for (let i = 0; i < projectCount; i++) {
+        for (let f = 0; f < filesPerProject; f++) {
+          const fileName = `file-${f}.ts`;
+          const content = generateLargeTypeScriptFile(linesPerFile);
+          writeFileSync(
+            join(projectDirectory, projects[i], 'src', 'lib', fileName),
+            content,
+          );
+        }
+
+        // Create one exported utility per project
+        const utilFile = `util-${i}.ts`;
+        writeFileSync(
+          join(projectDirectory, projects[i], 'src', 'lib', utilFile),
+          `export function util${i}() { return ${i}; }\n`,
+        );
+
+        const indexPath = join(
+          projectDirectory,
+          projects[i],
+          'src',
+          'index.ts',
+        );
+        writeFileSync(
+          indexPath,
+          `export * from './lib/${utilFile.replace('.ts', '')}';\n`,
+        );
+      }
+
+      // Create cross-project dependencies
+      for (let i = 1; i < projectCount; i++) {
+        const prevProjectAlias = getProjectImportAlias(
+          projectDirectory,
+          projects[i - 1],
+        );
+        const consumerFile = `consumer.ts`;
+        writeFileSync(
+          join(projectDirectory, projects[i], 'src', 'lib', consumerFile),
+          `import { util${i - 1} } from '${prevProjectAlias}';\nexport const value = util${i - 1}();\n`,
+        );
+      }
+
+      console.log(
+        `Created realistic workspace with ${projectCount * filesPerProject} total files. Benchmarking move...`,
+      );
+
+      // Move a utility file
+      const sourceFile = `util-2.ts`;
+
+      const startTime = performance.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${projects[2]}/src/lib/${sourceFile} --project ${projects[3]} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      console.log(
+        `Moving file in realistic workspace (${projectCount * filesPerProject} files, ${projectCount} projects) took: ${duration.toFixed(2)}ms`,
+      );
+
+      // Verify source was moved
+      const movedPath = join(
+        projectDirectory,
+        projects[3],
+        'src',
+        'lib',
+        sourceFile,
+      );
+      expect(readFileSync(movedPath, 'utf-8')).toContain('util2');
+
+      // Verify dependent was updated
+      const targetAlias = getProjectImportAlias(projectDirectory, projects[3]);
+      const dependentPath = join(
+        projectDirectory,
+        projects[3],
+        'src',
+        'lib',
+        'consumer.ts',
+      );
+      expect(readFileSync(dependentPath, 'utf-8')).toContain(targetAlias);
+
+      // Should handle realistic workspace efficiently
+      expect(duration).toBeLessThan(180000); // 3 minutes for realistic scenario
+    });
+  });
 });
 
 function getProjectImportAlias(
