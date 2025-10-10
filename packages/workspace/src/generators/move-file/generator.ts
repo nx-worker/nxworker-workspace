@@ -1480,19 +1480,35 @@ async function updateImportPathsInDependentProjects(
     sourceProjectName,
   );
 
-  const candidates: Array<[string, ProjectConfiguration]> =
-    dependentProjectNames.length
-      ? dependentProjectNames
-          .map((name) => {
-            const project = projects.get(name);
-            return project ? [name, project] : null;
-          })
-          .filter(
-            (entry): entry is [string, ProjectConfiguration] => entry !== null,
-          )
-      : Array.from(projects.entries()).filter(([, project]) =>
-          checkForImportsInProject(tree, project, sourceImportPath),
+  let candidates: Array<[string, ProjectConfiguration]>;
+
+  if (dependentProjectNames.length) {
+    // Use dependency graph when available
+    candidates = dependentProjectNames
+      .map((name) => {
+        const project = projects.get(name);
+        return project ? [name, project] : null;
+      })
+      .filter(
+        (entry): entry is [string, ProjectConfiguration] => entry !== null,
+      );
+  } else {
+    // Parallel filter: check all projects concurrently for imports
+    const projectEntries = Array.from(projects.entries());
+    const results = await Promise.all(
+      projectEntries.map(async ([name, project]) => {
+        const hasImports = checkForImportsInProject(
+          tree,
+          project,
+          sourceImportPath,
         );
+        return hasImports ? ([name, project] as [string, ProjectConfiguration]) : null;
+      }),
+    );
+    candidates = results.filter(
+      (entry): entry is [string, ProjectConfiguration] => entry !== null,
+    );
+  }
 
   // Preload project file caches for all dependent projects to improve performance
   // This avoids sequential file tree traversals when updating imports
@@ -1543,6 +1559,10 @@ function updateImportPathsToPackageAlias(
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
   const sourceFiles = getProjectSourceFiles(tree, project.root);
 
+  const sourceFileWithoutExt = normalizePath(
+    removeSourceFileExtension(sourceFilePath),
+  );
+
   for (const normalizedFilePath of sourceFiles) {
     if (filesToExclude.includes(normalizedFilePath)) {
       continue;
@@ -1564,9 +1584,6 @@ function updateImportPathsToPackageAlias(
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
         );
-        const sourceFileWithoutExt = normalizePath(
-          removeSourceFileExtension(sourceFilePath),
-        );
         return normalizedResolvedImport === sourceFileWithoutExt;
       },
       () => targetPackageAlias,
@@ -1584,6 +1601,9 @@ function updateImportPathsInProject(
   targetFilePath: string,
 ): void {
   const sourceFiles = getProjectSourceFiles(tree, project.root);
+  const sourceFileWithoutExt = normalizePath(
+    removeSourceFileExtension(sourceFilePath),
+  );
 
   for (const normalizedFilePath of sourceFiles) {
     if (
@@ -1613,9 +1633,6 @@ function updateImportPathsInProject(
         // Normalize and compare with source file (both without extension)
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
-        );
-        const sourceFileWithoutExt = normalizePath(
-          removeSourceFileExtension(sourceFilePath),
         );
         return normalizedResolvedImport === sourceFileWithoutExt;
       },
