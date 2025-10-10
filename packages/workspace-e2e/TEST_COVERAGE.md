@@ -165,6 +165,48 @@ The full e2e suite typically takes **~15-25 minutes** to run, as it:
 
 Note: The version compatibility tests create separate workspaces for each supported Nx major version, which increases the overall test execution time.
 
+## Performance Benchmarks
+
+In addition to the functional tests, a comprehensive suite of performance benchmark tests is included in `packages/workspace-e2e/src/performance-benchmark.spec.ts`. These benchmarks validate that the jscodeshift performance optimizations deliver measurable benefits in realistic workspace scenarios.
+
+### Benchmark Coverage
+
+The performance tests measure execution time in the following scenarios:
+
+**Single File Operations:**
+
+- Small file (< 1KB)
+- Medium file (~10KB, 200 functions)
+- Large file (~50KB, 1000 functions)
+
+**Multiple File Operations:**
+
+- Multiple small files (10 files)
+- Files with many imports (20+ importing files)
+
+**Early Exit Optimization:**
+
+- Many irrelevant files (50+ files without target specifier)
+
+**Complex Workspace Scenarios:**
+
+- Many projects (10+ projects with cross-project dependencies)
+- Many large files (100 files × 500 lines each)
+- Complex cross-project dependency graph (8 projects in chain)
+- Complex intra-project dependencies (50 files, 5 levels deep)
+- Realistic large workspace (6 projects × 30 files × 200 lines - combines all factors)
+
+### What the Benchmarks Validate
+
+These tests specifically demonstrate the performance benefits of the jscodeshift optimizations:
+
+1. **Early Exit via String Pre-filtering**: Files without the target specifier are skipped without AST parsing
+2. **Single-Pass AST Traversal**: All import types (static, dynamic, require) are updated in one traversal
+3. **Parser Reuse**: The parser instance is created once and reused across all operations
+4. **Sub-linear Scaling**: Performance scales with the number of files that actually need updates, not total file count
+
+Each benchmark outputs timing information to the console and includes performance expectations (e.g., "should complete in under 120 seconds"). These baselines help identify performance regressions.
+
 ## CI/CD Integration
 
 The tests run automatically on GitHub Actions for:
@@ -183,4 +225,3 @@ Potential areas for additional test coverage:
 - Very long file paths (>4096 characters on modern systems)
 - Files with different encodings (UTF-8, UTF-16, etc.)
 - Monorepo scenarios with more complex project graphs
-- Performance benchmarks across architectures

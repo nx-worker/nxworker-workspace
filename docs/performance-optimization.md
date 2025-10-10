@@ -205,6 +205,70 @@ if (j.ImportDeclaration.check(node)) {
 4. **Single Pass**: Combining multiple operations in one traversal significantly reduces overhead
 5. **Type Safety**: Use built-in type guards (`.check()`) instead of string comparisons
 
+## Performance Benchmarks
+
+To validate the performance optimizations in realistic scenarios, comprehensive benchmark tests are included in `packages/workspace-e2e/src/performance-benchmark.spec.ts`. These tests measure performance in scenarios that closely match real-world usage:
+
+### Benchmark Test Scenarios
+
+#### 1. Single File Operations
+
+- **Small file (< 1KB)**: Baseline performance for simple moves
+- **Medium file (~10KB, 200 functions)**: Tests parsing performance with medium-sized files
+- **Large file (~50KB, 1000 functions)**: Tests memory and parsing efficiency with large files
+
+#### 2. Multiple File Operations
+
+- **Multiple small files (10 files)**: Tests batch move performance
+- **Files with many imports (20+ importing files)**: Tests cross-file import update performance
+
+#### 3. Early Exit Optimization
+
+- **Many irrelevant files (50+ files)**: Tests that files without target specifier are skipped efficiently via string pre-filtering
+
+#### 4. Complex Workspace Scenarios
+
+These tests specifically demonstrate the performance benefits of the jscodeshift optimizations in large-scale workspaces:
+
+- **Many Projects (10+ projects)**: Tests performance when moving files across a workspace with many projects and cross-project dependencies. Validates that the optimization benefits scale with project count.
+
+- **Many Large Files (100 files × 500 lines each)**: Tests performance in a workspace with many large files. Validates that the early exit optimization (string pre-filtering) prevents unnecessary parsing of files without the target specifier.
+
+- **Complex Cross-Project Dependencies (8 projects in chain)**: Tests performance when projects depend on each other in a chain pattern. Validates efficient handling of dependency graph traversal and import updates.
+
+- **Complex Intra-Project Dependencies (50 files, 5 levels)**: Tests performance with deep file dependency hierarchies within a single project. Validates efficient handling of relative import updates.
+
+- **Realistic Large Workspace (6 projects × 30 files × 200 lines)**: Combines all factors (many projects, many files, large files, cross-project dependencies) to simulate a real-world large workspace scenario.
+
+### Running the Benchmarks
+
+```bash
+# Run all e2e tests including benchmarks
+npx nx e2e workspace-e2e
+
+# Run with verbose output to see timing details
+npx nx e2e workspace-e2e --output-style stream
+```
+
+**Note**: The full e2e suite takes approximately 15-25 minutes to run as it:
+
+1. Starts a local Verdaccio registry
+2. Publishes the plugin to the local registry
+3. Creates fresh Nx workspaces for each test scenario
+4. Runs the move-file generator in various configurations
+5. Validates the results
+
+The benchmark tests output timing information to the console, allowing you to track performance improvements across different scenarios.
+
+### Expected Performance Characteristics
+
+With the optimizations in place, the generator should demonstrate:
+
+- **Sub-linear scaling with file count**: Due to early exit optimization, adding files that don't import the moved file has minimal performance impact
+- **Consistent performance across import types**: Single-pass traversal means handling multiple import types (static, dynamic, require, etc.) doesn't multiply processing time
+- **Efficient large file handling**: Parser reuse and optimized traversal allow handling files with 1000+ lines efficiently
+- **Scalable cross-project updates**: Import updates across many projects should scale linearly with the number of files that actually import the moved file, not with total project count
+
 ## Future Optimization Opportunities
 
 1. **AST Caching**: For files that are checked multiple times, cache the parsed AST
