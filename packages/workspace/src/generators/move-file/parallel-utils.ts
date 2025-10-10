@@ -1,5 +1,7 @@
 import { Tree, ProjectConfiguration, normalizePath, logger } from '@nx/devkit';
 import { hasImportSpecifier } from './jscodeshift-utils';
+import { Worker } from 'worker_threads';
+import { join } from 'path';
 
 const sourceFileExtensions = Object.freeze([
   '.ts',
@@ -11,6 +13,11 @@ const sourceFileExtensions = Object.freeze([
   '.cts',
   '.cjs',
 ] as const);
+
+// Worker thread configuration
+const USE_WORKER_THREADS = false; // Disabled by default - overhead outweighs benefits due to early exit optimization
+const WORKER_POOL_SIZE = 4; // Number of worker threads to use
+const MIN_FILES_FOR_WORKERS = 100; // Minimum files to justify worker thread overhead
 
 /**
  * Collects all source files from a project directory that match the file extensions.
@@ -65,8 +72,104 @@ export function collectSourceFiles(
 }
 
 /**
+ * Checks if any files contain imports using worker threads for true parallelism.
+ * This is beneficial for large file sets where CPU-bound AST parsing dominates.
+ *
+ * @param tree - The virtual file system tree
+ * @param files - Array of file paths to check
+ * @param importPath - The import path to search for
+ * @returns True if any file contains the import
+ */
+async function checkFilesForImportsWithWorkers(
+  tree: Tree,
+  files: string[],
+  importPath: string,
+): Promise<boolean> {
+  const workerPath = join(__dirname, 'import-check-worker.js');
+
+  // Read all file contents upfront
+  const fileContents = files
+    .map((filePath) => {
+      const content = tree.read(filePath, 'utf-8');
+      return content ? { path: filePath, content } : null;
+    })
+    .filter((item): item is { path: string; content: string } => item !== null);
+
+  if (fileContents.length === 0) {
+    return false;
+  }
+
+  // Distribute files across workers
+  const filesPerWorker = Math.ceil(fileContents.length / WORKER_POOL_SIZE);
+  const workerPromises: Promise<boolean>[] = [];
+
+  for (
+    let i = 0;
+    i < WORKER_POOL_SIZE && i * filesPerWorker < fileContents.length;
+    i++
+  ) {
+    const workerFiles = fileContents.slice(
+      i * filesPerWorker,
+      (i + 1) * filesPerWorker,
+    );
+
+    if (workerFiles.length === 0) continue;
+
+    const workerPromise = new Promise<boolean>((resolve, reject) => {
+      const worker = new Worker(workerPath, {
+        workerData: {
+          fileContents: workerFiles,
+          importPath,
+        },
+      });
+
+      worker.on(
+        'message',
+        (result: {
+          foundImport: boolean;
+          matchedFile?: string;
+          error?: string;
+        }) => {
+          if (result.error) {
+            reject(new Error(result.error));
+          } else {
+            if (result.foundImport && result.matchedFile) {
+              logger.verbose(`Worker found import in ${result.matchedFile}`);
+            }
+            resolve(result.foundImport);
+          }
+          worker.terminate();
+        },
+      );
+
+      worker.on('error', (err) => {
+        reject(err);
+        worker.terminate();
+      });
+
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Worker stopped with exit code ${code}`));
+        }
+      });
+    });
+
+    workerPromises.push(workerPromise);
+  }
+
+  // Wait for all workers and return true if any found imports
+  try {
+    const results = await Promise.all(workerPromises);
+    return results.some((found) => found);
+  } catch (error) {
+    // If workers fail, fall back to sequential processing
+    throw error;
+  }
+}
+
+/**
  * Checks if any files in the given list contain imports to the specified path.
- * This version processes files in parallel for better performance.
+ * This version processes files in parallel batches for better performance.
  *
  * @param tree - The virtual file system tree
  * @param files - Array of file paths to check
@@ -78,7 +181,22 @@ async function checkFilesForImportsParallel(
   files: string[],
   importPath: string,
 ): Promise<boolean> {
-  // Process files in parallel batches
+  // Use worker threads for large file sets (true parallelism for CPU-bound work)
+  if (USE_WORKER_THREADS && files.length >= MIN_FILES_FOR_WORKERS) {
+    try {
+      logger.verbose(
+        `Using ${WORKER_POOL_SIZE} worker threads to check ${files.length} files`,
+      );
+      return await checkFilesForImportsWithWorkers(tree, files, importPath);
+    } catch (error) {
+      // Fall back to Promise.all if worker threads fail
+      logger.warn(
+        `Worker thread failed, falling back to Promise.all: ${error}`,
+      );
+    }
+  }
+
+  // Fallback: Process files in parallel batches using Promise.all
   const BATCH_SIZE = 10; // Process 10 files at a time
   const batches: string[][] = [];
 
@@ -157,7 +275,9 @@ export async function filterProjectsWithImportsParallel(
         project,
         importPath,
       );
-      return hasImports ? ([name, project] as [string, ProjectConfiguration]) : null;
+      return hasImports
+        ? ([name, project] as [string, ProjectConfiguration])
+        : null;
     }),
   );
 

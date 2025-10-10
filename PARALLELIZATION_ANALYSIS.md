@@ -15,14 +15,15 @@ After thorough analysis of the codebase, we implemented parallelization optimiza
 **Operation**: Checking multiple projects for imports to a specific file
 
 **Before (Sequential)**:
+
 ```typescript
-const candidates = Array.from(projects.entries())
-  .filter(([, project]) =>
-    checkForImportsInProject(tree, project, sourceImportPath)
-  );
+const candidates = Array.from(projects.entries()).filter(([, project]) =>
+  checkForImportsInProject(tree, project, sourceImportPath),
+);
 ```
 
 **After (Parallel)**:
+
 ```typescript
 candidates = await filterProjectsWithImportsParallel(
   tree,
@@ -36,6 +37,7 @@ candidates = await filterProjectsWithImportsParallel(
 ### 2. File Collection Utilities
 
 Created `parallel-utils.ts` with:
+
 - `collectSourceFiles()` - Collects all source files from a project
 - `checkForImportsInProjectParallel()` - Checks project for imports with batching
 - `filterProjectsWithImportsParallel()` - Filters projects that have imports
@@ -46,12 +48,14 @@ Created `parallel-utils.ts` with:
 ### Stress Test Results
 
 **BEFORE Parallelization:**
+
 - Many projects (10+): 46,044 ms (46.0 seconds)
 - Many large files (100+): 9,464 ms (9.5 seconds)
 - Many intra-project dependencies: 4,397 ms (4.4 seconds)
 - Combined stress (450 files): 35,366 ms (35.4 seconds)
 
 **AFTER Parallelization:**
+
 - Many projects (10+): ~46,000 ms (no significant change)
 - Many large files (100+): ~9,500 ms (no significant change)
 - Many intra-project dependencies: ~4,400 ms (no significant change)
@@ -149,15 +153,18 @@ The parallelization optimization revealed important insights:
 ## Benchmark Results
 
 ### Glob Pattern Batching (Already Optimized)
+
 - 3 patterns: 2.89× faster
 - 10 patterns: 9.14× faster
 
 ### AST Optimizations (Already Implemented)
+
 - Parser reuse: Eliminates 450 instantiations
 - Early exit: Skips ~90% of unnecessary parsing
 - Single-pass: Saves ~50% of traversal time
 
 ### Parallel Scanning (New)
+
 - Limited benefit due to synchronous operations
 - Best for I/O-heavy workloads (future worker threads)
 - No performance regression

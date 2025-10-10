@@ -23,11 +23,13 @@ Or with stress tests (takes ~2-3 minutes):
 **What it tests**: Sequential vs batched glob pattern processing
 
 **Run it**:
+
 ```bash
 node tools/benchmark-glob-performance.js
 ```
 
 **Expected results**:
+
 - 3 patterns: ~2.9× faster
 - 10 patterns: ~8.8× faster
 
@@ -40,11 +42,13 @@ node tools/benchmark-glob-performance.js
 **What it tests**: Conceptual parallel file scanning performance
 
 **Run it**:
+
 ```bash
 node tools/benchmark-parallel-scanning.js
 ```
 
 **Expected results**:
+
 - Demonstrates Node.js single-threaded limitations
 - Shows why Promise.all doesn't help for CPU-bound work
 
@@ -55,11 +59,13 @@ node tools/benchmark-parallel-scanning.js
 **What it tests**: All 135 unit tests for correctness
 
 **Run it**:
+
 ```bash
 npx nx test workspace
 ```
 
 **Expected results**:
+
 - 135 tests pass
 - No regressions
 
@@ -72,11 +78,13 @@ npx nx test workspace
 **What it tests**: Real-world large workspace scenarios
 
 **Run it**:
+
 ```bash
 npx nx e2e workspace-e2e --testPathPattern=performance-stress-test
 ```
 
 **Test scenarios**:
+
 1. Many projects (10+) with cross-dependencies
 2. Many large files (100+, ~1MB total)
 3. Many intra-project dependencies (50 relative imports)
@@ -93,6 +101,7 @@ npx nx e2e workspace-e2e --testPathPattern=performance-stress-test
 **Good result**: 2.5× - 9× speedup depending on pattern count
 
 Example output:
+
 ```
 📊 Test Case 1: 3 Glob Patterns (typical use case)
    Results:
@@ -107,6 +116,7 @@ Example output:
 **Expected result**: Similar or slightly slower performance
 
 Example output:
+
 ```
 📊 Test Case 2: Scanning 100 files (no imports found)
    Results:
@@ -123,6 +133,7 @@ Example output:
 **Good result**: All tests pass within time limits
 
 Example output:
+
 ```
 ✓ should efficiently move files across workspace with 10+ projects (46044 ms)
 ✓ should efficiently process workspace with 100+ large files (9464 ms)
@@ -131,6 +142,7 @@ Example output:
 ```
 
 **Performance targets**:
+
 - 10+ projects: < 120s (2 min)
 - 100+ files: < 180s (3 min)
 - 50 relative imports: < 120s (2 min)
@@ -143,6 +155,7 @@ Example output:
 To compare performance improvements:
 
 1. **Checkout main branch** and run benchmarks:
+
    ```bash
    git checkout main
    npm ci
@@ -151,6 +164,7 @@ To compare performance improvements:
    ```
 
 2. **Checkout optimization branch** and run benchmarks:
+
    ```bash
    git checkout copilot/optimize-parallel-processing
    npm ci
@@ -166,11 +180,13 @@ To compare performance improvements:
 ### Performance Metrics
 
 **Primary metrics**:
+
 - **Speedup factor**: How many times faster (e.g., 2.91×)
 - **Improvement percentage**: Percentage faster (e.g., 65.6%)
 - **Absolute time**: Milliseconds saved
 
 **Secondary metrics**:
+
 - **Tree traversals**: Number of file tree scans
 - **Files processed**: Number of files checked/updated
 - **Early exits**: Number of files skipped
@@ -205,12 +221,14 @@ To compare performance improvements:
 ### Benchmarks Run Slower Than Expected
 
 **Possible causes**:
+
 1. **System load**: Other processes consuming CPU/memory
 2. **Node.js version**: Use Node.js 18+ for best performance
 3. **Platform differences**: Windows typically slower than Linux/macOS
 4. **Disk I/O**: Slow disk can impact file operations
 
 **Solutions**:
+
 - Close other applications
 - Use latest LTS Node.js version
 - Run on Linux/macOS if possible
@@ -219,11 +237,13 @@ To compare performance improvements:
 ### Stress Tests Timeout
 
 **Possible causes**:
+
 1. **Insufficient resources**: Not enough CPU/memory
 2. **Slow system**: Old hardware
 3. **Debug mode**: Running with debugger attached
 
 **Solutions**:
+
 - Increase timeout in `jest.config.ts`
 - Run tests individually
 - Use `--maxWorkers=1` to reduce resource usage
@@ -231,11 +251,13 @@ To compare performance improvements:
 ### Inconsistent Results
 
 **Possible causes**:
+
 1. **System variance**: CPU throttling, background processes
 2. **Caching**: First run slower than subsequent runs
 3. **JIT compilation**: V8 warming up
 
 **Solutions**:
+
 - Run benchmarks multiple times
 - Average results
 - Use dedicated benchmark environment
@@ -262,7 +284,7 @@ jobs:
       - run: npm ci
       - run: npx nx build workspace
       - run: ./tools/run-benchmarks.sh
-      - run: ./tools/run-benchmarks.sh --stress  # Optional
+      - run: ./tools/run-benchmarks.sh --stress # Optional
 ```
 
 ### Nightly Stress Tests
@@ -272,7 +294,7 @@ For comprehensive testing without slowing down CI:
 ```yaml
 on:
   schedule:
-    - cron: '0 0 * * *'  # Daily at midnight
+    - cron: '0 0 * * *' # Daily at midnight
 
 jobs:
   stress-test:

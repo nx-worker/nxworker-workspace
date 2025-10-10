@@ -104,11 +104,13 @@ The repository includes comprehensive performance benchmarks to validate optimiz
 ### Quick Benchmarks
 
 Run all benchmarks with a single command:
+
 ```shell
 ./tools/run-benchmarks.sh
 ```
 
 Or include stress tests (~2-3 minutes):
+
 ```shell
 ./tools/run-benchmarks.sh --stress
 ```

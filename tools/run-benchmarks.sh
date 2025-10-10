@@ -43,6 +43,13 @@ echo "   Status: ℹ️  DEMONSTRATES NODE.JS LIMITATIONS"
 echo ""
 node tools/benchmark-parallel-scanning.js | tee "$RESULTS_DIR/parallel-scanning.txt"
 
+# 2b. Worker Thread Benchmark
+print_header "2b. WORKER THREAD BENCHMARK (Demonstrates overhead)"
+echo "   Testing: Sequential vs Worker Threads"
+echo "   Status: ℹ️  SHOWS WORKER THREAD OVERHEAD vs EARLY EXIT"
+echo ""
+node tools/benchmark-worker-threads.js | tee "$RESULTS_DIR/worker-threads.txt"
+
 # 3. Unit Tests
 print_header "3. UNIT TESTS"
 echo "   Running: All 135 unit tests"
@@ -60,6 +67,7 @@ echo "   Key Findings:"
 echo "   ├─ Glob Batching:    2.91× - 8.83× faster ✅"
 echo "   ├─ AST Optimizations: 20-50% faster (stress tests) ✅"
 echo "   ├─ Parallelization:  ~0.2% faster (Node.js limited) ⚠️"
+echo "   ├─ Worker Threads:   Overhead exceeds benefits (early exit wins) ❌"
 echo "   └─ All Tests:        135/135 passed ✅"
 echo ""
 echo "   For detailed analysis, see:"

@@ -7,6 +7,7 @@ This document compares performance before and after parallelization optimization
 ## Executive Summary
 
 **Key Finding**: The move-file generator has already been extensively optimized. Additional parallelization provides minimal benefit (~0.2%) due to:
+
 - Node.js single-threaded architecture
 - Nx Tree API design (sequential writes)
 - Existing optimizations (glob batching, parser reuse, early exit)
@@ -17,16 +18,17 @@ This document compares performance before and after parallelization optimization
 
 **Status**: ✅ **Already Optimized** - Provides the largest performance gain
 
-| Pattern Count | Before | After | Improvement | Speedup |
-|---------------|--------|-------|-------------|---------|
-| 3 patterns    | 79.30ms | 27.30ms | 65.6% faster | 2.91× |
-| 10 patterns   | 257.87ms | 29.21ms | 88.7% faster | 8.83× |
+| Pattern Count | Before   | After   | Improvement  | Speedup |
+| ------------- | -------- | ------- | ------------ | ------- |
+| 3 patterns    | 79.30ms  | 27.30ms | 65.6% faster | 2.91×   |
+| 10 patterns   | 257.87ms | 29.21ms | 88.7% faster | 8.83×   |
 
 **Impact**: Scales linearly with pattern count. Essential for bulk operations.
 
 ### 2. Stress Test Performance
 
 **Test Environment**:
+
 - Node.js v18+
 - Nx workspace with multiple projects
 - Real file operations
@@ -34,7 +36,7 @@ This document compares performance before and after parallelization optimization
 #### Test 1: Many Projects (10+ Projects with Cross-Dependencies)
 
 | Metric | Before Parallel | After Parallel | Change |
-|--------|-----------------|----------------|--------|
+| --- | --- | --- | --- |
 | Duration | 46,044 ms | ~46,000 ms | ~0% |
 | Files processed | Multiple across 10 projects | Same | - |
 | Projects scanned | Sequential | Batched | Structure improved |
@@ -43,31 +45,31 @@ This document compares performance before and after parallelization optimization
 
 #### Test 2: Many Large Files (100+ Files, ~1MB Total)
 
-| Metric | Before Parallel | After Parallel | Change |
-|--------|-----------------|----------------|--------|
-| Duration | 9,464 ms | ~9,500 ms | ~0% |
-| Early exits | ~90 files | ~90 files | Same |
-| AST parsing | Only when needed | Only when needed | Same |
+| Metric      | Before Parallel  | After Parallel   | Change |
+| ----------- | ---------------- | ---------------- | ------ |
+| Duration    | 9,464 ms         | ~9,500 ms        | ~0%    |
+| Early exits | ~90 files        | ~90 files        | Same   |
+| AST parsing | Only when needed | Only when needed | Same   |
 
 **Analysis**: Early exit optimization already skips most work.
 
 #### Test 3: Intra-Project Dependencies (50 Relative Imports)
 
-| Metric | Before Parallel | After Parallel | Change |
-|--------|-----------------|----------------|--------|
-| Duration | 4,397 ms | ~4,400 ms | ~0% |
-| Imports updated | 50 | 50 | Same |
-| Files scanned | Same | Same | Same |
+| Metric          | Before Parallel | After Parallel | Change |
+| --------------- | --------------- | -------------- | ------ |
+| Duration        | 4,397 ms        | ~4,400 ms      | ~0%    |
+| Imports updated | 50              | 50             | Same   |
+| Files scanned   | Same            | Same           | Same   |
 
 **Analysis**: Single-pass traversal already optimized.
 
 #### Test 4: Combined Stress (450 Files, 15 Projects)
 
-| Metric | Before Parallel | After Parallel | Change |
-|--------|-----------------|----------------|--------|
-| Duration | 35,366 ms | 35,304 ms | **-0.2%** |
-| Avg per file | 5.90 ms | 5.89 ms | 0.2% faster |
-| Avg per project | 177.10 ms | 176.69 ms | 0.2% faster |
+| Metric          | Before Parallel | After Parallel | Change      |
+| --------------- | --------------- | -------------- | ----------- |
+| Duration        | 35,366 ms       | 35,304 ms      | **-0.2%**   |
+| Avg per file    | 5.90 ms         | 5.89 ms        | 0.2% faster |
+| Avg per project | 177.10 ms       | 176.69 ms      | 0.2% faster |
 
 **Analysis**: Marginal improvement. Most time spent in synchronous operations.
 
@@ -76,7 +78,7 @@ This document compares performance before and after parallelization optimization
 **Purpose**: Demonstrates Node.js limitations for CPU-bound parallelization
 
 | Scenario | Sequential | Parallel (Batched) | Speedup |
-|----------|-----------|-------------------|---------|
+| --- | --- | --- | --- |
 | Import in file #45/50 | 134.57ms | 149.63ms | **0.90×** (slower) |
 | No imports (100 files) | 299.44ms | 299.95ms | **1.00×** (same) |
 | Import in file #5/100 | 14.58ms | 29.96ms | **0.49×** (slower) |
@@ -104,7 +106,8 @@ This document compares performance before and after parallelization optimization
    - After: Single traversal handling all cases
    - **Impact**: Saves ~50% of traversal time
 
-**Combined Result**: 
+**Combined Result**:
+
 - Parser reuse: Eliminates 450 instantiations
 - Early exit: Skips ~405 files without imports
 - Single-pass: Saves ~225 redundant traversals
@@ -113,35 +116,38 @@ This document compares performance before and after parallelization optimization
 
 ### Read Operations (Can Be Parallelized)
 
-| Operation | Current Implementation | Parallel Benefit |
-|-----------|----------------------|------------------|
-| File scanning | Synchronous (tree.read) | ❌ None (sync operation) |
-| Import checking | Batched with early exit | ❌ None (already optimized) |
-| File validation | Sequential | ❌ Minimal (fast operation) |
-| Project filtering | Now batched | ✅ Better code structure |
+| Operation         | Current Implementation  | Parallel Benefit            |
+| ----------------- | ----------------------- | --------------------------- |
+| File scanning     | Synchronous (tree.read) | ❌ None (sync operation)    |
+| Import checking   | Batched with early exit | ❌ None (already optimized) |
+| File validation   | Sequential              | ❌ Minimal (fast operation) |
+| Project filtering | Now batched             | ✅ Better code structure    |
 
 ### Write Operations (Must Be Sequential)
 
-| Operation | Why Sequential | Can Parallelize? |
-|-----------|---------------|------------------|
-| tree.write() | Tree API not thread-safe | ❌ No |
-| tree.delete() | Tree API constraint | ❌ No |
-| AST transformation | Modifies and writes | ❌ No |
-| Export management | Updates index files | ❌ No |
+| Operation          | Why Sequential           | Can Parallelize? |
+| ------------------ | ------------------------ | ---------------- |
+| tree.write()       | Tree API not thread-safe | ❌ No            |
+| tree.delete()      | Tree API constraint      | ❌ No            |
+| AST transformation | Modifies and writes      | ❌ No            |
+| Export management  | Updates index files      | ❌ No            |
 
 ## Optimization Impact Timeline
 
 ### Phase 1: Glob Pattern Batching
+
 - **Improvement**: 2.91× - 8.83× faster
 - **Impact**: Critical for multi-pattern operations
 - **Status**: ✅ Implemented and verified
 
 ### Phase 2: AST Codemod Optimizations
+
 - **Improvement**: 20-50% faster (stress tests)
 - **Impact**: Significant for large workspaces
 - **Status**: ✅ Implemented and verified
 
 ### Phase 3: Parallelization (This PR)
+
 - **Improvement**: ~0.2% faster
 - **Impact**: Code structure, future-proofing
 - **Status**: ✅ Implemented with documentation
@@ -164,15 +170,17 @@ This document compares performance before and after parallelization optimization
 ### Future Opportunities 🔮
 
 1. **Worker Threads for True Parallelism**
+
    ```javascript
    // Process files in separate threads
-   const workers = files.map(file => 
-     new Worker('./process-file.js', { workerData: file })
+   const workers = files.map(
+     (file) => new Worker('./process-file.js', { workerData: file }),
    );
    // Aggregate results and write sequentially
    ```
 
 2. **AST Caching**
+
    ```javascript
    const astCache = new Map();
    // Cache parsed ASTs for files checked multiple times
@@ -188,10 +196,7 @@ This document compares performance before and after parallelization optimization
 
 ### Performance Achievements
 
-✅ **Glob Batching**: 2.91× - 8.83× faster
-✅ **AST Optimizations**: 20-50% faster
-✅ **Early Exit**: Skips ~90% of unnecessary work
-⚠️ **Parallelization**: ~0.2% faster (limited by Node.js)
+✅ **Glob Batching**: 2.91× - 8.83× faster ✅ **AST Optimizations**: 20-50% faster ✅ **Early Exit**: Skips ~90% of unnecessary work ⚠️ **Parallelization**: ~0.2% faster (limited by Node.js)
 
 ### Key Insights
 
@@ -203,12 +208,14 @@ This document compares performance before and after parallelization optimization
 ### Recommendations for Users
 
 **For Best Performance**:
+
 1. Use comma-separated glob patterns (enables batching)
 2. Provide dependency graph info when available
 3. Run operations on projects that need them (avoid full workspace scans)
 4. Use recent Node.js versions (better V8 optimizations)
 
 **Optimization Priority** (if implementing from scratch):
+
 1. **High Impact**: Glob pattern batching (2-9× improvement)
 2. **High Impact**: Parser reuse (eliminates 100s of instantiations)
 3. **High Impact**: Early exit (skips ~90% of work)
@@ -218,6 +225,7 @@ This document compares performance before and after parallelization optimization
 ### Final Thoughts
 
 The move-file generator demonstrates excellent performance engineering:
+
 - Strategic batching where it matters most (glob patterns)
 - Smart early exit to avoid unnecessary work (90% of files)
 - Efficient resource reuse (parser instance)
