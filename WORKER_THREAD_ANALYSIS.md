@@ -9,6 +9,7 @@ This document details the implementation and benchmarking of worker threads for 
 ### Worker Thread Architecture
 
 Created a worker thread implementation (`import-check-worker.js`) that:
+
 - Receives file content (not Tree API objects)
 - Performs CPU-intensive AST parsing using jscodeshift
 - Checks for import statements in parallel across multiple threads
@@ -17,6 +18,7 @@ Created a worker thread implementation (`import-check-worker.js`) that:
 ### Parallel Processing Strategy
 
 The `parallel-utils.ts` module was enhanced with:
+
 - Worker thread pool (4 workers by default)
 - Automatic distribution of files across workers
 - Fallback to Promise.all if workers fail
@@ -32,27 +34,27 @@ const MIN_FILES_FOR_WORKERS = 100;
 
 ### Test Case 1: 50 Files (import in file #45)
 
-| Method | Time | Result |
-|--------|------|--------|
-| Sequential (Early Exit) | 76.36ms | ✅ Import found |
-| Worker Threads (4 workers) | 168.45ms | ✅ Import found |
-| **Performance** | **0.45× slower** | **-120.6% "improvement"** |
+| Method                     | Time             | Result                    |
+| -------------------------- | ---------------- | ------------------------- |
+| Sequential (Early Exit)    | 76.36ms          | ✅ Import found           |
+| Worker Threads (4 workers) | 168.45ms         | ✅ Import found           |
+| **Performance**            | **0.45× slower** | **-120.6% "improvement"** |
 
 ### Test Case 2: 100 Files (import in file #90)
 
-| Method | Time | Result |
-|--------|------|--------|
-| Sequential (Early Exit) | 3.70ms | ✅ Import found |
-| Worker Threads (4 workers) | 167.23ms | ✅ Import found |
-| **Performance** | **0.02× slower** | **-4414.0% "improvement"** |
+| Method                     | Time             | Result                     |
+| -------------------------- | ---------------- | -------------------------- |
+| Sequential (Early Exit)    | 3.70ms           | ✅ Import found            |
+| Worker Threads (4 workers) | 167.23ms         | ✅ Import found            |
+| **Performance**            | **0.02× slower** | **-4414.0% "improvement"** |
 
 ### Test Case 3: 200 Files (no imports found)
 
-| Method | Time | Result |
-|--------|------|--------|
-| Sequential (Early Exit) | 0.46ms | ❌ No imports |
-| Worker Threads (4 workers) | 155.41ms | ❌ No imports |
-| **Performance** | **0.00× slower** | **-33441.8% "improvement"** |
+| Method                     | Time             | Result                      |
+| -------------------------- | ---------------- | --------------------------- |
+| Sequential (Early Exit)    | 0.46ms           | ❌ No imports               |
+| Worker Threads (4 workers) | 155.41ms         | ❌ No imports               |
+| **Performance**            | **0.00× slower** | **-33441.8% "improvement"** |
 
 ## Key Findings
 
@@ -110,17 +112,34 @@ const root = j(content);
 
 ### Configuration
 
-Worker threads are **disabled by default** but can be enabled:
+Worker threads are **disabled by default** but can be enabled via the `experimentalThreads` option:
 
 ```typescript
-// In parallel-utils.ts
-const USE_WORKER_THREADS = false; // Change to true to enable
+// Pass experimentalThreads option to the generator
+await moveFileGenerator(tree, {
+  file: 'path/to/file.ts',
+  project: 'target-project',
+  experimentalThreads: true, // Enable worker threads
+});
+```
+
+Or via CLI:
+
+```bash
+nx g @nxworker/workspace:move-file --file=path/to/file.ts --project=target-project --experimentalThreads
+```
+
+Configuration in `parallel-utils.ts`:
+
+```typescript
+const WORKER_POOL_SIZE = 4; // Number of worker threads to use
 const MIN_FILES_FOR_WORKERS = 100; // Minimum files threshold
 ```
 
 ### When to Enable
 
 Consider enabling worker threads only if:
+
 - Processing 500+ files where overhead is amortized
 - Early exit optimization is removed/disabled
 - Files are known to contain imports (no early exits)
@@ -128,14 +147,14 @@ Consider enabling worker threads only if:
 
 ## Comparison with Existing Optimizations
 
-| Optimization | Improvement | Status |
-|--------------|-------------|--------|
-| **Glob Pattern Batching** | 2.91× - 8.83× faster | ✅ Enabled |
-| **Parser Instance Reuse** | Eliminates 450 instantiations | ✅ Enabled |
-| **Early Exit** | Skips ~90% of parsing | ✅ Enabled |
-| **Single-Pass Traversal** | Saves ~50% traversals | ✅ Enabled |
-| **Promise.all Batching** | ~0.2% faster | ✅ Enabled |
-| **Worker Threads** | 45-100× **slower** | ❌ Disabled |
+| Optimization              | Improvement                   | Status      |
+| ------------------------- | ----------------------------- | ----------- |
+| **Glob Pattern Batching** | 2.91× - 8.83× faster          | ✅ Enabled  |
+| **Parser Instance Reuse** | Eliminates 450 instantiations | ✅ Enabled  |
+| **Early Exit**            | Skips ~90% of parsing         | ✅ Enabled  |
+| **Single-Pass Traversal** | Saves ~50% traversals         | ✅ Enabled  |
+| **Promise.all Batching**  | ~0.2% faster                  | ✅ Enabled  |
+| **Worker Threads**        | 45-100× **slower**            | ❌ Disabled |
 
 ## Conclusion
 
@@ -149,6 +168,7 @@ Consider enabling worker threads only if:
 ### Recommendation
 
 **Keep worker threads disabled by default** because:
+
 - Early exit optimization makes sequential code faster
 - Worker thread overhead (150ms+) exceeds any potential benefit
 - Existing optimizations (glob batching, early exit) are superior

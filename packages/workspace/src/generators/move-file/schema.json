@@ -49,6 +49,12 @@
       "type": "boolean",
       "description": "Remove source project(s) if they become empty after moving files (only index file remains)",
       "default": false
+    },
+    "experimentalThreads": {
+      "type": "boolean",
+      "description": "Enable experimental worker threads for parallel processing (may not improve performance due to overhead)",
+      "default": false,
+      "x-priority": "internal"
     }
   },
   "required": ["file", "project"]

@@ -7,4 +7,5 @@ export interface MoveFileGeneratorSchema {
   skipFormat?: boolean;
   allowUnicode?: boolean;
   removeEmptyProject?: boolean;
+  experimentalThreads?: boolean;
 }

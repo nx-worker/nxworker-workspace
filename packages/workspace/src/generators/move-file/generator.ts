@@ -614,7 +614,13 @@ async function executeMove(
 
   updateMovedFileImportsIfNeeded(tree, ctx);
 
-  await handleMoveStrategy(tree, projectGraph, projects, ctx);
+  await handleMoveStrategy(
+    tree,
+    projectGraph,
+    projects,
+    ctx,
+    options.experimentalThreads,
+  );
 
   const sourceIdentifier = sourceImportPath || normalizedSource;
   updateTargetProjectImportsIfNeeded(tree, ctx, sourceIdentifier);
@@ -799,12 +805,14 @@ function updateRelativeImportsToAliasInMovedFile(
  * @param projectGraph - Dependency graph for the workspace.
  * @param projects - Map of all projects in the workspace.
  * @param ctx - Resolved move context.
+ * @param experimentalThreads - Enable experimental worker threads for parallel processing
  */
 async function handleMoveStrategy(
   tree: Tree,
   projectGraph: ProjectGraph,
   projects: Map<string, ProjectConfiguration>,
   ctx: MoveContext,
+  experimentalThreads = false,
 ): Promise<void> {
   const { isSameProject, isExported, sourceImportPath, targetImportPath } = ctx;
 
@@ -814,7 +822,13 @@ async function handleMoveStrategy(
   }
 
   if (isExported && sourceImportPath && targetImportPath) {
-    await handleExportedMove(tree, projectGraph, projects, ctx);
+    await handleExportedMove(
+      tree,
+      projectGraph,
+      projects,
+      ctx,
+      experimentalThreads,
+    );
     return;
   }
 
@@ -854,12 +868,14 @@ function handleSameProjectMove(tree: Tree, ctx: MoveContext): void {
  * @param projectGraph - Dependency graph for the workspace.
  * @param projects - Map of all projects in the workspace.
  * @param ctx - Resolved move context.
+ * @param experimentalThreads - Enable experimental worker threads for parallel processing
  */
 async function handleExportedMove(
   tree: Tree,
   projectGraph: ProjectGraph,
   projects: Map<string, ProjectConfiguration>,
   ctx: MoveContext,
+  experimentalThreads = false,
 ): Promise<void> {
   const {
     sourceProjectName,
@@ -896,6 +912,7 @@ async function handleExportedMove(
       targetProjectName,
       targetRelativePath: relativeFilePathInTarget,
     },
+    experimentalThreads,
   );
 
   // Remove the export from source index BEFORE updating imports to package alias
@@ -1309,6 +1326,7 @@ async function updateImportPathsInDependentProjects(
   sourceImportPath: string,
   targetImportPath: string,
   target?: { targetProjectName?: string; targetRelativePath?: string },
+  experimentalThreads = false,
 ): Promise<void> {
   const { targetProjectName, targetRelativePath } = target ?? {};
   const dependentProjectNames = getDependentProjectNames(
@@ -1337,6 +1355,7 @@ async function updateImportPathsInDependentProjects(
       tree,
       Array.from(projects.entries()),
       sourceImportPath,
+      experimentalThreads,
     );
   }
 

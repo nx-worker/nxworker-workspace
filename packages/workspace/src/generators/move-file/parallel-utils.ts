@@ -15,7 +15,6 @@ const sourceFileExtensions = Object.freeze([
 ] as const);
 
 // Worker thread configuration
-const USE_WORKER_THREADS = false; // Disabled by default - overhead outweighs benefits due to early exit optimization
 const WORKER_POOL_SIZE = 4; // Number of worker threads to use
 const MIN_FILES_FOR_WORKERS = 100; // Minimum files to justify worker thread overhead
 
@@ -174,15 +173,17 @@ async function checkFilesForImportsWithWorkers(
  * @param tree - The virtual file system tree
  * @param files - Array of file paths to check
  * @param importPath - The import path to search for
+ * @param experimentalThreads - Enable worker threads for true parallelism (disabled by default)
  * @returns True if any file contains the import
  */
 async function checkFilesForImportsParallel(
   tree: Tree,
   files: string[],
   importPath: string,
+  experimentalThreads = false,
 ): Promise<boolean> {
   // Use worker threads for large file sets (true parallelism for CPU-bound work)
-  if (USE_WORKER_THREADS && files.length >= MIN_FILES_FOR_WORKERS) {
+  if (experimentalThreads && files.length >= MIN_FILES_FOR_WORKERS) {
     try {
       logger.verbose(
         `Using ${WORKER_POOL_SIZE} worker threads to check ${files.length} files`,
@@ -228,12 +229,14 @@ async function checkFilesForImportsParallel(
  * @param tree - The virtual file system tree
  * @param project - Project configuration
  * @param importPath - The import path to search for
+ * @param experimentalThreads - Enable worker threads for true parallelism (disabled by default)
  * @returns Promise that resolves to true if the project has imports
  */
 export async function checkForImportsInProjectParallel(
   tree: Tree,
   project: ProjectConfiguration,
   importPath: string,
+  experimentalThreads = false,
 ): Promise<boolean> {
   // Collect all source files
   const files = collectSourceFiles(tree, project.root);
@@ -247,7 +250,12 @@ export async function checkForImportsInProjectParallel(
   );
 
   // Process files in parallel
-  return checkFilesForImportsParallel(tree, files, importPath);
+  return checkFilesForImportsParallel(
+    tree,
+    files,
+    importPath,
+    experimentalThreads,
+  );
 }
 
 /**
@@ -256,12 +264,14 @@ export async function checkForImportsInProjectParallel(
  * @param tree - The virtual file system tree
  * @param projects - Array of [projectName, projectConfig] tuples
  * @param importPath - The import path to search for
+ * @param experimentalThreads - Enable worker threads for true parallelism (disabled by default)
  * @returns Promise that resolves to array of [projectName, projectConfig] tuples that have imports
  */
 export async function filterProjectsWithImportsParallel(
   tree: Tree,
   projects: Array<[string, ProjectConfiguration]>,
   importPath: string,
+  experimentalThreads = false,
 ): Promise<Array<[string, ProjectConfiguration]>> {
   logger.verbose(
     `Checking ${projects.length} projects in parallel for imports to ${importPath}`,
@@ -274,6 +284,7 @@ export async function filterProjectsWithImportsParallel(
         tree,
         project,
         importPath,
+        experimentalThreads,
       );
       return hasImports
         ? ([name, project] as [string, ProjectConfiguration])
