@@ -59,11 +59,25 @@ const sourceFileExtensions = Object.freeze([
 const projectSourceFilesCache = new Map<string, string[]>();
 
 /**
+ * Cache for file existence checks to avoid repeated tree.exists() calls.
+ * Key: file path, Value: boolean indicating if file exists
+ */
+const fileExistenceCache = new Map<string, boolean>();
+
+/**
+ * Cache for TypeScript compiler paths to avoid repeated parsing of tsconfig files.
+ * Value: paths object or null if unavailable
+ */
+let compilerPathsCache: Record<string, unknown> | null | undefined = undefined;
+
+/**
  * Clears all caches. Should be called when starting a new generator operation
  * to ensure fresh state.
  */
 function clearAllCaches(): void {
   projectSourceFilesCache.clear();
+  fileExistenceCache.clear();
+  compilerPathsCache = undefined;
 }
 
 /**
@@ -87,6 +101,62 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 
   projectSourceFilesCache.set(projectRoot, sourceFiles);
   return sourceFiles;
+}
+
+/**
+ * Updates the project source files cache incrementally when a file is moved.
+ * This is more efficient than invalidating and re-scanning the entire project.
+ *
+ * @param projectRoot - Root path of the project
+ * @param oldPath - Path of the file being moved
+ * @param newPath - New path of the file (or null if file is being removed from project)
+ */
+function updateProjectSourceFilesCache(
+  projectRoot: string,
+  oldPath: string,
+  newPath: string | null,
+): void {
+  const cached = projectSourceFilesCache.get(projectRoot);
+  if (!cached) {
+    return; // Cache doesn't exist for this project, nothing to update
+  }
+
+  // Remove old path
+  const oldIndex = cached.indexOf(oldPath);
+  if (oldIndex !== -1) {
+    cached.splice(oldIndex, 1);
+  }
+
+  // Add new path if it's still in this project
+  if (newPath && newPath.startsWith(projectRoot + '/')) {
+    cached.push(newPath);
+  }
+}
+
+/**
+ * Cached wrapper for tree.exists() to avoid redundant file system checks.
+ * @param tree - The virtual file system tree
+ * @param filePath - Path to check for existence
+ * @returns True if file exists
+ */
+function cachedTreeExists(tree: Tree, filePath: string): boolean {
+  const cached = fileExistenceCache.get(filePath);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const exists = tree.exists(filePath);
+  fileExistenceCache.set(filePath, exists);
+  return exists;
+}
+
+/**
+ * Updates the file existence cache when a file is created or deleted.
+ * @param filePath - Path of the file
+ * @param exists - Whether the file exists after the operation
+ */
+function updateFileExistenceCache(filePath: string, exists: boolean): void {
+  fileExistenceCache.set(filePath, exists);
 }
 
 /**
@@ -309,6 +379,8 @@ export async function moveFileGenerator(
   // Delete all source files after all moves are complete
   for (const ctx of contexts) {
     tree.delete(ctx.normalizedSource);
+    // Update file existence cache
+    updateFileExistenceCache(ctx.normalizedSource, false);
   }
 
   // Check if any source projects should be removed
@@ -339,8 +411,15 @@ export async function moveFileGenerator(
 
   // Log cache statistics for performance monitoring
   const cacheStats = getCacheStats();
+  const fileExistenceCacheSize = fileExistenceCache.size;
+  const projectCacheSize = projectSourceFilesCache.size;
+  const tsconfigCached = compilerPathsCache !== undefined;
+
   logger.verbose(
     `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
+  );
+  logger.verbose(
+    `File cache stats: ${projectCacheSize} project caches, ${fileExistenceCacheSize} file existence checks, tsconfig cached: ${tsconfigCached}`,
   );
 }
 
@@ -521,7 +600,7 @@ function resolveAndValidate(
   const normalizedSource = sanitizePath(options.file);
 
   // Verify source file exists before deriving directory
-  if (!tree.exists(normalizedSource)) {
+  if (!cachedTreeExists(tree, normalizedSource)) {
     throw new Error(`Source file "${normalizedSource}" not found`);
   }
 
@@ -561,7 +640,7 @@ function resolveAndValidate(
   );
 
   // Verify target file does not exist
-  if (tree.exists(normalizedTarget)) {
+  if (cachedTreeExists(tree, normalizedTarget)) {
     throw new Error(`Target file "${normalizedTarget}" already exists`);
   }
 
@@ -661,14 +740,19 @@ async function executeMove(
 
   createTargetFile(tree, normalizedTarget, fileContent);
 
-  // Invalidate cache for projects that will be modified
+  // Update cache incrementally for projects that will be modified
+  // This is more efficient than invalidating and re-scanning the entire project
   const sourceProject = projects.get(sourceProjectName);
   const targetProject = projects.get(targetProjectName);
   if (sourceProject) {
-    projectSourceFilesCache.delete(sourceProject.root);
+    updateProjectSourceFilesCache(
+      sourceProject.root,
+      normalizedSource,
+      targetProjectName === sourceProjectName ? normalizedTarget : null,
+    );
   }
   if (targetProject && targetProject.root !== sourceProject?.root) {
-    projectSourceFilesCache.delete(targetProject.root);
+    updateProjectSourceFilesCache(targetProject.root, '', normalizedTarget);
   }
 
   updateMovedFileImportsIfNeeded(tree, ctx);
@@ -691,6 +775,8 @@ function createTargetFile(
   fileContent: string,
 ): void {
   tree.write(normalizedTarget, fileContent);
+  // Update file existence cache
+  updateFileExistenceCache(normalizedTarget, true);
 }
 
 /**
@@ -1169,7 +1255,7 @@ function isFileExported(
   const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
-    if (!tree.exists(indexPath)) {
+    if (!cachedTreeExists(tree, indexPath)) {
       return false;
     }
     const content = tree.read(indexPath, 'utf-8');
@@ -1229,6 +1315,11 @@ function getProjectImportPath(
  * @returns The paths object or null if unavailable.
  */
 function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
+  // Return cached value if available
+  if (compilerPathsCache !== undefined) {
+    return compilerPathsCache;
+  }
+
   // Try common tsconfig files in order of preference
   const tsconfigFiles = ['tsconfig.base.json', 'tsconfig.json'];
 
@@ -1241,7 +1332,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
   const allTsconfigFiles = [...tsconfigFiles, ...additionalTsconfigFiles];
 
   for (const tsconfigPath of allTsconfigFiles) {
-    if (!tree.exists(tsconfigPath)) {
+    if (!cachedTreeExists(tree, tsconfigPath)) {
       continue;
     }
 
@@ -1255,6 +1346,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
       const paths = tsconfig.compilerOptions?.paths;
 
       if (typeof paths === 'object' && paths) {
+        compilerPathsCache = paths;
         return paths;
       }
     } catch (error) {
@@ -1262,6 +1354,7 @@ function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
     }
   }
 
+  compilerPathsCache = null;
   return null;
 }
 
@@ -1308,7 +1401,7 @@ function pointsToProjectIndex(
   }
 
   // Try dynamic verification: check if the file actually exists
-  if (tree.exists(normalizedPathStr)) {
+  if (cachedTreeExists(tree, normalizedPathStr)) {
     return true;
   }
 
@@ -1388,6 +1481,12 @@ async function updateImportPathsInDependentProjects(
       : Array.from(projects.entries()).filter(([, project]) =>
           checkForImportsInProject(tree, project, sourceImportPath),
         );
+
+  // Preload project file caches for all dependent projects to improve performance
+  // This avoids sequential file tree traversals when updating imports
+  candidates.forEach(([, dependentProject]) => {
+    getProjectSourceFiles(tree, dependentProject.root);
+  });
 
   candidates.forEach(([dependentName, dependentProject]) => {
     logger.verbose(`Checking project ${dependentName} for imports`);
@@ -1686,10 +1785,11 @@ function ensureFileExported(
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
   // Find the first existing index file
-  const indexPath = indexPaths.find((p) => tree.exists(p)) || indexPaths[0];
+  const indexPath =
+    indexPaths.find((p) => cachedTreeExists(tree, p)) || indexPaths[0];
 
   let content = '';
-  if (tree.exists(indexPath)) {
+  if (cachedTreeExists(tree, indexPath)) {
     content = tree.read(indexPath, 'utf-8') || '';
   }
 
@@ -1717,7 +1817,7 @@ function removeFileExport(
 
   // Find existing index files
   indexPaths.forEach((indexPath) => {
-    if (!tree.exists(indexPath)) {
+    if (!cachedTreeExists(tree, indexPath)) {
       return;
     }
 
