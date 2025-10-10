@@ -383,6 +383,8 @@ export async function moveFileGenerator(
     tree.delete(ctx.normalizedSource);
     // Update file existence cache
     updateFileExistenceCache(ctx.normalizedSource, false);
+    // Invalidate tree read cache
+    treeReadCache.invalidateFile(ctx.normalizedSource);
   }
 
   // Check if any source projects should be removed
@@ -1218,6 +1220,8 @@ async function finalizeMove(
   options: MoveFileGeneratorSchema,
 ): Promise<void> {
   tree.delete(normalizedSource);
+  // Invalidate tree read cache
+  treeReadCache.invalidateFile(normalizedSource);
 
   if (!options.skipFormat) {
     await formatFiles(tree);

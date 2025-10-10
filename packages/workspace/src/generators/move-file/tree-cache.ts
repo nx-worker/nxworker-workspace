@@ -2,10 +2,10 @@ import { Tree } from '@nx/devkit';
 
 /**
  * In-memory cache for Tree read operations to reduce File I/O overhead.
- * 
+ *
  * This cache stores the results of tree.read() and tree.children() calls
  * to avoid redundant File I/O. The cache is invalidated when files are modified.
- * 
+ *
  * This optimization targets the 30-40% of time spent on File I/O operations
  * and complements existing caching strategies:
  * - AST caching (parsed ASTs and content)
@@ -23,7 +23,11 @@ class TreeReadCache {
    * @param encoding - File encoding
    * @returns File content or null if file doesn't exist
    */
-  read(tree: Tree, filePath: string, encoding: BufferEncoding = 'utf-8'): string | null {
+  read(
+    tree: Tree,
+    filePath: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): string | null {
     // Check cache first
     if (this.contentCache.has(filePath)) {
       return this.contentCache.get(filePath)!;
@@ -32,7 +36,7 @@ class TreeReadCache {
     // Read from tree and cache result
     const content = tree.read(filePath, encoding);
     this.contentCache.set(filePath, content);
-    
+
     return content;
   }
 
