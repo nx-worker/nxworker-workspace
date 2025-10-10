@@ -1,12 +1,13 @@
 # Summary: Parallelization Investigation for move-file Generator
 
 ## Objective
+
 Optimize the performance of the `move-file` generator through parallelization (Promise-based or Worker Threads) while maintaining the existing optimizations.
 
 ## Investigation Process
 
 1. ✅ Established performance baseline by running benchmarks and stress tests
-2. ✅ Analyzed codebase to identify parallelization opportunities  
+2. ✅ Analyzed codebase to identify parallelization opportunities
 3. ✅ Identified safe vs unsafe operations for concurrent execution
 4. ✅ Implemented Promise-based parallelization in key areas
 5. ✅ Re-ran performance tests to measure impact
@@ -15,7 +16,9 @@ Optimize the performance of the `move-file` generator through parallelization (P
 ## Key Findings
 
 ### Performance is Already Excellent
+
 The existing optimizations provide **outstanding performance**:
+
 - **~5-6ms per file** in large workspaces (450 files)
 - **~50ms per file** for large files with complex import graphs
 - **~200ms per file** for batch operations with many dependencies
@@ -23,6 +26,7 @@ The existing optimizations provide **outstanding performance**:
 ### Why Parallelization Doesn't Help
 
 **JavaScript Single-Threaded Execution**
+
 - Synchronous operations execute sequentially regardless of Promise.all() usage
 - The Nx Tree API is entirely synchronous (read, write, delete)
 - jscodeshift **does support async transforms** (can return Promise), but this doesn't help because:
@@ -32,6 +36,7 @@ The existing optimizations provide **outstanding performance**:
 - No actual I/O concurrency to exploit with synchronous tree operations
 
 **Existing Optimizations Are Highly Effective**
+
 - AST Cache: Prevents redundant parsing
 - File Tree Cache: Avoids repeated traversals
 - Pattern Analysis: Optimizes glob pattern matching
@@ -39,6 +44,7 @@ The existing optimizations provide **outstanding performance**:
 - Early Exit: Skips parsing files without imports
 
 ### Worker Threads Not Viable
+
 - High overhead (serialization, thread management)
 - For typical file sizes (<50KB), overhead exceeds benefits
 - Complex coordination required for shared state
@@ -48,10 +54,10 @@ The existing optimizations provide **outstanding performance**:
 
 ### Changes Made
 
-1. **Parallel Project Import Checking** (`updateImportPathsInDependentProjects`)
-   - Changed from sequential `.filter()` to `Promise.all()`
-   - Removed unnecessary `async` keyword from map callback
-   - No performance impact (operations still synchronous)
+1. **~~Parallel Project Import Checking~~ (Reverted)**
+   - Initially used `Promise.all()` with synchronous function
+   - Reverted to simple `.filter()` and `.map()`
+   - `Promise.all()` was unnecessary since no Promises were involved
 
 2. **~~Parallel Batch File Moves~~ (Reverted)**
    - Initially attempted to use `Promise.all()` for batch moves
@@ -61,7 +67,7 @@ The existing optimizations provide **outstanding performance**:
 ### Performance Impact
 
 | Metric | Before | After | Change |
-|--------|--------|-------|--------|
+| --- | --- | --- | --- |
 | Benchmark Tests | 81-83s | 80-82s | **No significant change** |
 | Stress Tests | 136-137s | 136-137s | **No significant change** |
 | Large Workspace (450 files) | 2.6s (5.82ms/file) | 2.7s (6.2ms/file) | **No significant change** |
@@ -77,10 +83,7 @@ The existing optimizations provide **outstanding performance**:
 
 ## Recommendations
 
-✅ **Keep the existing optimizations** - they work excellently
-✅ **Monitor cache statistics** - ensure caching remains effective
-✅ **Profile specific bottlenecks** - if performance degrades in new scenarios
-❌ **Do not pursue parallelization** - it provides no measurable benefit
+✅ **Keep the existing optimizations** - they work excellently ✅ **Monitor cache statistics** - ensure caching remains effective ✅ **Profile specific bottlenecks** - if performance degrades in new scenarios ❌ **Do not pursue parallelization** - it provides no measurable benefit
 
 ## Files Modified
 
@@ -90,10 +93,7 @@ The existing optimizations provide **outstanding performance**:
 
 ## Test Results
 
-✅ All unit tests pass (135 tests)
-✅ All benchmark tests pass (7 tests)
-✅ All stress tests pass (4 tests)
-✅ Build succeeds without errors
+✅ All unit tests pass (135 tests) ✅ All benchmark tests pass (7 tests) ✅ All stress tests pass (4 tests) ✅ Build succeeds without errors
 
 ## Related Documentation
 

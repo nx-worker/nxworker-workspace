@@ -9,8 +9,9 @@ The existing optimizations (AST caching, file tree caching, pattern analysis, sm
 ## Performance Baseline
 
 ### Benchmark Results (Before Optimization Attempt)
+
 - Small file move: ~1935ms
-- Medium file move: ~2076ms  
+- Medium file move: ~2076ms
 - Large file move: ~2620ms
 - Moving 10 small files: ~2022ms (~202ms per file)
 - Moving 15 files with glob patterns: ~2057ms (~137ms per file)
@@ -18,6 +19,7 @@ The existing optimizations (AST caching, file tree caching, pattern analysis, sm
 - Moving file with 50 irrelevant files: ~2030ms
 
 ### Stress Test Results (Before Optimization Attempt)
+
 - 10+ projects cross-project move: ~42859ms
 - 100+ large files: ~5184ms (~51ms per file)
 - 50 intra-project dependencies: ~2253ms (~45ms per import)
@@ -26,6 +28,7 @@ The existing optimizations (AST caching, file tree caching, pattern analysis, sm
 ## Performance After Parallelization Attempts
 
 ### Benchmark Results (After Optimization Attempt)
+
 - Small file move: ~1940ms (**no change**)
 - Medium file move: ~2053ms (**no change**)
 - Large file move: ~2653ms (**no change**)
@@ -35,6 +38,7 @@ The existing optimizations (AST caching, file tree caching, pattern analysis, sm
 - Moving file with 50 irrelevant files: ~2019ms (**no change**)
 
 ### Stress Test Results (After Optimization Attempt)
+
 - 10+ projects cross-project move: ~42039ms (**no change**)
 - 100+ large files: ~5339ms (~53ms per file) (**no change**)
 - 50 intra-project dependencies: ~2292ms (~46ms per import) (**no change**)
@@ -43,25 +47,29 @@ The existing optimizations (AST caching, file tree caching, pattern analysis, sm
 ## Why Parallelization Doesn't Help
 
 ### 1. JavaScript Single-Threaded Execution
+
 - **All synchronous operations execute sequentially** regardless of Promise.all() usage
 - The Nx Tree API methods (read, write, delete) are synchronous
 - jscodeshift **supports async transforms** (returns Promise), but our current implementation uses synchronous operations within transforms
 - Only async I/O operations benefit from Promise-based concurrency
 
 ### 2. Synchronous Tree Mutations
+
 ```typescript
 // These operations are synchronous, so Promise.all doesn't help
-tree.write(filePath, content);  // Synchronous
-tree.delete(filePath);          // Synchronous
-tree.read(filePath, 'utf-8');   // Synchronous
+tree.write(filePath, content); // Synchronous
+tree.delete(filePath); // Synchronous
+tree.read(filePath, 'utf-8'); // Synchronous
 ```
 
 **Note on jscodeshift async support**: While jscodeshift transforms CAN be async (returning a Promise), the bottleneck in our implementation is the synchronous Nx Tree API, not the transform execution itself. Making our transforms async would not improve performance because the tree operations remain synchronous.
 
 ### 3. Existing Caching is Highly Effective
+
 The current implementation already includes:
+
 - **AST Cache**: Prevents redundant parsing
-- **File Tree Cache**: Avoids repeated traversals  
+- **File Tree Cache**: Avoids repeated traversals
 - **Pattern Analysis Cache**: Optimizes glob operations
 - **Smart File Cache**: Caches file existence checks
 
@@ -73,16 +81,19 @@ These optimizations already provide near-optimal performance.
 
 ```javascript
 // Async transform example from jscodeshift test fixtures
-module.exports = function(fileInfo, api, options) {
-  return new Promise(resolve => {
+module.exports = function (fileInfo, api, options) {
+  return new Promise((resolve) => {
     setTimeout(() => {
-      resolve(api.jscodeshift(fileInfo.source)
-        .findVariableDeclarators('sum')
-        .renameTo('addition')
-        .toSource());
+      resolve(
+        api
+          .jscodeshift(fileInfo.source)
+          .findVariableDeclarators('sum')
+          .renameTo('addition')
+          .toSource(),
+      );
     }, 100);
   });
-}
+};
 ```
 
 The jscodeshift Worker uses `await transform()`, enabling async transform execution. However, **this doesn't help our use case** because:
@@ -93,7 +104,9 @@ The jscodeshift Worker uses `await transform()`, enabling async transform execut
 4. **The tree operations cannot be made async** - `tree.write()`, `tree.read()`, and `tree.delete()` are inherently synchronous
 
 ### 5. Worker Thread Overhead
+
 Using Worker Threads for parallelization would require:
+
 - Serializing/deserializing data between threads
 - Spinning up and managing worker threads
 - Coordinating shared state
@@ -102,32 +115,51 @@ Using Worker Threads for parallelization would require:
 
 ## What Was Implemented
 
-### 1. Parallel Project Import Checking
+### 1. ~~Parallel Project Import Checking~~ (Reverted)
+
 **File**: `generator.ts` - `updateImportPathsInDependentProjects()`
 
-```typescript
-// Changed from:
-const candidates = projects.filter(([, project]) =>
-  checkForImportsInProject(tree, project, sourceImportPath)
-);
+**Original attempt** (reverted):
 
-// To:
+```typescript
+// This was unnecessary - Promise.all() on non-Promise values
 const results = await Promise.all(
   projectEntries.map(([name, project]) => {
-    const hasImports = checkForImportsInProject(tree, project, sourceImportPath);
-    return hasImports ? ([name, project]) : null;
-  })
+    const hasImports = checkForImportsInProject(
+      tree,
+      project,
+      sourceImportPath,
+    );
+    return hasImports ? [name, project] : null;
+  }),
 );
 ```
 
-**Result**: No measurable performance improvement because `checkForImportsInProject` uses synchronous operations.
+**Why it was wrong**:
 
-**Note**: Removed unnecessary `async` keyword from the map callback since the function doesn't use `await`.
+- `checkForImportsInProject()` is synchronous (returns boolean, not Promise)
+- The map callback doesn't return Promises
+- `Promise.all()` on non-Promise values just wraps and unwraps them unnecessarily
+- No actual parallelization occurs
+
+**Final implementation** (simple filter):
+
+```typescript
+candidates = projectEntries
+  .filter(([, project]) =>
+    checkForImportsInProject(tree, project, sourceImportPath),
+  )
+  .map(([name, project]) => [name, project] as [string, ProjectConfiguration]);
+```
+
+**Result**: Cleaner code without unnecessary Promise wrapping.
 
 ### 2. ~~Parallel Batch File Moves~~ (Reverted)
+
 **File**: `generator.ts` - batch move execution
 
 **Original attempt** (reverted due to safety concerns):
+
 ```typescript
 // This was UNSAFE - reverted
 await Promise.all(
@@ -135,13 +167,15 @@ await Promise.all(
 );
 ```
 
-**Why it was unsafe**: 
+**Why it was unsafe**:
+
 - Multiple files might be moved to the same target project
 - `updateProjectSourceFilesCache()` modifies shared cache arrays
 - Concurrent array modifications (splice, push) could cause race conditions
 - Cache corruption could lead to incorrect import updates
 
 **Final implementation** (sequential):
+
 ```typescript
 // Sequential execution to prevent race conditions
 for (let i = 0; i < contexts.length; i++) {
@@ -154,24 +188,23 @@ for (let i = 0; i < contexts.length; i++) {
 ## Operations Analyzed for Parallelization
 
 ### Safe for Parallelization (Read-Only)
-✓ File content reading (but already cached)
-✓ AST parsing (but synchronous, so no benefit)
-✓ Import checking across different projects (but synchronous operations, no actual concurrency)
+
+✓ File content reading (but already cached) ✓ AST parsing (but synchronous, so no benefit) ✓ Import checking across different projects (but synchronous operations, no actual concurrency)
 
 ### Unsafe for Parallelization (Mutations)
-✗ Tree write operations (must maintain consistency)
-✗ Cache updates (must be atomic - shared cache arrays modified by multiple operations)
-✗ Index file modifications (same file, multiple writes)
-✗ **Batch file moves** (shared cache corruption risk when moving to same target project)
+
+✗ Tree write operations (must maintain consistency) ✗ Cache updates (must be atomic - shared cache arrays modified by multiple operations) ✗ Index file modifications (same file, multiple writes) ✗ **Batch file moves** (shared cache corruption risk when moving to same target project)
 
 ## Alternative Approaches Considered
 
 ### 1. Worker Threads for AST Parsing
+
 - **Pros**: True CPU parallelization
 - **Cons**: High overhead (serialization, thread management), complexity
 - **Verdict**: ❌ Rejected - overhead exceeds benefits for file sizes involved
 
 ### 2. Async jscodeshift Transforms
+
 - **Pros**: Supported by jscodeshift (as of v17.1.2), could enable parallel transform execution
 - **Cons**: Bottleneck is synchronous Tree API, not transform execution; would add complexity without performance gain
 - **Verdict**: ❌ Rejected - wouldn't address the actual bottleneck
@@ -179,6 +212,7 @@ for (let i = 0; i < contexts.length; i++) {
 **Detailed Analysis of Async Transforms:**
 
 While jscodeshift supports async transforms (returning Promises), this feature is designed for transforms that need to perform async I/O operations (e.g., fetching data, reading external files). Our transforms don't need async I/O - they:
+
 1. Read from the synchronous Tree API (`tree.read()`)
 2. Parse AST (synchronous, cached)
 3. Transform AST (synchronous)
@@ -187,11 +221,13 @@ While jscodeshift supports async transforms (returning Promises), this feature i
 Making the transform function async wouldn't parallelize these operations because the Tree API calls remain synchronous. The transforms would still execute sequentially when processing multiple files.
 
 ### 3. Batch Processing with Event Loop Yielding
+
 - **Pros**: Prevents blocking event loop
 - **Cons**: Doesn't improve throughput, adds overhead
 - **Verdict**: ❌ Rejected - no performance benefit
 
-### 3. Streaming/Incremental Processing  
+### 3. Streaming/Incremental Processing
+
 - **Pros**: Could reduce memory usage
 - **Cons**: AST parsing requires full file content
 - **Verdict**: ❌ Rejected - not applicable to AST parsing
@@ -199,7 +235,8 @@ Making the transform function async wouldn't parallelize these operations becaus
 ## Conclusion
 
 **The existing implementation is already near-optimal.** The combination of:
-1. AST caching  
+
+1. AST caching
 2. File tree caching
 3. Pattern analysis optimization
 4. Smart file cache

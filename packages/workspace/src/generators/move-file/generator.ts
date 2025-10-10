@@ -1497,21 +1497,15 @@ async function updateImportPathsInDependentProjects(
         (entry): entry is [string, ProjectConfiguration] => entry !== null,
       );
   } else {
-    // Parallel filter: check all projects concurrently for imports
+    // Filter: check all projects for imports
     const projectEntries = Array.from(projects.entries());
-    const results = await Promise.all(
-      projectEntries.map(([name, project]) => {
-        const hasImports = checkForImportsInProject(
-          tree,
-          project,
-          sourceImportPath,
-        );
-        return hasImports ? ([name, project] as [string, ProjectConfiguration]) : null;
-      }),
-    );
-    candidates = results.filter(
-      (entry): entry is [string, ProjectConfiguration] => entry !== null,
-    );
+    candidates = projectEntries
+      .filter(([, project]) =>
+        checkForImportsInProject(tree, project, sourceImportPath),
+      )
+      .map(
+        ([name, project]) => [name, project] as [string, ProjectConfiguration],
+      );
   }
 
   // Preload project file caches for all dependent projects to improve performance
