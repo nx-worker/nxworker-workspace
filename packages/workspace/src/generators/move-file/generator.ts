@@ -372,6 +372,10 @@ export async function moveFileGenerator(
   });
 
   // Execute all moves without deleting sources yet
+  // Note: These must be executed sequentially, not in parallel, because:
+  // 1. Multiple files might be moved to the same target project
+  // 2. updateProjectSourceFilesCache() modifies shared cache arrays
+  // 3. Concurrent modifications could cause race conditions
   for (let i = 0; i < contexts.length; i++) {
     const ctx = contexts[i];
     const fileOptions = { ...options, file: uniqueFilePaths[i] };
@@ -1480,19 +1484,29 @@ async function updateImportPathsInDependentProjects(
     sourceProjectName,
   );
 
-  const candidates: Array<[string, ProjectConfiguration]> =
-    dependentProjectNames.length
-      ? dependentProjectNames
-          .map((name) => {
-            const project = projects.get(name);
-            return project ? [name, project] : null;
-          })
-          .filter(
-            (entry): entry is [string, ProjectConfiguration] => entry !== null,
-          )
-      : Array.from(projects.entries()).filter(([, project]) =>
-          checkForImportsInProject(tree, project, sourceImportPath),
-        );
+  let candidates: Array<[string, ProjectConfiguration]>;
+
+  if (dependentProjectNames.length) {
+    // Use dependency graph when available
+    candidates = dependentProjectNames
+      .map((name) => {
+        const project = projects.get(name);
+        return project ? [name, project] : null;
+      })
+      .filter(
+        (entry): entry is [string, ProjectConfiguration] => entry !== null,
+      );
+  } else {
+    // Filter: check all projects for imports
+    const projectEntries = Array.from(projects.entries());
+    candidates = projectEntries
+      .filter(([, project]) =>
+        checkForImportsInProject(tree, project, sourceImportPath),
+      )
+      .map(
+        ([name, project]) => [name, project] as [string, ProjectConfiguration],
+      );
+  }
 
   // Preload project file caches for all dependent projects to improve performance
   // This avoids sequential file tree traversals when updating imports
@@ -1543,6 +1557,10 @@ function updateImportPathsToPackageAlias(
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
   const sourceFiles = getProjectSourceFiles(tree, project.root);
 
+  const sourceFileWithoutExt = normalizePath(
+    removeSourceFileExtension(sourceFilePath),
+  );
+
   for (const normalizedFilePath of sourceFiles) {
     if (filesToExclude.includes(normalizedFilePath)) {
       continue;
@@ -1564,9 +1582,6 @@ function updateImportPathsToPackageAlias(
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
         );
-        const sourceFileWithoutExt = normalizePath(
-          removeSourceFileExtension(sourceFilePath),
-        );
         return normalizedResolvedImport === sourceFileWithoutExt;
       },
       () => targetPackageAlias,
@@ -1584,6 +1599,9 @@ function updateImportPathsInProject(
   targetFilePath: string,
 ): void {
   const sourceFiles = getProjectSourceFiles(tree, project.root);
+  const sourceFileWithoutExt = normalizePath(
+    removeSourceFileExtension(sourceFilePath),
+  );
 
   for (const normalizedFilePath of sourceFiles) {
     if (
@@ -1613,9 +1631,6 @@ function updateImportPathsInProject(
         // Normalize and compare with source file (both without extension)
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
-        );
-        const sourceFileWithoutExt = normalizePath(
-          removeSourceFileExtension(sourceFilePath),
         );
         return normalizedResolvedImport === sourceFileWithoutExt;
       },
