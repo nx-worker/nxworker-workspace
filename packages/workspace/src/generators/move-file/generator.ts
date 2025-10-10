@@ -411,8 +411,15 @@ export async function moveFileGenerator(
 
   // Log cache statistics for performance monitoring
   const cacheStats = getCacheStats();
+  const fileExistenceCacheSize = fileExistenceCache.size;
+  const projectCacheSize = projectSourceFilesCache.size;
+  const tsconfigCached = compilerPathsCache !== undefined;
+  
   logger.verbose(
     `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
+  );
+  logger.verbose(
+    `File cache stats: ${projectCacheSize} project caches, ${fileExistenceCacheSize} file existence checks, tsconfig cached: ${tsconfigCached}`,
   );
 }
 
@@ -1394,7 +1401,7 @@ function pointsToProjectIndex(
   }
 
   // Try dynamic verification: check if the file actually exists
-  if (tree.exists(normalizedPathStr)) {
+  if (cachedTreeExists(tree, normalizedPathStr)) {
     return true;
   }
 
@@ -1474,6 +1481,12 @@ async function updateImportPathsInDependentProjects(
       : Array.from(projects.entries()).filter(([, project]) =>
           checkForImportsInProject(tree, project, sourceImportPath),
         );
+
+  // Preload project file caches for all dependent projects to improve performance
+  // This avoids sequential file tree traversals when updating imports
+  candidates.forEach(([, dependentProject]) => {
+    getProjectSourceFiles(tree, dependentProject.root);
+  });
 
   candidates.forEach(([dependentName, dependentProject]) => {
     logger.verbose(`Checking project ${dependentName} for imports`);
@@ -1772,10 +1785,10 @@ function ensureFileExported(
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
   // Find the first existing index file
-  const indexPath = indexPaths.find((p) => tree.exists(p)) || indexPaths[0];
+  const indexPath = indexPaths.find((p) => cachedTreeExists(tree, p)) || indexPaths[0];
 
   let content = '';
-  if (tree.exists(indexPath)) {
+  if (cachedTreeExists(tree, indexPath)) {
     content = tree.read(indexPath, 'utf-8') || '';
   }
 
@@ -1803,7 +1816,7 @@ function removeFileExport(
 
   // Find existing index files
   indexPaths.forEach((indexPath) => {
-    if (!tree.exists(indexPath)) {
+    if (!cachedTreeExists(tree, indexPath)) {
       return;
     }
 
