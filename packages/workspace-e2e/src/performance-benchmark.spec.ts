@@ -246,7 +246,6 @@ ciOnlyDescribe('move-file generator performance benchmarks', () => {
 
     it('should efficiently handle comma-separated glob patterns', () => {
       const fileCount = 15;
-      const patterns: string[] = [];
 
       // Create multiple files with different naming patterns
       // Group 1: api-*.ts
