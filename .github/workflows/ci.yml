@@ -102,7 +102,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      - run: npx nx affected -t test --output-style=static
+      - run: npx nx affected -t test --configuration=ci --output-style=static
 
   # Summary check that aggregates all test matrix results for branch protection
   check-test:
@@ -210,7 +210,7 @@ jobs:
       # and ensuring all e2e jobs use the exact same build artifacts for consistency.
       - name: Run e2e tests
         shell: bash
-        run: npx nx affected -t e2e --exclude-task-dependencies --output-style=static
+        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static
 
   # Summary check that aggregates all e2e matrix results for branch protection
   check-e2e:

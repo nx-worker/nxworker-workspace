@@ -73,6 +73,28 @@ npx nx release             # build, version, publish
 - Run `npx nx reset` if cache artifacts become stale or if Verdaccio instances are left running unexpectedly.
 - For faster e2e tests during development, the test suite only tests the minimum supported Nx version (19.x) by default. Use `npx nx e2e workspace-e2e --configuration=ci` to test all supported versions (19, 20, 21).
 
+### Performance Testing
+
+The e2e suite includes two types of performance tests:
+
+- **Performance Benchmarks** (`performance-benchmark.spec.ts`): Quick baseline tests (~1-2 minutes)
+- **Performance Stress Tests** (`performance-stress-test.spec.ts`): Comprehensive validation with large workspaces (~15-30 minutes)
+
+The stress tests validate that jscodeshift optimizations (parser reuse, early exit, single-pass traversal) provide significant performance benefits in realistic scenarios with many projects and files.
+
+```shell
+# Run quick performance benchmarks
+npx nx e2e workspace-e2e --testPathPattern=performance-benchmark
+
+# Run comprehensive stress tests
+npx nx e2e workspace-e2e --testPathPattern=performance-stress-test
+
+# Run all performance tests
+npx nx e2e workspace-e2e --testPathPattern=performance
+```
+
+See `packages/workspace-e2e/QUICK_START_STRESS_TESTS.md` for a quick start guide and `packages/workspace-e2e/STRESS_TEST_GUIDE.md` for comprehensive documentation.
+
 ## Troubleshooting
 
 | Issue | Fix |
