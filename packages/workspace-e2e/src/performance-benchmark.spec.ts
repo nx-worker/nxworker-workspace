@@ -244,6 +244,87 @@ ciOnlyDescribe('move-file generator performance benchmarks', () => {
       expect(duration).toBeLessThan(60000); // 60 seconds for 10 files
     });
 
+    it('should efficiently handle comma-separated glob patterns', () => {
+      const fileCount = 15;
+      const patterns: string[] = [];
+
+      // Create multiple files with different naming patterns
+      // Group 1: api-*.ts
+      for (let i = 0; i < 5; i++) {
+        const fileName = `api-${i}.ts`;
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+          `export function api${i}() { return 'api${i}'; }\n`,
+        );
+      }
+
+      // Group 2: service-*.ts
+      for (let i = 0; i < 5; i++) {
+        const fileName = `service-${i}.ts`;
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+          `export function service${i}() { return 'service${i}'; }\n`,
+        );
+      }
+
+      // Group 3: util-*.ts
+      for (let i = 0; i < 5; i++) {
+        const fileName = `util-${i}.ts`;
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+          `export function util${i}() { return 'util${i}'; }\n`,
+        );
+      }
+
+      // Benchmark moving all files using comma-separated glob patterns
+      // This tests the optimization where multiple patterns are batched into a single globAsync call
+      const startTime = performance.now();
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/api-*.ts,${benchmarkLib1}/src/lib/service-*.ts,${benchmarkLib1}/src/lib/util-*.ts" --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      console.log(
+        `Moving ${fileCount} files with 3 comma-separated glob patterns took: ${duration.toFixed(2)}ms (${(duration / fileCount).toFixed(2)}ms per file)`,
+      );
+
+      // Verify all files were moved
+      for (let i = 0; i < 5; i++) {
+        expect(
+          readFileSync(
+            join(projectDirectory, benchmarkLib2, 'src', 'lib', `api-${i}.ts`),
+            'utf-8',
+          ),
+        ).toContain(`api${i}`);
+        expect(
+          readFileSync(
+            join(
+              projectDirectory,
+              benchmarkLib2,
+              'src',
+              'lib',
+              `service-${i}.ts`,
+            ),
+            'utf-8',
+          ),
+        ).toContain(`service${i}`);
+        expect(
+          readFileSync(
+            join(projectDirectory, benchmarkLib2, 'src', 'lib', `util-${i}.ts`),
+            'utf-8',
+          ),
+        ).toContain(`util${i}`);
+      }
+
+      // With batched glob optimization, this should be very fast
+      expect(duration).toBeLessThan(60000); // 60 seconds for 15 files
+    });
+
     it('should handle files with many imports efficiently', () => {
       // Create a source file
       const sourceFile = 'source-with-imports.ts';
