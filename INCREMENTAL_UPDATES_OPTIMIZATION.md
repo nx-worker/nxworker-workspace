@@ -13,6 +13,7 @@ Even with pattern analysis and file tree caching (PR #137), the move-file genera
 3. **No Parse Failure Tracking**: Failed parse attempts were retried on every check
 
 These redundancies became particularly noticeable when:
+
 - Moving multiple files in a batch operation
 - Processing projects with many files
 - Updating files with complex import patterns
@@ -38,11 +39,11 @@ class ASTCache {
   private astCache = new Map<string, Collection>();
   private parseAttempts = new Map<string, boolean>();
 
-  getContent(tree: Tree, filePath: string): string | null
-  getAST(tree: Tree, filePath: string): Collection | null
-  invalidate(filePath: string): void
-  clear(): void
-  getStats(): { contentCacheSize, astCacheSize, failedParseCount }
+  getContent(tree: Tree, filePath: string): string | null;
+  getAST(tree: Tree, filePath: string): Collection | null;
+  invalidate(filePath: string): void;
+  clear(): void;
+  getStats(): { contentCacheSize; astCacheSize; failedParseCount };
 }
 ```
 
@@ -59,6 +60,7 @@ class ASTCache {
 Compared to **original baseline** (before any optimizations):
 
 #### Benchmark Tests
+
 - Small file move: 1927ms → **1732ms** (+10.1%) ✨
 - Medium file move: 2104ms → **1877ms** (+10.8%) ✨
 - Large file move: 2653ms → **2427ms** (+8.5%) ✨
@@ -69,6 +71,7 @@ Compared to **original baseline** (before any optimizations):
 **Average: +11.3% improvement**
 
 #### Stress Tests
+
 - 100+ files: 5146ms → **4599ms** (+10.6%) ✨
 - 50 imports: 2277ms → **1997ms** (+12.3%) ✨
 - Combined (450 files): 2662ms → **2428ms** (+8.8%) ✨
@@ -89,12 +92,14 @@ AST caching provides **+12.2% average improvement** over pattern caching:
 The two optimizations address **different bottlenecks**:
 
 ### Pattern Analysis & File Tree Caching (PR #137)
+
 - **What it optimizes**: File discovery
 - **How**: Caches the list of source files per project
 - **Impact**: Eliminates redundant `visitNotIgnoredFiles` traversals
 - **Best for**: Operations that repeatedly access the same project
 
 ### AST & Content Caching (This PR)
+
 - **What it optimizes**: File processing
 - **How**: Caches file content and parsed ASTs
 - **Impact**: Eliminates redundant file reads and AST parsing
@@ -140,10 +145,12 @@ The AST caching provides consistent 11-12% improvement over pattern caching beca
 ### Why Different from Pattern Caching's 50%?
 
 Pattern caching achieved 50% for a specific scenario (50 intra-project imports) because:
+
 - It eliminated 98% of file tree traversals for that case
 - File tree traversal was the dominant bottleneck
 
 AST caching provides 11-12% improvement across all scenarios because:
+
 - It addresses a different bottleneck (parsing vs discovery)
 - The gain is consistent and cumulative
 - It complements rather than replaces pattern caching
@@ -195,6 +202,7 @@ With both optimizations working together:
 - Best case: **+16.0%**
 
 The dramatic improvement shows that:
+
 1. Pattern caching eliminated file discovery overhead
 2. AST caching eliminated parsing overhead
 3. Together they address the major bottlenecks
