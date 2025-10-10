@@ -295,6 +295,7 @@ export async function moveFileGenerator(
 
   // Lazily create project graph only when needed (cross-project moves with exported files)
   // This improves performance for same-project moves by ~15-20%
+  // The graph is created on first call to getProjectGraph() and cached for subsequent calls
   let projectGraph: ProjectGraph | null = null;
   const getProjectGraph = async (): Promise<ProjectGraph> => {
     if (!projectGraph) {
@@ -1053,7 +1054,9 @@ async function handleExportedMove(
   const targetRoot = targetProject.sourceRoot || targetProject.root;
   const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
 
-  // Lazily load project graph only when updating dependent projects
+  // Lazily load project graph only when updating dependent projects.
+  // This is the only code path that requires the graph, so we defer creation until here.
+  // Same-project moves and non-exported cross-project moves never reach this code.
   const projectGraph = await getProjectGraph();
 
   await updateImportPathsInDependentProjects(
