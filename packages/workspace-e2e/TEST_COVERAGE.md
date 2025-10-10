@@ -183,4 +183,49 @@ Potential areas for additional test coverage:
 - Very long file paths (>4096 characters on modern systems)
 - Files with different encodings (UTF-8, UTF-16, etc.)
 - Monorepo scenarios with more complex project graphs
-- Performance benchmarks across architectures
+
+## Performance Testing
+
+### Performance Benchmarks
+
+The test suite includes performance benchmarks in `performance-benchmark.spec.ts` that measure:
+
+- Single file operations (small, medium, large files)
+- Multiple file operations (batch moves)
+- Import update performance (early exit optimization validation)
+
+These benchmarks provide baseline performance metrics but use relatively small workspaces.
+
+### Performance Stress Tests
+
+The test suite includes comprehensive stress tests in `performance-stress-test.spec.ts` that validate the jscodeshift AST-based codemod optimizations deliver performance benefits in realistic large-scale scenarios:
+
+**Test Scenarios:**
+
+1. **Many Projects (10+)**: Tests cross-project dependency updates with parser reuse
+2. **Many Files (100+)**: Tests early exit optimization with large workspaces
+3. **Many Intra-Project Dependencies (50+)**: Tests single-pass traversal efficiency
+4. **Combined Stress (15 projects × 30 files)**: Tests all optimizations working together
+
+**Optimizations Validated:**
+
+- **Parser Reuse**: Eliminates parser instantiation overhead across files
+- **Early Exit**: Skips AST parsing for files without target specifiers
+- **Single-Pass Traversal**: Reduces AST traversal from 5-6 passes to 1 pass
+
+For detailed information about running and interpreting stress tests, see [STRESS_TEST_GUIDE.md](./STRESS_TEST_GUIDE.md).
+
+**Running Performance Tests:**
+
+```powershell
+# Run all performance benchmarks (quick, ~1-2 minutes)
+npx nx e2e workspace-e2e --testPathPattern=performance-benchmark
+
+# Run all performance stress tests (comprehensive, ~15-30 minutes)
+npx nx e2e workspace-e2e --testPathPattern=performance-stress-test
+
+# Run all performance tests
+npx nx e2e workspace-e2e --testPathPattern=performance
+```
+
+**Note:** Stress tests demonstrate performance benefits that may not be visible in unit tests or small e2e tests. While unit/e2e tests may run slower on Windows GitHub runners compared to the main branch, the stress tests show the optimizations provide significant benefits in large workspaces across all platforms.
