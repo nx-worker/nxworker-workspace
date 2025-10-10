@@ -298,9 +298,8 @@ export async function moveFileGenerator(
   // The graph is created on first call to getProjectGraphAsync() and cached for subsequent calls
   let projectGraph: ProjectGraph | null = null;
   const getProjectGraphAsync = async (): Promise<ProjectGraph> => {
-    if (!projectGraph) {
-      projectGraph = await createProjectGraphAsync();
-    }
+    projectGraph ??= await createProjectGraphAsync();
+
     return projectGraph;
   };
 
