@@ -71,6 +71,79 @@ const entrypointPatterns = buildPatterns(
 );
 const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
 
+/**
+ * Cache for file tree structure to optimize repeated visitNotIgnoredFiles calls.
+ * Key: directory path, Value: array of file paths in that directory.
+ * 
+ * This cache is cleared when the tree is modified to ensure consistency.
+ */
+class FileTreeCache {
+  private cache: Map<string, string[]> = new Map();
+  private hitCount = 0;
+  private missCount = 0;
+
+  get(dirPath: string): string[] | undefined {
+    const result = this.cache.get(dirPath);
+    if (result) {
+      this.hitCount++;
+    } else {
+      this.missCount++;
+    }
+    return result;
+  }
+
+  set(dirPath: string, files: string[]): void {
+    this.cache.set(dirPath, files);
+  }
+
+  clear(): void {
+    this.cache.clear();
+    this.hitCount = 0;
+    this.missCount = 0;
+  }
+
+  getStats(): { hits: number; misses: number; size: number } {
+    return {
+      hits: this.hitCount,
+      misses: this.missCount,
+      size: this.cache.size,
+    };
+  }
+}
+
+// Global cache instance for the move-file generator
+const fileTreeCache = new FileTreeCache();
+
+/**
+ * Cached version of visitNotIgnoredFiles that reuses the file list
+ * when visiting the same directory multiple times.
+ * 
+ * @param tree - The virtual file system tree
+ * @param dirPath - Directory to visit
+ * @param visitor - Function called for each file
+ */
+function visitNotIgnoredFilesCached(
+  tree: Tree,
+  dirPath: string,
+  visitor: (path: string) => void,
+): void {
+  let files = fileTreeCache.get(dirPath);
+
+  if (!files) {
+    // Cache miss - build the file list
+    files = [];
+    visitNotIgnoredFiles(tree, dirPath, (filePath) => {
+      files!.push(filePath);
+    });
+    fileTreeCache.set(dirPath, files);
+  }
+
+  // Visit all cached files
+  for (const filePath of files) {
+    visitor(filePath);
+  }
+}
+
 function buildFileNames(baseNames: readonly string[]): string[] {
   return baseNames.flatMap((base) =>
     entrypointExtensions.map((ext) => `${base}.${ext}`),
@@ -175,6 +248,9 @@ export async function moveFileGenerator(
   tree: Tree,
   options: MoveFileGeneratorSchema,
 ) {
+  // Clear the file tree cache at the start of each generator run
+  fileTreeCache.clear();
+
   const projects = getProjects(tree);
   const projectGraph = await createProjectGraphAsync();
 
@@ -291,6 +367,14 @@ export async function moveFileGenerator(
   // Format files once at the end
   if (!options.skipFormat) {
     await formatFiles(tree);
+  }
+
+  // Log cache performance statistics
+  const stats = fileTreeCache.getStats();
+  if (stats.hits > 0 || stats.misses > 0) {
+    logger.verbose(
+      `File tree cache: ${stats.hits} hits, ${stats.misses} misses (${((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1)}% hit rate)`,
+    );
   }
 }
 
@@ -1372,7 +1456,7 @@ function updateImportPathsToPackageAlias(
   const fileExtensions = sourceFileExtensions;
   const filesToExclude = [sourceFilePath, ...excludeFilePaths];
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+  visitNotIgnoredFilesCached(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
     const normalizedFilePath = normalizePath(filePath);
 
@@ -1418,7 +1502,7 @@ function updateImportPathsInProject(
 ): void {
   const fileExtensions = sourceFileExtensions;
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+  visitNotIgnoredFilesCached(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
     const normalizedFilePath = normalizePath(filePath);
 
@@ -1470,7 +1554,7 @@ function checkForImportsInProject(
   const fileExtensions = sourceFileExtensions;
   let hasImports = false;
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+  visitNotIgnoredFilesCached(tree, project.root, (filePath) => {
     if (hasImports) {
       return; // Short-circuit if we already found imports
     }
@@ -1498,7 +1582,7 @@ function updateImportsToRelative(
 ): void {
   const fileExtensions = sourceFileExtensions;
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+  visitNotIgnoredFilesCached(tree, project.root, (filePath) => {
     // Normalize path separators for cross-platform compatibility
     const normalizedFilePath = normalizePath(filePath);
 
@@ -1532,7 +1616,7 @@ function updateImportsByAliasInProject(
 ): void {
   const fileExtensions = sourceFileExtensions;
 
-  visitNotIgnoredFiles(tree, project.root, (filePath) => {
+  visitNotIgnoredFilesCached(tree, project.root, (filePath) => {
     if (fileExtensions.some((ext) => filePath.endsWith(ext))) {
       // Use jscodeshift to update imports from source to target path
       updateImportSpecifier(tree, filePath, sourceImportPath, targetImportPath);
@@ -1743,7 +1827,7 @@ function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
 
   let hasNonIndexSourceFiles = false;
 
-  visitNotIgnoredFiles(tree, sourceRoot, (filePath) => {
+  visitNotIgnoredFilesCached(tree, sourceRoot, (filePath) => {
     if (hasNonIndexSourceFiles) {
       return; // Short-circuit if we already found a non-index file
     }
