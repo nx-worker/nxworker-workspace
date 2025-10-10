@@ -38,6 +38,8 @@ All commands should be run from the repository root. Nx caches results by defaul
 | Build | Build the Nx plugin and internal projects | `npx nx run-many --targets=build` |
 | Unit tests | Run unit tests for the Nx plugin and internal project | `npx nx run-many --targets=test` |
 | End-to-end | Publish the plugin to a local Verdaccio registry and install into a fresh Nx workspace then exercise the plugin | `npx nx run-many --targets=e2e` |
+| **Benchmarks** | **Run performance benchmarks** | **`./tools/run-benchmarks.sh`** |
+| **Stress tests** | **Run performance stress tests** | **`./tools/run-benchmarks.sh --stress`** |
 
 Run every step exactly as CI does:
 
@@ -94,6 +96,37 @@ npx nx e2e workspace-e2e --testPathPattern=performance
 ```
 
 See `packages/workspace-e2e/QUICK_START_STRESS_TESTS.md` for a quick start guide and `packages/workspace-e2e/STRESS_TEST_GUIDE.md` for comprehensive documentation.
+
+## Performance Benchmarking
+
+The repository includes comprehensive performance benchmarks to validate optimizations:
+
+### Quick Benchmarks
+
+Run all benchmarks with a single command:
+```shell
+./tools/run-benchmarks.sh
+```
+
+Or include stress tests (~2-3 minutes):
+```shell
+./tools/run-benchmarks.sh --stress
+```
+
+### Key Performance Results
+
+- **Glob Pattern Batching**: 2.91× - 8.83× faster
+- **AST Parser Reuse**: Eliminates 100s of instantiations
+- **Early Exit Optimization**: Skips ~90% of unnecessary parsing
+- **Single-Pass Traversal**: Saves ~50% of AST traversals
+
+### Documentation
+
+- `docs/BENCHMARKING_GUIDE.md`: Complete benchmarking guide
+- `PERFORMANCE_COMPARISON.md`: Detailed performance analysis
+- `PARALLELIZATION_ANALYSIS.md`: Parallelization opportunities and limitations
+- `docs/performance-optimization.md`: AST optimization guide
+- `GLOB_OPTIMIZATION.md`: Glob pattern batching details
 
 ## Troubleshooting
 
