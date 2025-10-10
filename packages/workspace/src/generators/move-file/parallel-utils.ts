@@ -21,7 +21,7 @@ const sourceFileExtensions = Object.freeze([
  * @param excludeFiles - Files to exclude from collection
  * @returns Array of file paths
  */
-function collectSourceFiles(
+export function collectSourceFiles(
   tree: Tree,
   projectRoot: string,
   excludeFiles: Set<string> = new Set(),
@@ -165,4 +165,33 @@ export async function filterProjectsWithImportsParallel(
   return results.filter(
     (result): result is [string, ProjectConfiguration] => result !== null,
   );
+}
+
+/**
+ * Collects source files from multiple projects in parallel.
+ * This is useful for batch operations that need to process many files.
+ *
+ * @param tree - The virtual file system tree
+ * @param projects - Array of [projectName, projectConfig] tuples
+ * @param excludeFiles - Files to exclude from collection
+ * @returns Promise that resolves to array of [projectName, filePaths] tuples
+ */
+export async function collectSourceFilesFromProjectsParallel(
+  tree: Tree,
+  projects: Array<[string, ProjectConfiguration]>,
+  excludeFiles: Set<string> = new Set(),
+): Promise<Array<[string, string[]]>> {
+  logger.verbose(
+    `Collecting source files from ${projects.length} projects in parallel`,
+  );
+
+  // Process all projects in parallel
+  const results = await Promise.all(
+    projects.map(async ([name, project]) => {
+      const files = collectSourceFiles(tree, project.root, excludeFiles);
+      return [name, files] as [string, string[]];
+    }),
+  );
+
+  return results;
 }
