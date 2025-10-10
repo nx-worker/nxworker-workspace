@@ -207,7 +207,10 @@ if (j.ImportDeclaration.check(node)) {
 
 ## Future Optimization Opportunities
 
-1. **AST Caching**: For files that are checked multiple times, cache the parsed AST
+1. **~~AST Caching~~**: ✅ **IMPLEMENTED** - See [Incremental Updates Optimization](../INCREMENTAL_UPDATES_OPTIMIZATION.md)
+   - For files that are checked multiple times, cache the parsed AST
+   - Cache file content to avoid redundant reads
+   - Track parse failures to avoid retry overhead
 2. **Parallel Processing**: Process multiple files concurrently
 3. **Incremental Parsing**: For very large files, consider incremental parsing strategies
 4. **Smart Filtering**: Pre-filter files based on file extensions or content analysis before processing
