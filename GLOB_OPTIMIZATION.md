@@ -13,6 +13,7 @@ nx generate @nxworker/workspace:move-file "lib1/src/**/*.ts,lib1/src/**/*.js,lib
 ```
 
 The original implementation would:
+
 1. Split the input into individual patterns: `["lib1/src/**/*.ts", "lib1/src/**/*.js", "lib1/src/**/*.tsx"]`
 2. Call `globAsync(tree, [pattern])` sequentially for each pattern
 3. Traverse the file tree 3 times (once per pattern)
@@ -20,6 +21,7 @@ The original implementation would:
 ## Solution
 
 The optimized implementation:
+
 1. Separates glob patterns from direct file paths
 2. Batches all glob patterns into a single `globAsync(tree, globPatterns)` call
 3. Traverses the file tree only **once** for all patterns
@@ -27,12 +29,13 @@ The optimized implementation:
 ### Code Comparison
 
 **Before (Sequential):**
+
 ```typescript
 const filePaths: string[] = [];
 for (const pattern of patterns) {
   const normalizedPattern = normalizePath(pattern);
   const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
-  
+
   if (isGlobPattern) {
     // N separate calls = N tree traversals
     const matches = await globAsync(tree, [normalizedPattern]);
@@ -47,6 +50,7 @@ for (const pattern of patterns) {
 ```
 
 **After (Batched):**
+
 ```typescript
 // Step 1: Separate glob patterns from direct paths
 const globPatterns: string[] = [];
@@ -56,7 +60,7 @@ const patternMap = new Map<string, string>();
 for (const pattern of patterns) {
   const normalizedPattern = normalizePath(pattern);
   const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
-  
+
   if (isGlobPattern) {
     globPatterns.push(normalizedPattern);
     patternMap.set(normalizedPattern, pattern);
@@ -69,18 +73,20 @@ for (const pattern of patterns) {
 const filePaths: string[] = [...directPaths];
 if (globPatterns.length > 0) {
   const matches = await globAsync(tree, globPatterns);
-  
+
   // Only check individual patterns in error case for helpful messages
   if (matches.length === 0 && globPatterns.length > 0) {
     for (const globPattern of globPatterns) {
       const individualMatches = await globAsync(tree, [globPattern]);
       if (individualMatches.length === 0) {
         const originalPattern = patternMap.get(globPattern) || globPattern;
-        throw new Error(`No files found matching glob pattern: "${originalPattern}"`);
+        throw new Error(
+          `No files found matching glob pattern: "${originalPattern}"`,
+        );
       }
     }
   }
-  
+
   filePaths.push(...matches);
 }
 ```
@@ -121,6 +127,7 @@ nx generate @nxworker/workspace:move-file \
 ### Unit Tests
 
 All existing glob pattern tests pass:
+
 - ✅ Simple glob patterns (`*.ts`)
 - ✅ Recursive patterns (`**/*.ts`)
 - ✅ Comma-separated patterns (`*.ts,*.js`)
@@ -143,6 +150,7 @@ it('should efficiently handle comma-separated glob patterns', () => {
 ## Backward Compatibility
 
 ✅ **No breaking changes**
+
 - Same API and behavior
 - Same error messages (using `patternMap` to preserve original pattern names)
 - Same functionality for single patterns, direct paths, and mixed inputs
