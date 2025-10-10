@@ -187,7 +187,11 @@ export async function moveFileGenerator(
   }
 
   // Expand glob patterns to actual file paths
-  const filePaths: string[] = [];
+  // Separate glob patterns from direct file paths for batch processing
+  const globPatterns: string[] = [];
+  const directPaths: string[] = [];
+  const patternMap = new Map<string, string>(); // normalized -> original for error messages
+
   for (const pattern of patterns) {
     // Normalize pattern to use forward slashes (Windows compatibility)
     const normalizedPattern = normalizePath(pattern);
@@ -196,16 +200,40 @@ export async function moveFileGenerator(
     const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
 
     if (isGlobPattern) {
-      // Use globAsync to find matching files
-      const matches = await globAsync(tree, [normalizedPattern]);
-      if (matches.length === 0) {
-        throw new Error(`No files found matching glob pattern: "${pattern}"`);
-      }
-      filePaths.push(...matches);
+      globPatterns.push(normalizedPattern);
+      patternMap.set(normalizedPattern, pattern);
     } else {
       // Direct file path
-      filePaths.push(normalizedPattern);
+      directPaths.push(normalizedPattern);
     }
+  }
+
+  // Batch all glob patterns into a single globAsync call for better performance
+  const filePaths: string[] = [...directPaths];
+  if (globPatterns.length > 0) {
+    const matches = await globAsync(tree, globPatterns);
+
+    // If no matches at all, we need to check individual patterns for better error messages
+    // Only do this in the error case to maintain performance in the success case
+    if (matches.length === 0 && globPatterns.length > 0) {
+      // Find the first pattern that matches nothing for a helpful error message
+      for (const globPattern of globPatterns) {
+        const individualMatches = await globAsync(tree, [globPattern]);
+        if (individualMatches.length === 0) {
+          const originalPattern = patternMap.get(globPattern) || globPattern;
+          throw new Error(
+            `No files found matching glob pattern: "${originalPattern}"`,
+          );
+        }
+      }
+      // If we get here, all patterns individually matched something, but combined they didn't
+      // This shouldn't happen, but throw a generic error just in case
+      throw new Error(
+        `No files found matching glob patterns: "${globPatterns.join(', ')}"`,
+      );
+    }
+
+    filePaths.push(...matches);
   }
 
   // Remove duplicates (in case multiple patterns match the same file)

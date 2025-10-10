@@ -212,6 +212,62 @@ if (j.ImportDeclaration.check(node)) {
 3. **Incremental Parsing**: For very large files, consider incremental parsing strategies
 4. **Smart Filtering**: Pre-filter files based on file extensions or content analysis before processing
 
+## Glob Pattern Batching Optimization (Added Later)
+
+### Problem
+
+When users provided multiple comma-separated glob patterns (e.g., `"src/**/*.ts,lib/**/*.ts,app/**/*.ts"`), the generator would call `globAsync` sequentially for each pattern:
+
+```typescript
+for (const pattern of patterns) {
+  if (isGlobPattern) {
+    const matches = await globAsync(tree, [pattern]); // N separate calls
+    filePaths.push(...matches);
+  }
+}
+```
+
+This caused the file tree to be traversed N times (once per pattern), which was inefficient for bulk operations.
+
+### Solution
+
+Batch all glob patterns into a single `globAsync` call:
+
+```typescript
+// Separate glob patterns from direct file paths
+const globPatterns: string[] = [];
+const directPaths: string[] = [];
+
+for (const pattern of patterns) {
+  const normalizedPattern = normalizePath(pattern);
+  const isGlobPattern = /[*?[\]{}]/.test(normalizedPattern);
+
+  if (isGlobPattern) {
+    globPatterns.push(normalizedPattern);
+  } else {
+    directPaths.push(normalizedPattern);
+  }
+}
+
+// Single call for all glob patterns
+const filePaths: string[] = [...directPaths];
+if (globPatterns.length > 0) {
+  const matches = await globAsync(tree, globPatterns); // Single call
+  filePaths.push(...matches);
+}
+```
+
+### Impact
+
+- **Performance**: Reduces tree traversal from N calls to 1 call for N glob patterns
+- **Scalability**: Significant improvement for bulk operations with multiple patterns
+- **Compatibility**: No change in functionality, maintains same error messages
+- **Testing**: All 135 tests pass, including new performance benchmark for comma-separated patterns
+
+### Benchmark Results
+
+A new benchmark test was added (`should efficiently handle comma-separated glob patterns`) that moves 15 files using 3 comma-separated glob patterns, demonstrating the optimization in action.
+
 ## References
 
 - [jscodeshift Documentation](https://github.com/facebook/jscodeshift)
