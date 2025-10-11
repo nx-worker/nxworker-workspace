@@ -95,9 +95,9 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
   }
 
   const sourceFiles: string[] = [];
-  
+
   // Early exit: check if project directory exists to avoid traversal overhead
-  if (!tree.exists(projectRoot)) {
+  if (!cachedTreeExists(tree, projectRoot)) {
     projectSourceFilesCache.set(projectRoot, sourceFiles);
     return sourceFiles;
   }
