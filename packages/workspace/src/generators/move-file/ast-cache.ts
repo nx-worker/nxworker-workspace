@@ -19,8 +19,9 @@ class ASTCache {
    */
   getContent(tree: Tree, filePath: string): string | null {
     // Check cache first
-    if (this.contentCache.has(filePath)) {
-      return this.contentCache.get(filePath)!;
+    const cached = this.contentCache.get(filePath);
+    if (cached !== undefined) {
+      return cached;
     }
 
     // Read from tree
@@ -45,8 +46,9 @@ class ASTCache {
     }
 
     // Check cache first
-    if (this.astCache.has(filePath)) {
-      return this.astCache.get(filePath)!;
+    const cached = this.astCache.get(filePath);
+    if (cached !== undefined) {
+      return cached;
     }
 
     // Get content (from cache or read)
