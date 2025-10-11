@@ -1,9 +1,11 @@
 # Benchmark Results: Import Specifier Optimization
 
 ## Overview
+
 This document compares the performance before and after the Set-based exclusion optimization in the `@nxworker/workspace:move-file` generator.
 
 ## Test Environment
+
 - **Date**: 2025-10-11
 - **Node Version**: 18.x
 - **Test Framework**: Jest with CI=true environment
@@ -15,12 +17,13 @@ This document compares the performance before and after the Set-based exclusion 
 ### Single File Operations
 
 | Test Case | Baseline (ms) | Optimized (ms) | Difference | Change |
-|-----------|---------------|----------------|------------|--------|
+| --- | --- | --- | --- | --- |
 | Small file (< 1KB) | 1923.80 | 1937.80 | +14.00 | +0.7% |
 | Medium file (~10KB) | 2053.23 | 2046.69 | -6.54 | -0.3% |
 | 15 files (comma-separated) | 2070.97 | 2055.28 | -15.69 | -0.8% |
 
 **Per-file average (15 files):**
+
 - Baseline: 138.06 ms/file
 - Optimized: 137.02 ms/file
 - Improvement: 1.04 ms/file (0.8%)
@@ -28,10 +31,11 @@ This document compares the performance before and after the Set-based exclusion 
 ### Stress Test Results (10 Projects)
 
 | Test Case | Baseline (ms) | Optimized (ms) | Difference | Change |
-|-----------|---------------|----------------|------------|--------|
+| --- | --- | --- | --- | --- |
 | Cross-project move (10 projects) | 2229.47 | 2216.26 | -13.21 | -0.6% |
 
 **Per-project average (10 projects):**
+
 - Baseline: 222.95 ms/project
 - Optimized: 221.63 ms/project
 - Improvement: 1.32 ms/project (0.6%)
