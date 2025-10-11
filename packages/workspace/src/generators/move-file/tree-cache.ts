@@ -29,8 +29,9 @@ class TreeReadCache {
     encoding: BufferEncoding = 'utf-8',
   ): string | null {
     // Check cache first
-    if (this.contentCache.has(filePath)) {
-      return this.contentCache.get(filePath)!;
+    const cached = this.contentCache.get(filePath);
+    if (cached !== undefined) {
+      return cached;
     }
 
     // Read from tree and cache result
@@ -48,8 +49,9 @@ class TreeReadCache {
    */
   children(tree: Tree, dirPath: string): string[] {
     // Check cache first
-    if (this.childrenCache.has(dirPath)) {
-      return this.childrenCache.get(dirPath)!;
+    const cached = this.childrenCache.get(dirPath);
+    if (cached !== undefined) {
+      return cached;
     }
 
     // Get children from tree and cache result
