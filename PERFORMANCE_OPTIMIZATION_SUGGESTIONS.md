@@ -9,7 +9,7 @@ This document outlines potential performance optimization opportunities for the 
 The move-file generator currently implements:
 
 1. **Glob Pattern Batching** - Single tree traversal for multiple glob patterns
-2. **Pattern Analysis / File Tree Caching** - Per-project source file caching  
+2. **Pattern Analysis / File Tree Caching** - Per-project source file caching
 3. **AST and Content Caching** - Cached AST parsing and content with parse failure tracking
 4. **Smart File Cache** - File existence caching, incremental cache updates, TypeScript config caching
 
@@ -17,11 +17,9 @@ The move-file generator currently implements:
 
 ### 1. Project Dependency Graph Caching
 
-**Problem:**
-The generator calls `getDependentProjectNames()` and iterates through the project graph for each file move. In batch operations, this involves repeated graph traversal calculations.
+**Problem:** The generator calls `getDependentProjectNames()` and iterates through the project graph for each file move. In batch operations, this involves repeated graph traversal calculations.
 
-**Proposed Solution:**
-Cache the project dependency relationships at the start of the generator execution:
+**Proposed Solution:** Cache the project dependency relationships at the start of the generator execution:
 
 ```typescript
 const dependencyGraphCache = new Map<string, Set<string>>();
@@ -33,14 +31,17 @@ function getCachedDependentProjects(
   if (dependencyGraphCache.has(projectName)) {
     return dependencyGraphCache.get(projectName)!;
   }
-  
-  const dependents = new Set(getDependentProjectNames(projectGraph, projectName));
+
+  const dependents = new Set(
+    getDependentProjectNames(projectGraph, projectName),
+  );
   dependencyGraphCache.set(projectName, dependents);
   return dependents;
 }
 ```
 
 **Expected Impact:**
+
 - 5-10% improvement in batch operations with many projects
 - Most beneficial when moving files across projects with complex dependency graphs
 - Cache would be cleared at start of each generator execution
@@ -51,11 +52,9 @@ function getCachedDependentProjects(
 
 ### 2. Import Specifier Pattern Precompilation
 
-**Problem:**
-String operations in `updateImportSpecifierPattern` filter functions are executed repeatedly for each file. Operations like `removeSourceFileExtension()` and path normalization are computed multiple times for the same paths.
+**Problem:** String operations in `updateImportSpecifierPattern` filter functions are executed repeatedly for each file. Operations like `removeSourceFileExtension()` and path normalization are computed multiple times for the same paths.
 
-**Proposed Solution:**
-Precompute and cache the normalized source file paths before iterating through project files:
+**Proposed Solution:** Precompute and cache the normalized source file paths before iterating through project files:
 
 ```typescript
 function updateImportPathsToPackageAlias(
@@ -67,10 +66,10 @@ function updateImportPathsToPackageAlias(
 ): void {
   // Precompute normalized values once
   const normalizedSourceWithoutExt = normalizePath(
-    removeSourceFileExtension(sourceFilePath)
+    removeSourceFileExtension(sourceFilePath),
   );
   const excludeSet = new Set([sourceFilePath, ...excludeFilePaths]);
-  
+
   const sourceFiles = getProjectSourceFiles(tree, project.root);
 
   for (const normalizedFilePath of sourceFiles) {
@@ -100,6 +99,7 @@ function updateImportPathsToPackageAlias(
 ```
 
 **Expected Impact:**
+
 - 3-7% improvement in projects with many files
 - Reduces redundant string operations and allocations
 - Particularly effective for batch operations
@@ -110,11 +110,9 @@ function updateImportPathsToPackageAlias(
 
 ### 3. Lazy Project Graph Resolution
 
-**Problem:**
-The generator creates the full project graph (`await createProjectGraphAsync()`) at the start of every execution, even when moving files within the same project where the graph is not needed.
+**Problem:** The generator creates the full project graph (`await createProjectGraphAsync()`) at the start of every execution, even when moving files within the same project where the graph is not needed.
 
-**Proposed Solution:**
-Defer project graph creation until it's actually needed:
+**Proposed Solution:** Defer project graph creation until it's actually needed:
 
 ```typescript
 export async function moveFileGenerator(
@@ -126,7 +124,7 @@ export async function moveFileGenerator(
 
   const projects = getProjects(tree);
   let projectGraph: ProjectGraph | null = null;
-  
+
   // Helper to lazily load project graph
   const getProjectGraph = async (): Promise<ProjectGraph> => {
     if (!projectGraph) {
@@ -134,12 +132,13 @@ export async function moveFileGenerator(
     }
     return projectGraph;
   };
-  
+
   // ... use getProjectGraph() only when needed
 }
 ```
 
 **Expected Impact:**
+
 - 15-20% improvement for same-project moves
 - Eliminates expensive graph computation when not needed
 - No impact on cross-project moves (graph still computed when needed)
@@ -150,11 +149,9 @@ export async function moveFileGenerator(
 
 ### 4. Batched Import Update Operations
 
-**Problem:**
-When moving multiple files, each file triggers separate `updateImportSpecifierPattern` calls on potentially overlapping sets of source files. Files can be parsed and modified multiple times in a single batch operation.
+**Problem:** When moving multiple files, each file triggers separate `updateImportSpecifierPattern` calls on potentially overlapping sets of source files. Files can be parsed and modified multiple times in a single batch operation.
 
-**Proposed Solution:**
-Batch import updates by collecting all changes first, then applying them in a single pass per file:
+**Proposed Solution:** Batch import updates by collecting all changes first, then applying them in a single pass per file:
 
 ```typescript
 interface ImportUpdate {
@@ -181,6 +178,7 @@ function flushImportUpdates(tree: Tree): void {
 ```
 
 **Expected Impact:**
+
 - 20-30% improvement when moving 10+ files in a batch
 - Reduces file reads, parses, and writes
 - Most effective in batch operations with overlapping file dependencies
@@ -191,11 +189,9 @@ function flushImportUpdates(tree: Tree): void {
 
 ### 5. Path Resolution Memoization
 
-**Problem:**
-Path operations like `path.dirname()`, `path.relative()`, `path.join()`, and `path.basename()` are called repeatedly with the same arguments throughout execution.
+**Problem:** Path operations like `path.dirname()`, `path.relative()`, `path.join()`, and `path.basename()` are called repeatedly with the same arguments throughout execution.
 
-**Proposed Solution:**
-Implement a simple memoization layer for frequently-called path operations:
+**Proposed Solution:** Implement a simple memoization layer for frequently-called path operations:
 
 ```typescript
 const pathOperationCache = {
@@ -217,6 +213,7 @@ function memoizedDirname(filePath: string): string {
 ```
 
 **Expected Impact:**
+
 - 2-5% improvement in large workspaces
 - Reduces redundant string allocations and operations
 - Benefit scales with number of files processed
@@ -227,11 +224,9 @@ function memoizedDirname(filePath: string): string {
 
 ### 6. Early Exit on Empty Projects
 
-**Problem:**
-The generator checks all projects for imports even when a project has no source files. Empty or nearly-empty projects still trigger cache population and iteration logic.
+**Problem:** The generator checks all projects for imports even when a project has no source files. Empty or nearly-empty projects still trigger cache population and iteration logic.
 
-**Proposed Solution:**
-Add early exit checks for empty projects:
+**Proposed Solution:** Add early exit checks for empty projects:
 
 ```typescript
 function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
@@ -241,13 +236,13 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
   }
 
   const sourceFiles: string[] = [];
-  
+
   // Early exit: check if project directory exists
   if (!tree.exists(projectRoot)) {
     projectSourceFilesCache.set(projectRoot, sourceFiles);
     return sourceFiles;
   }
-  
+
   visitNotIgnoredFiles(tree, projectRoot, (filePath) => {
     if (sourceFileExtensions.some((ext) => filePath.endsWith(ext))) {
       sourceFiles.push(normalizePath(filePath));
@@ -260,6 +255,7 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 ```
 
 **Expected Impact:**
+
 - 5-10% improvement in workspaces with many small/empty projects
 - Reduces unnecessary tree traversal operations
 - Most beneficial in monorepos with generated or placeholder projects
@@ -270,11 +266,9 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 
 ### 7. String Interning for Common Paths
 
-**Problem:**
-Many path strings are created repeatedly (project roots, source roots, common directory names). These create memory pressure and comparison overhead.
+**Problem:** Many path strings are created repeatedly (project roots, source roots, common directory names). These create memory pressure and comparison overhead.
 
-**Proposed Solution:**
-Implement string interning for frequently-used path strings:
+**Proposed Solution:** Implement string interning for frequently-used path strings:
 
 ```typescript
 const stringInternCache = new Map<string, string>();
@@ -297,6 +291,7 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 ```
 
 **Expected Impact:**
+
 - 1-3% improvement in large workspaces
 - Reduces memory usage for path strings
 - Enables faster string comparisons (reference equality)
@@ -308,11 +303,9 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 
 ### 8. Incremental File Content Validation
 
-**Problem:**
-The `mightContainImports()` and `mightContainSpecifier()` functions perform simple string searches, but still require reading file content. For files known to have no imports, this is wasted effort.
+**Problem:** The `mightContainImports()` and `mightContainSpecifier()` functions perform simple string searches, but still require reading file content. For files known to have no imports, this is wasted effort.
 
-**Proposed Solution:**
-Cache import/export presence metadata:
+**Proposed Solution:** Cache import/export presence metadata:
 
 ```typescript
 interface FileMetadata {
@@ -328,24 +321,25 @@ function getFileMetadata(tree: Tree, filePath: string): FileMetadata {
   if (cached !== undefined) {
     return cached;
   }
-  
+
   const content = astCache.getContent(tree, filePath);
   if (!content) {
     return { hasImports: false, hasExports: false, knownSpecifiers: new Set() };
   }
-  
+
   const metadata: FileMetadata = {
     hasImports: content.includes('import') || content.includes('require'),
     hasExports: content.includes('export'),
     knownSpecifiers: extractSpecifiers(content),
   };
-  
+
   fileMetadataCache.set(filePath, metadata);
   return metadata;
 }
 ```
 
 **Expected Impact:**
+
 - 5-8% improvement when checking imports across many files
 - Reduces unnecessary AST parsing attempts
 - Most effective in projects with many non-import files (types, constants, etc.)
@@ -356,11 +350,9 @@ function getFileMetadata(tree: Tree, filePath: string): FileMetadata {
 
 ### 9. Optimized Relative Path Calculation
 
-**Problem:**
-`getRelativeImportSpecifier()` is called repeatedly for the same file pairs. The function performs path resolution, extension removal, and relative path calculation each time.
+**Problem:** `getRelativeImportSpecifier()` is called repeatedly for the same file pairs. The function performs path resolution, extension removal, and relative path calculation each time.
 
-**Proposed Solution:**
-Cache relative path calculations:
+**Proposed Solution:** Cache relative path calculations:
 
 ```typescript
 const relativePathCache = new Map<string, string>();
@@ -370,18 +362,19 @@ function getCachedRelativeImportSpecifier(
   toFile: string,
 ): string {
   const cacheKey = `${fromFile}|${toFile}`;
-  
+
   let result = relativePathCache.get(cacheKey);
   if (result === undefined) {
     result = getRelativeImportSpecifier(fromFile, toFile);
     relativePathCache.set(cacheKey, result);
   }
-  
+
   return result;
 }
 ```
 
 **Expected Impact:**
+
 - 3-6% improvement in same-project moves
 - Reduces redundant path calculations
 - Particularly effective when many files import the same target
@@ -392,11 +385,9 @@ function getCachedRelativeImportSpecifier(
 
 ### 10. Project Import Path Lookup Table
 
-**Problem:**
-`getProjectImportPath()` calls `readCompilerPaths()` and iterates through entries for each project, even though import paths are typically stable across a generator execution.
+**Problem:** `getProjectImportPath()` calls `readCompilerPaths()` and iterates through entries for each project, even though import paths are typically stable across a generator execution.
 
-**Proposed Solution:**
-Build a project name to import path lookup table at initialization:
+**Proposed Solution:** Build a project name to import path lookup table at initialization:
 
 ```typescript
 const projectImportPathCache = new Map<string, string | null>();
@@ -406,7 +397,7 @@ function initializeProjectImportPaths(
   projects: Map<string, ProjectConfiguration>,
 ): void {
   const compilerPaths = readCompilerPaths(tree);
-  
+
   for (const [projectName, project] of projects.entries()) {
     const importPath = findImportPathFromCompilerPaths(
       compilerPaths,
@@ -427,6 +418,7 @@ function getProjectImportPath(
 ```
 
 **Expected Impact:**
+
 - 4-7% improvement in batch operations
 - Eliminates repeated tsconfig parsing and path matching
 - Most beneficial when moving files across multiple projects
@@ -437,11 +429,9 @@ function getProjectImportPath(
 
 ### 11. Targeted File Filtering
 
-**Problem:**
-When searching for imports in dependent projects, all source files are checked even if they're unlikely to contain imports (e.g., type definition files, test files).
+**Problem:** When searching for imports in dependent projects, all source files are checked even if they're unlikely to contain imports (e.g., type definition files, test files).
 
-**Proposed Solution:**
-Implement heuristic filtering based on file types and patterns:
+**Proposed Solution:** Implement heuristic filtering based on file types and patterns:
 
 ```typescript
 function shouldCheckFileForImports(filePath: string): boolean {
@@ -449,23 +439,23 @@ function shouldCheckFileForImports(filePath: string): boolean {
   if (filePath.includes('.spec.') || filePath.includes('.test.')) {
     return false;
   }
-  
+
   // Skip type definition files
   if (filePath.endsWith('.d.ts')) {
     return false;
   }
-  
+
   // Skip files in test directories
   if (filePath.includes('/test/') || filePath.includes('/__tests__/')) {
     return false;
   }
-  
+
   return true;
 }
 
 function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
   // ... existing code ...
-  
+
   visitNotIgnoredFiles(tree, projectRoot, (filePath) => {
     if (sourceFileExtensions.some((ext) => filePath.endsWith(ext))) {
       if (shouldCheckFileForImports(filePath)) {
@@ -473,12 +463,13 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
       }
     }
   });
-  
+
   // ...
 }
 ```
 
 **Expected Impact:**
+
 - 8-12% improvement in test-heavy projects
 - Reduces number of files to process
 - Configurable based on workspace conventions
@@ -489,11 +480,9 @@ function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
 
 ### 12. Smart Index File Detection
 
-**Problem:**
-`isFileExported()` reads and parses index files repeatedly when checking exports for multiple files from the same project.
+**Problem:** `isFileExported()` reads and parses index files repeatedly when checking exports for multiple files from the same project.
 
-**Proposed Solution:**
-Cache parsed index file export information:
+**Proposed Solution:** Cache parsed index file export information:
 
 ```typescript
 interface IndexExports {
@@ -508,16 +497,16 @@ function getIndexExports(tree: Tree, indexPath: string): IndexExports {
   if (cached !== undefined) {
     return cached;
   }
-  
+
   const exports = new Set<string>();
   const reexports = new Set<string>();
-  
+
   const ast = astCache.getAST(tree, indexPath);
   if (ast) {
     // Parse and extract all exports
     // ... parsing logic ...
   }
-  
+
   const result = { exports, reexports };
   indexExportsCache.set(indexPath, result);
   return result;
@@ -525,6 +514,7 @@ function getIndexExports(tree: Tree, indexPath: string): IndexExports {
 ```
 
 **Expected Impact:**
+
 - 6-10% improvement when moving multiple files from same project
 - Eliminates repeated index file parsing
 - Most effective in batch operations
@@ -535,11 +525,9 @@ function getIndexExports(tree: Tree, indexPath: string): IndexExports {
 
 ### 13. Bulk File Operations
 
-**Problem:**
-Each file move triggers separate `tree.write()` and `tree.delete()` calls. Tree modifications could potentially be batched.
+**Problem:** Each file move triggers separate `tree.write()` and `tree.delete()` calls. Tree modifications could potentially be batched.
 
-**Proposed Solution:**
-Collect file operations and apply them in optimized order:
+**Proposed Solution:** Collect file operations and apply them in optimized order:
 
 ```typescript
 interface FileOperation {
@@ -560,24 +548,25 @@ function scheduleFileDelete(path: string): void {
 
 function applyFileOperations(tree: Tree): void {
   // Group operations by type for better performance
-  const writes = pendingFileOperations.filter(op => op.type === 'write');
-  const deletes = pendingFileOperations.filter(op => op.type === 'delete');
-  
+  const writes = pendingFileOperations.filter((op) => op.type === 'write');
+  const deletes = pendingFileOperations.filter((op) => op.type === 'delete');
+
   // Apply all writes first
   for (const op of writes) {
     tree.write(op.path, op.content!);
   }
-  
+
   // Then apply deletes
   for (const op of deletes) {
     tree.delete(op.path);
   }
-  
+
   pendingFileOperations.length = 0;
 }
 ```
 
 **Expected Impact:**
+
 - 5-8% improvement in batch operations
 - May reduce virtual file system overhead
 - Benefit depends on Nx Tree implementation details
@@ -588,11 +577,9 @@ function applyFileOperations(tree: Tree): void {
 
 ### 14. Conditional Formatting
 
-**Problem:**
-`formatFiles(tree)` is called even when only a few files have changed. This reformats all files in the workspace.
+**Problem:** `formatFiles(tree)` is called even when only a few files have changed. This reformats all files in the workspace.
 
-**Proposed Solution:**
-Track modified files and format only those:
+**Proposed Solution:** Track modified files and format only those:
 
 ```typescript
 const modifiedFiles = new Set<string>();
@@ -605,17 +592,18 @@ async function formatModifiedFiles(tree: Tree): Promise<void> {
   if (modifiedFiles.size === 0) {
     return;
   }
-  
+
   // Format only modified files
   for (const filePath of modifiedFiles) {
     await formatFile(tree, filePath);
   }
-  
+
   modifiedFiles.clear();
 }
 ```
 
 **Expected Impact:**
+
 - 10-20% improvement in large workspaces
 - Reduces formatting overhead significantly
 - Most beneficial when moving files in large monorepos
@@ -629,23 +617,27 @@ async function formatModifiedFiles(tree: Tree): Promise<void> {
 Based on expected impact and implementation complexity:
 
 ### High Priority (Quick Wins)
+
 1. **Lazy Project Graph Resolution** - 15-20% improvement, medium complexity
 2. **Project Import Path Lookup Table** - 4-7% improvement, medium complexity
 3. **Import Specifier Pattern Precompilation** - 3-7% improvement, low complexity
 4. **Early Exit on Empty Projects** - 5-10% improvement, low complexity
 
 ### Medium Priority (Good ROI)
+
 5. **Project Dependency Graph Caching** - 5-10% improvement, low complexity
 6. **Optimized Relative Path Calculation** - 3-6% improvement, low complexity
 7. **Incremental File Content Validation** - 5-8% improvement, medium complexity
 8. **Smart Index File Detection** - 6-10% improvement, medium complexity
 
 ### Lower Priority (Incremental Gains)
+
 9. **Path Resolution Memoization** - 2-5% improvement, low complexity
 10. **String Interning** - 1-3% improvement, low complexity
 11. **Targeted File Filtering** - 8-12% improvement (in specific cases), low complexity
 
 ### Future Consideration
+
 12. **Batched Import Update Operations** - 20-30% improvement, high complexity
 13. **Bulk File Operations** - 5-8% improvement, medium complexity
 14. **Conditional Formatting** - 10-20% improvement, high complexity
@@ -662,6 +654,7 @@ For each optimization:
 ## Compatibility Considerations
 
 All suggested optimizations:
+
 - Maintain backward compatibility with existing API
 - Preserve existing error messages and behavior
 - Follow the existing cache lifecycle pattern (clear at start, lazy load, invalidate on changes)
@@ -670,7 +663,7 @@ All suggested optimizations:
 ## References
 
 - [Glob Pattern Batching](./GLOB_OPTIMIZATION.md)
-- [Pattern Analysis Optimization](./PATTERN_ANALYSIS_OPTIMIZATION.md)  
+- [Pattern Analysis Optimization](./PATTERN_ANALYSIS_OPTIMIZATION.md)
 - [AST-Based Performance Optimization](./INCREMENTAL_UPDATES_OPTIMIZATION.md)
 - [Smart File Cache Optimization](./SMART_FILE_CACHE_OPTIMIZATION.md)
 - [Move File Generator](./packages/workspace/src/generators/move-file/README.md)

@@ -1575,15 +1575,14 @@ function updateImportPathsToPackageAlias(
   targetPackageAlias: string,
   excludeFilePaths: string[] = [],
 ): void {
-  const filesToExclude = [sourceFilePath, ...excludeFilePaths];
-  const sourceFiles = getProjectSourceFiles(tree, project.root);
-
-  const sourceFileWithoutExt = normalizePath(
+  const normalizedSourceWithoutExt = normalizePath(
     removeSourceFileExtension(sourceFilePath),
   );
+  const excludeSet = new Set([sourceFilePath, ...excludeFilePaths]);
+  const sourceFiles = getProjectSourceFiles(tree, project.root);
 
   for (const normalizedFilePath of sourceFiles) {
-    if (filesToExclude.includes(normalizedFilePath)) {
+    if (excludeSet.has(normalizedFilePath)) {
       continue;
     }
 
@@ -1603,7 +1602,7 @@ function updateImportPathsToPackageAlias(
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
         );
-        return normalizedResolvedImport === sourceFileWithoutExt;
+        return normalizedResolvedImport === normalizedSourceWithoutExt;
       },
       () => targetPackageAlias,
     );
@@ -1620,7 +1619,7 @@ function updateImportPathsInProject(
   targetFilePath: string,
 ): void {
   const sourceFiles = getProjectSourceFiles(tree, project.root);
-  const sourceFileWithoutExt = normalizePath(
+  const normalizedSourceWithoutExt = normalizePath(
     removeSourceFileExtension(sourceFilePath),
   );
 
@@ -1653,7 +1652,7 @@ function updateImportPathsInProject(
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
         );
-        return normalizedResolvedImport === sourceFileWithoutExt;
+        return normalizedResolvedImport === normalizedSourceWithoutExt;
       },
       () => relativeSpecifier,
     );
@@ -1690,10 +1689,11 @@ function updateImportsToRelative(
   targetRelativePath: string,
   excludeFilePaths: string[] = [],
 ): void {
+  const excludeSet = new Set(excludeFilePaths);
   const sourceFiles = getProjectSourceFiles(tree, project.root);
 
   for (const normalizedFilePath of sourceFiles) {
-    if (excludeFilePaths.includes(normalizedFilePath)) {
+    if (excludeSet.has(normalizedFilePath)) {
       continue;
     }
 
