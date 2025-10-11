@@ -2582,4 +2582,69 @@ describe('move-file generator', () => {
       ).toBe(true);
     });
   });
+
+  describe('performance optimizations', () => {
+    it('should skip traversal for non-existent project directories', async () => {
+      // Create a project configuration for a project that doesn't have a directory yet
+      addProjectConfiguration(tree, 'lib3', {
+        root: 'packages/lib3',
+        sourceRoot: 'packages/lib3/src',
+        projectType: 'library',
+      });
+
+      // Note: we're NOT creating any files for lib3, so the directory doesn't exist
+
+      // Create a file to move
+      tree.write(
+        'packages/lib1/src/lib/test.ts',
+        'export const test = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/test.ts',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      // This should complete without errors, even though lib3 exists in config but not on disk
+      // The optimization should cache empty results for non-existent directories
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib1/src/lib/test.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/test.ts')).toBe(true);
+    });
+
+    it('should cache empty results for projects with no source files', async () => {
+      // Create a project with only non-source files
+      tree.write('packages/lib1/README.md', '# README');
+      tree.write('packages/lib1/package.json', '{}');
+
+      // Create a file to move in lib2
+      tree.write(
+        'packages/lib2/src/lib/test.ts',
+        'export const test = "test";',
+      );
+
+      // Add a third library configuration
+      addProjectConfiguration(tree, 'lib3', {
+        root: 'packages/lib3',
+        sourceRoot: 'packages/lib3/src',
+        projectType: 'library',
+      });
+
+      tree.write('packages/lib3/src/index.ts', '');
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib2/src/lib/test.ts',
+        project: 'lib3',
+        skipFormat: true,
+      };
+
+      // lib1 has no source files, so it should be cached as empty and not traversed repeatedly
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib2/src/lib/test.ts')).toBe(false);
+      expect(tree.exists('packages/lib3/src/lib/test.ts')).toBe(true);
+    });
+  });
 });
