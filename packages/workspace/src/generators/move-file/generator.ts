@@ -72,6 +72,12 @@ const fileExistenceCache = new Map<string, boolean>();
 let compilerPathsCache: Record<string, unknown> | null | undefined = undefined;
 
 /**
+ * Cache for project import paths to avoid repeated lookups.
+ * Key: project name, Value: import path or null if unavailable
+ */
+const projectImportPathCache = new Map<string, string | null>();
+
+/**
  * Clears all caches. Should be called when starting a new generator operation
  * to ensure fresh state.
  */
@@ -79,6 +85,7 @@ function clearAllCaches(): void {
   projectSourceFilesCache.clear();
   fileExistenceCache.clear();
   compilerPathsCache = undefined;
+  projectImportPathCache.clear();
   treeReadCache.clear();
 }
 
@@ -292,6 +299,9 @@ export async function moveFileGenerator(
   clearCache();
 
   const projects = getProjects(tree);
+
+  // Initialize project import path cache once at the start to avoid repeated lookups
+  initializeProjectImportPaths(tree, projects);
 
   // Lazily create project graph only when needed (cross-project moves with exported files)
   // This improves performance for same-project moves by ~15-20%
@@ -1310,14 +1320,21 @@ function isFileExported(
 }
 
 /**
- * Gets the TypeScript import path for a project from tsconfig.base.json
+ * Finds the import path for a project from compiler paths.
+ * This is an internal helper extracted from getProjectImportPath to enable caching.
+ *
+ * @param tree - The virtual file system tree.
+ * @param paths - The compiler paths object from tsconfig.
+ * @param projectName - The name of the project.
+ * @param project - The project configuration.
+ * @returns The import path or null if not found.
  */
-function getProjectImportPath(
+function findImportPathFromCompilerPaths(
   tree: Tree,
+  paths: Record<string, unknown> | null,
   projectName: string,
   project: ProjectConfiguration,
 ): string | null {
-  const paths = readCompilerPaths(tree);
   if (!paths) {
     return null;
   }
@@ -1342,6 +1359,48 @@ function getProjectImportPath(
   }
 
   return null;
+}
+
+/**
+ * Initializes the project import path cache for all projects.
+ * This should be called once at the start of the generator to build a lookup table
+ * of project names to their import paths, avoiding repeated compiler path lookups.
+ *
+ * @param tree - The virtual file system tree.
+ * @param projects - Map of all projects in the workspace.
+ */
+function initializeProjectImportPaths(
+  tree: Tree,
+  projects: Map<string, ProjectConfiguration>,
+): void {
+  const compilerPaths = readCompilerPaths(tree);
+
+  for (const [projectName, project] of projects.entries()) {
+    const importPath = findImportPathFromCompilerPaths(
+      tree,
+      compilerPaths,
+      projectName,
+      project,
+    );
+    projectImportPathCache.set(projectName, importPath);
+  }
+}
+
+/**
+ * Gets the TypeScript import path for a project from the cache.
+ * The cache must be initialized by calling initializeProjectImportPaths first.
+ *
+ * @param tree - The virtual file system tree (unused, kept for compatibility).
+ * @param projectName - The name of the project.
+ * @param project - The project configuration (unused, kept for compatibility).
+ * @returns The import path or null if not found.
+ */
+function getProjectImportPath(
+  tree: Tree,
+  projectName: string,
+  project: ProjectConfiguration,
+): string | null {
+  return projectImportPathCache.get(projectName) ?? null;
 }
 
 /**
