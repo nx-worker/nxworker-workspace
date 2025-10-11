@@ -1619,7 +1619,7 @@ function updateImportPathsInProject(
   targetFilePath: string,
 ): void {
   const sourceFiles = getProjectSourceFiles(tree, project.root);
-  const sourceFileWithoutExt = normalizePath(
+  const normalizedSourceWithoutExt = normalizePath(
     removeSourceFileExtension(sourceFilePath),
   );
 
@@ -1652,7 +1652,7 @@ function updateImportPathsInProject(
         const normalizedResolvedImport = normalizePath(
           removeSourceFileExtension(resolvedImport),
         );
-        return normalizedResolvedImport === sourceFileWithoutExt;
+        return normalizedResolvedImport === normalizedSourceWithoutExt;
       },
       () => relativeSpecifier,
     );
