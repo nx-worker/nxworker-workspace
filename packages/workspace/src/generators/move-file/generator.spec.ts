@@ -2582,4 +2582,84 @@ describe('move-file generator', () => {
       ).toBe(true);
     });
   });
+
+  describe('project import path caching', () => {
+    it('should initialize cache once and reuse it for multiple lookups', async () => {
+      // Create a third project for batch operations
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths['@test/lib3'] = [
+          'packages/lib3/src/index.ts',
+        ];
+        return json;
+      });
+
+      addProjectConfiguration(tree, 'lib3', {
+        root: 'packages/lib3',
+        sourceRoot: 'packages/lib3/src',
+        projectType: 'library',
+      });
+
+      tree.write('packages/lib3/src/index.ts', '');
+
+      // Create multiple files in lib1
+      tree.write(
+        'packages/lib1/src/lib/file1.ts',
+        'export const file1 = "test1";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file2.ts',
+        'export const file2 = "test2";',
+      );
+      tree.write(
+        'packages/lib1/src/lib/file3.ts',
+        'export const file3 = "test3";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/file1.ts,packages/lib1/src/lib/file2.ts,packages/lib1/src/lib/file3.ts',
+        to: 'packages/lib2',
+        project: 'lib2',
+        skipFormat: true,
+      };
+
+      // Move multiple files - this should use the cache for all lookups
+      await moveFileGenerator(tree, options);
+
+      // All files should be moved
+      expect(tree.exists('packages/lib1/src/lib/file1.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file2.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file3.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/file1.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file2.ts')).toBe(true);
+      expect(tree.exists('packages/lib2/src/lib/file3.ts')).toBe(true);
+    });
+
+    it('should cache results for all projects including those without import paths', async () => {
+      // Create a project without a path mapping
+      addProjectConfiguration(tree, 'lib-no-alias', {
+        root: 'packages/lib-no-alias',
+        sourceRoot: 'packages/lib-no-alias/src',
+        projectType: 'library',
+      });
+
+      tree.write('packages/lib-no-alias/src/index.ts', '');
+      tree.write(
+        'packages/lib-no-alias/src/lib/test.ts',
+        'export const test = "test";',
+      );
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib-no-alias/src/lib/test.ts',
+        to: 'packages/lib1',
+        project: 'lib1',
+        skipFormat: true,
+      };
+
+      // This should work even though lib-no-alias has no import path
+      await moveFileGenerator(tree, options);
+
+      expect(tree.exists('packages/lib-no-alias/src/lib/test.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/test.ts')).toBe(true);
+    });
+  });
 });
