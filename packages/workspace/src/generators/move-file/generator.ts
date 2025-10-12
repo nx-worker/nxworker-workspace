@@ -72,6 +72,12 @@ const fileExistenceCache = new Map<string, boolean>();
 let compilerPathsCache: Record<string, unknown> | null | undefined = undefined;
 
 /**
+ * Cache for dependent project lookups to avoid repeated graph traversals.
+ * Key: project name, Value: set of dependent project names
+ */
+const dependencyGraphCache = new Map<string, Set<string>>();
+
+/**
  * Clears all caches. Should be called when starting a new generator operation
  * to ensure fresh state.
  */
@@ -80,6 +86,7 @@ function clearAllCaches(): void {
   fileExistenceCache.clear();
   compilerPathsCache = undefined;
   treeReadCache.clear();
+  dependencyGraphCache.clear();
 }
 
 /**
@@ -1507,9 +1514,8 @@ async function updateImportPathsInDependentProjects(
   target?: { targetProjectName?: string; targetRelativePath?: string },
 ): Promise<void> {
   const { targetProjectName, targetRelativePath } = target ?? {};
-  const dependentProjectNames = getDependentProjectNames(
-    projectGraph,
-    sourceProjectName,
+  const dependentProjectNames = Array.from(
+    getCachedDependentProjects(projectGraph, sourceProjectName),
   );
 
   let candidates: Array<[string, ProjectConfiguration]>;
@@ -1754,6 +1760,29 @@ function buildReverseDependencyMap(
   );
 
   return reverse;
+}
+
+/**
+ * Gets dependent projects with caching to avoid repeated graph traversals.
+ * The cache is cleared at the start of each generator execution.
+ *
+ * @param projectGraph - The project dependency graph
+ * @param projectName - The name of the project to get dependents for
+ * @returns Set of dependent project names
+ */
+function getCachedDependentProjects(
+  projectGraph: ProjectGraph,
+  projectName: string,
+): Set<string> {
+  const cached = dependencyGraphCache.get(projectName);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const dependents = new Set(
+    getDependentProjectNames(projectGraph, projectName),
+  );
+  dependencyGraphCache.set(projectName, dependents);
+  return dependents;
 }
 
 function getDependentProjectNames(
