@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Check if running on default branch
+        id: check-branch
         run: |
           # Determine the default branch dynamically
           DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+          echo "default-branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
 
           # Prevent running on the default branch
           if [ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]; then
@@ -30,6 +32,8 @@ jobs:
           # Use token that allows force push
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: ./.github/actions/set-nx-shas
+
       - uses: ./.github/actions/setup-node-and-install
 
       - name: Configure Git
@@ -40,8 +44,8 @@ jobs:
       - name: Format commits
         shell: bash -e {0}
         run: |
-          # Determine the default branch dynamically
-          DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+          # Get the default branch from the previous step
+          DEFAULT_BRANCH="${{ steps.check-branch.outputs.default-branch }}"
 
           # Get the current branch name
           CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
