@@ -73,6 +73,18 @@ npx nx release             # build, version, publish
 - Run `npx nx reset` if cache artifacts become stale or if Verdaccio instances are left running unexpectedly.
 - For faster e2e tests during development, the test suite only tests the minimum supported Nx version (19.x) by default. Use `npx nx e2e workspace-e2e --configuration=ci` to test all supported versions (19, 20, 21).
 
+### Auto-format Workflow
+
+If you forgot to run `npm run format` before committing, you can use the **Format Workflow** to automatically fix formatting issues:
+
+1. Push your feature branch to GitHub
+2. Go to the **Actions** tab
+3. Select **"Format Code"** workflow
+4. Click **"Run workflow"** and select your branch
+5. After the workflow completes, pull the updated branch: `git pull --force-with-lease`
+
+The workflow processes each commit individually, applying formatting fixes and amending the commits as needed. Note that this rewrites Git history, so use it only on branches where you're the sole contributor.
+
 ### Performance Testing
 
 The e2e suite includes two types of performance tests:
