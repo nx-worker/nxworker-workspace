@@ -38,9 +38,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Format commits
+        shell: bash -e {0}
         run: |
-          set -e
-
           # Determine the default branch dynamically
           DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
 
