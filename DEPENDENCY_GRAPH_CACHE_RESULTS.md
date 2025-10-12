@@ -34,14 +34,14 @@ This document records the performance impact of adding a dependency graph cache 
 #### Performance Benchmarks
 
 | Test Case | Baseline (ms) | With Cache (ms) | Difference | Notes |
-|-----------|---------------|-----------------|------------|-------|
+| --- | --- | --- | --- | --- |
 | **Small file move** | 1963.37 | 2053.32 | +4.6% | Single file, minimal benefit |
 | **15 files (glob)** | 2108.32 | 2120.49 | +0.6% | Within variance |
 
 #### Stress Test Results (All 4 Tests)
 
 | Test Scenario | Baseline (ms) | With Cache (ms) | Difference | Per-Unit |
-|---------------|---------------|-----------------|------------|----------|
+| --- | --- | --- | --- | --- |
 | **Test 1: 10 Projects** | 2206.90 | 2212.16 | +0.24% | 220.69 → 221.22 ms/project |
 | **Test 2: 100+ Large Files** | 5047.69 | 5160.35 | +2.23% | 50.48 → 51.60 ms/file |
 | **Test 3: 50 Relative Imports** | 2172.00 | 2230.36 | +2.69% | 43.44 → 44.61 ms/import |
@@ -56,10 +56,12 @@ This document records the performance impact of adding a dependency graph cache 
 All performance tests have been executed (2 benchmarks + 4 stress tests):
 
 ✅ **Performance Benchmarks:**
+
 - Small file move: Single file operation
 - 15 files (glob): Batch operation with glob patterns
 
 ✅ **Stress Tests:**
+
 - Test 1: Cross-project dependencies (10 projects)
 - Test 2: Many large files (100+ files)
 - Test 3: Intra-project dependencies (50 relative imports)
@@ -82,10 +84,12 @@ The current performance tests don't exercise the specific scenario where the dep
 
 The dependency graph cache will improve performance in these scenarios:
 
-1. **Batch moves from same source**: 
+1. **Batch moves from same source**:
+
    ```bash
    nx g @nxworker/workspace:move-file "lib1/src/lib/*.ts" --project lib2
    ```
+
    - First file: Computes lib1's dependents, caches result
    - Subsequent files: Instant lookup from cache
 
@@ -110,8 +114,7 @@ The small overhead (+0.6% to +4.6%) in some tests is expected and acceptable:
 ✅ **All 141 unit tests pass** (added 1 new test for cache)  
 ✅ **Build succeeds** - No compilation errors  
 ✅ **Lint passes** - No code quality issues  
-✅ **No regressions** - All 6 performance tests show results within normal variance (+0.2% to +4.6%)
-✅ **Complete test coverage** - 2 benchmarks + 4 stress tests measured before and after
+✅ **No regressions** - All 6 performance tests show results within normal variance (+0.2% to +4.6%) ✅ **Complete test coverage** - 2 benchmarks + 4 stress tests measured before and after
 
 ## Conclusion
 
