@@ -1,0 +1,119 @@
+name: Format Code
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to amend commits and force push
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check if running on default branch
+        run: |
+          # Prevent running on the default branch (main)
+          if [ "$GITHUB_REF" == "refs/heads/main" ]; then
+            echo "Error: This workflow cannot run on the default branch (main)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          # Fetch all history to compare with main branch
+          fetch-depth: 0
+          # Use token that allows force push
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Format commits
+        run: |
+          set -e
+
+          # Get the default branch name
+          DEFAULT_BRANCH="main"
+
+          # Get the current branch name
+          CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+
+          echo "Formatting commits on branch: $CURRENT_BRANCH"
+          echo "Comparing with default branch: $DEFAULT_BRANCH"
+
+          # Fetch the default branch
+          git fetch origin "$DEFAULT_BRANCH:$DEFAULT_BRANCH"
+
+          # Get the list of commits between default branch and current branch
+          COMMITS=$(git rev-list --reverse "$DEFAULT_BRANCH..$CURRENT_BRANCH")
+
+          if [ -z "$COMMITS" ]; then
+            echo "No commits to format (branch is up to date with $DEFAULT_BRANCH)"
+            exit 0
+          fi
+
+          echo "Found commits to format:"
+          git log --oneline "$DEFAULT_BRANCH..$CURRENT_BRANCH"
+          echo ""
+
+          # Get the merge base (common ancestor)
+          MERGE_BASE=$(git merge-base "$DEFAULT_BRANCH" "$CURRENT_BRANCH")
+          echo "Merge base: $MERGE_BASE"
+
+          # Reset to merge base to start replaying commits
+          git reset --hard "$MERGE_BASE"
+
+          # Process each commit
+          for COMMIT in $COMMITS; do
+            echo ""
+            echo "=========================================="
+            echo "Processing commit: $COMMIT"
+            git log -1 --oneline "$COMMIT"
+            echo "=========================================="
+            
+            # Cherry-pick the commit (this applies it to current HEAD)
+            if ! git cherry-pick "$COMMIT"; then
+              echo "Error: Failed to cherry-pick commit $COMMIT"
+              git cherry-pick --abort
+              exit 1
+            fi
+            
+            # Run format check
+            echo "Checking formatting..."
+            if npm run format:check; then
+              echo "✓ Commit is properly formatted, no changes needed"
+            else
+              echo "✗ Formatting issues found, applying fixes..."
+              
+              # Apply formatting
+              npm run format
+              
+              # Check if there are any changes after formatting
+              if ! git diff --quiet; then
+                echo "Amending commit with formatting changes..."
+                git add -A
+                git commit --amend --no-edit
+                echo "✓ Commit amended with formatting fixes"
+              else
+                echo "✓ No formatting changes needed after all"
+              fi
+            fi
+          done
+
+          echo ""
+          echo "=========================================="
+          echo "All commits processed successfully"
+          echo "=========================================="
+          echo ""
+          echo "Final commit history:"
+          git log --oneline "$DEFAULT_BRANCH..$CURRENT_BRANCH"
+
+      - name: Force push formatted commits
+        run: |
+          # Force push the reformatted branch
+          git push --force-with-lease origin "HEAD:${{ github.ref_name }}"
+          echo "✓ Successfully pushed formatted commits to ${{ github.ref_name }}"
