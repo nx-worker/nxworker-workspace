@@ -453,6 +453,7 @@ export async function moveFileGenerator(
   const projectCacheSize = projectSourceFilesCache.size;
   const tsconfigCached = compilerPathsCache !== undefined;
   const treeStats = treeReadCache.getStats();
+  const dependencyGraphCacheSize = dependencyGraphCache.size;
 
   logger.verbose(
     `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
@@ -462,6 +463,9 @@ export async function moveFileGenerator(
   );
   logger.verbose(
     `Tree cache stats: ${treeStats.contentCacheSize} file reads cached, ${treeStats.childrenCacheSize} directory listings cached`,
+  );
+  logger.verbose(
+    `Dependency graph cache: ${dependencyGraphCacheSize} project dependencies cached`,
   );
 }
 
