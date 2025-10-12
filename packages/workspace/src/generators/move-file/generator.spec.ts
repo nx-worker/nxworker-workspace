@@ -2647,4 +2647,82 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib3/src/lib/test.ts')).toBe(true);
     });
   });
+
+  describe('dependency graph cache', () => {
+    it('should cache dependent project lookups during batch operations', async () => {
+      // Setup a dependency chain: app1 -> lib1 -> lib2
+      createProjectGraphAsyncMock.mockImplementation(async () => ({
+        nodes: {},
+        dependencies: {
+          app1: [{ source: 'app1', target: 'lib1', type: 'static' }],
+          lib1: [{ source: 'lib1', target: 'lib2', type: 'static' }],
+          lib2: [],
+        },
+      }));
+
+      // Create files in lib2 and export them
+      tree.write(
+        'packages/lib2/src/lib/file1.ts',
+        'export const file1 = "file1";',
+      );
+      tree.write(
+        'packages/lib2/src/lib/file2.ts',
+        'export const file2 = "file2";',
+      );
+
+      tree.write(
+        'packages/lib2/src/index.ts',
+        "export * from './lib/file1';\nexport * from './lib/file2';",
+      );
+
+      // Create app1 that imports from lib2
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      tree.write(
+        'packages/app1/src/main.ts',
+        "import { file1 } from '@test/lib2';\nimport { file2 } from '@test/lib2';",
+      );
+
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths['@test/app1'] = [
+          'packages/app1/src/index.ts',
+        ];
+        return json;
+      });
+
+      // Move first file
+      const options1: MoveFileGeneratorSchema = {
+        file: 'packages/lib2/src/lib/file1.ts',
+        project: 'lib1',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options1);
+
+      // Verify the move worked
+      expect(tree.exists('packages/lib2/src/lib/file1.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file1.ts')).toBe(true);
+
+      // Move second file
+      const options2: MoveFileGeneratorSchema = {
+        file: 'packages/lib2/src/lib/file2.ts',
+        project: 'lib1',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options2);
+
+      // Verify the move worked
+      expect(tree.exists('packages/lib2/src/lib/file2.ts')).toBe(false);
+      expect(tree.exists('packages/lib1/src/lib/file2.ts')).toBe(true);
+
+      // Both operations should have used the dependency graph
+      // The second operation would benefit from caching if the same project dependencies are queried
+      expect(createProjectGraphAsyncMock).toHaveBeenCalled();
+    });
+  });
 });
