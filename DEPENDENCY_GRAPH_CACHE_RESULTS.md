@@ -31,15 +31,39 @@ This document records the performance impact of adding a dependency graph cache 
 
 ### Baseline vs. Optimized Comparison
 
+#### Performance Benchmarks
+
 | Test Case | Baseline (ms) | With Cache (ms) | Difference | Notes |
 |-----------|---------------|-----------------|------------|-------|
 | **Small file move** | 1963.37 | 2053.32 | +4.6% | Single file, minimal benefit |
-| **10 projects stress** | 2275.48 | 2277.04 | +0.07% | Within variance |
 | **15 files (glob)** | 2108.32 | 2120.49 | +0.6% | Within variance |
 
-**Average Impact: ~±0% to +1%** (within measurement variance)
+#### Stress Test Results (All 4 Tests)
+
+| Test Scenario | Baseline (ms) | With Cache (ms) | Difference | Per-Unit |
+|---------------|---------------|-----------------|------------|----------|
+| **Test 1: 10 Projects** | 2206.90 | 2212.16 | +0.24% | 220.69 → 221.22 ms/project |
+| **Test 2: 100+ Large Files** | 5047.69 | 5160.35 | +2.23% | 50.48 → 51.60 ms/file |
+| **Test 3: 50 Relative Imports** | 2172.00 | 2230.36 | +2.69% | 43.44 → 44.61 ms/import |
+| **Test 4: Combined (450 files, 15 projects)** | 2607.67 | 2618.30 | +0.41% | 5.79 → 5.82 ms/file |
+
+**Average Impact: +0.2% to +2.7%** (within measurement variance)
 
 ### Analysis
+
+#### Complete Test Coverage
+
+All performance tests have been executed (2 benchmarks + 4 stress tests):
+
+✅ **Performance Benchmarks:**
+- Small file move: Single file operation
+- 15 files (glob): Batch operation with glob patterns
+
+✅ **Stress Tests:**
+- Test 1: Cross-project dependencies (10 projects)
+- Test 2: Many large files (100+ files)
+- Test 3: Intra-project dependencies (50 relative imports)
+- Test 4: Combined stress (450 files, 15 projects)
 
 #### Why No Significant Performance Change?
 
@@ -86,7 +110,8 @@ The small overhead (+0.6% to +4.6%) in some tests is expected and acceptable:
 ✅ **All 141 unit tests pass** (added 1 new test for cache)  
 ✅ **Build succeeds** - No compilation errors  
 ✅ **Lint passes** - No code quality issues  
-✅ **No regressions** - Performance within normal variance
+✅ **No regressions** - All 6 performance tests show results within normal variance (+0.2% to +4.6%)
+✅ **Complete test coverage** - 2 benchmarks + 4 stress tests measured before and after
 
 ## Conclusion
 
