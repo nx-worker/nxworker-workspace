@@ -84,13 +84,13 @@ jobs:
             
             # Run format check
             echo "Checking formatting..."
-            if npm run format:check; then
+            if npx nx format:check --all; then
               echo "✓ Commit is properly formatted, no changes needed"
             else
               echo "✗ Formatting issues found, applying fixes..."
               
               # Apply formatting
-              npm run format
+              npx nx format:write --all
               
               # Check if there are any changes after formatting
               if ! git diff --quiet; then
