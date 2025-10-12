@@ -8,11 +8,13 @@ This document outlines a comprehensive plan to refactor the `@nxworker/workspace
 - **One unit test suite per file**
 - **Optional performance benchmark test per function** (for critical path operations)
 
+**Note**: This plan has been updated to reflect the recent dependency graph cache optimization that was added after the initial planning phase. The cache adds one additional function (`getCachedDependentProjects`) to be extracted during Phase 2.
+
 ## Current State Analysis
 
 ### Code Metrics
 
-- **generator.ts**: 1,967 lines, 53 functions (monolithic file)
+- **generator.ts**: ~2,000 lines, 54 functions (monolithic file)
 - **jscodeshift-utils.ts**: 418 lines, 7 functions
 - **ast-cache.ts**: 120 lines (ASTCache class)
 - **tree-cache.ts**: 102 lines (TreeReadCache class)
@@ -20,16 +22,16 @@ This document outlines a comprehensive plan to refactor the `@nxworker/workspace
 
 ### Test Metrics
 
-- **generator.spec.ts**: 2,650 lines (monolithic test file)
+- **generator.spec.ts**: ~2,700 lines (monolithic test file)
 - **jscodeshift-utils.spec.ts**: 302 lines
-- **Total**: 140 passing tests
+- **Total**: 141 passing tests
 - **Performance tests**: Separate benchmark and stress test files
 
 ### Function Categories in generator.ts
 
 | Category | Count | Examples |
 | --- | --- | --- |
-| Cache Operations | 4 | clearAllCaches, updateProjectSourceFilesCache, cachedTreeExists, updateFileExistenceCache |
+| Cache Operations | 5 | clearAllCaches, updateProjectSourceFilesCache, cachedTreeExists, updateFileExistenceCache, getCachedDependentProjects |
 | Validation | 3 | resolveAndValidate, resolveWildcardAlias, checkForImportsInProject |
 | Path Operations | 15 | buildTargetPath, toAbsoluteWorkspacePath, getProjectImportPath, splitPatterns |
 | Import Updates | 7 | updateMovedFileImportsIfNeeded, updateRelativeImportsInMovedFile, updateImportsToRelative |
@@ -57,6 +59,8 @@ packages/workspace/src/generators/move-file/
 │   ├── update-project-source-files-cache.spec.ts
 │   ├── update-file-existence-cache.ts
 │   ├── update-file-existence-cache.spec.ts
+│   ├── get-cached-dependent-projects.ts
+│   ├── get-cached-dependent-projects.spec.ts
 │   └── index.ts                    # Re-exports
 │
 ├── validation/                     # Validation and resolution
@@ -239,14 +243,21 @@ packages/workspace/src/generators/move-file/
    - `get-project-source-files.ts` (and .spec.ts)
    - `update-project-source-files-cache.ts` (and .spec.ts)
    - `update-file-existence-cache.ts` (and .spec.ts)
+   - `get-cached-dependent-projects.ts` (and .spec.ts) - **NEW: Added in dependency graph cache optimization**
    - `index.ts` for re-exports
 
 2. Move cache state management to separate module or keep in generator.ts as module-level variables
+   - **Note**: Now includes 4 caches:
+     - `projectSourceFilesCache` - caches source file lists per project
+     - `fileExistenceCache` - caches file existence checks
+     - `compilerPathsCache` - caches TypeScript compiler paths
+     - `dependencyGraphCache` - **NEW**: caches dependent project lookups
 
 3. Write unit tests for each function:
    - Test cache hit/miss scenarios
    - Test cache invalidation
    - Test concurrent access patterns
+   - Test dependency graph cache for batch operations
 
 #### Success Criteria
 
@@ -620,7 +631,7 @@ packages/workspace/src/generators/move-file/
 
 ### Testing
 
-- [ ] All 140+ existing tests pass
+- [ ] All 141+ existing tests pass
 - [ ] 100+ new unit tests added
 - [ ] Test execution time: <10s for unit tests
 - [ ] Benchmark tests establish baseline

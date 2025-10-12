@@ -5,9 +5,9 @@
 ```
 packages/workspace/src/generators/move-file/
 │
-├── generator.ts (1,967 lines) ⚠️ MONOLITHIC
+├── generator.ts (~2,000 lines) ⚠️ MONOLITHIC
 │   ├── Constants (lines 28-54)
-│   ├── Cache functions (4 functions)
+│   ├── Cache functions (5 functions) ← includes new dependency graph cache
 │   ├── Path utilities (15 functions)
 │   ├── Import updates (7 functions)
 │   ├── Export management (7 functions)
@@ -15,8 +15,8 @@ packages/workspace/src/generators/move-file/
 │   ├── Validation (3 functions)
 │   └── Core operations (10 functions)
 │
-├── generator.spec.ts (2,650 lines) ⚠️ MONOLITHIC
-│   └── 140 tests mixed together
+├── generator.spec.ts (~2,700 lines) ⚠️ MONOLITHIC
+│   └── 141 tests mixed together
 │
 ├── jscodeshift-utils.ts (418 lines)
 ├── jscodeshift-utils.spec.ts (302 lines)
@@ -57,7 +57,7 @@ packages/workspace/src/generators/move-file/
 │   ├── move-context.ts (~60 lines)
 │   └── index.ts
 │
-├── cache/ 💾 CACHE OPERATIONS (5 functions)
+├── cache/ 💾 CACHE OPERATIONS (6 functions)
 │   ├── clear-all-caches.ts (~20 lines)
 │   ├── clear-all-caches.spec.ts (~50 lines)
 │   ├── cached-tree-exists.ts (~30 lines)
@@ -68,6 +68,8 @@ packages/workspace/src/generators/move-file/
 │   ├── update-project-source-files-cache.spec.ts (~70 lines)
 │   ├── update-file-existence-cache.ts (~15 lines)
 │   ├── update-file-existence-cache.spec.ts (~40 lines)
+│   ├── get-cached-dependent-projects.ts (~30 lines) ← NEW: dependency graph cache
+│   ├── get-cached-dependent-projects.spec.ts (~60 lines)
 │   └── index.ts
 │
 ├── validation/ ✅ VALIDATION & RESOLUTION (3 functions)
@@ -311,18 +313,18 @@ const targetPath = buildTargetPath(
 
 ### File Size
 
-| Metric             | Before      | After      | Improvement   |
-| ------------------ | ----------- | ---------- | ------------- |
-| Max file size      | 1,967 lines | ~200 lines | 90% reduction |
-| Avg file size      | N/A         | ~50 lines  | Very focused  |
-| Max test file size | 2,650 lines | ~200 lines | 92% reduction |
-| Avg test file size | N/A         | ~80 lines  | Very focused  |
+| Metric             | Before       | After      | Improvement   |
+| ------------------ | ------------ | ---------- | ------------- |
+| Max file size      | ~2,000 lines | ~200 lines | 90% reduction |
+| Avg file size      | N/A          | ~50 lines  | Very focused  |
+| Max test file size | ~2,700 lines | ~200 lines | 92% reduction |
+| Avg test file size | N/A          | ~80 lines  | Very focused  |
 
 ### Organization
 
 | Metric                 | Before     | After               | Improvement     |
 | ---------------------- | ---------- | ------------------- | --------------- |
-| Functions in main file | 53         | 1 (orchestration)   | 98% reduction   |
+| Functions in main file | 54         | 1 (orchestration)   | 98% reduction   |
 | Directory structure    | Flat       | Organized by domain | Clear hierarchy |
 | File naming            | Generic    | Descriptive         | Easy to find    |
 | Test organization      | Monolithic | One per function    | Easy to locate  |
@@ -343,14 +345,14 @@ const targetPath = buildTargetPath(
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Function Distribution (53 total)                            │
+│ Function Distribution (54 total)                            │
 ├─────────────────────────────────────────────────────────────┤
 │ Path Operations         ████████████████ (15) 28%          │
 │ Core Operations         ██████████ (10) 19%                │
 │ Import Updates          ████████ (7) 13%                   │
 │ Export Management       ████████ (7) 13%                   │
 │ Project Analysis        ████████ (7) 13%                   │
-│ Cache Operations        ████ (4) 8%                        │
+│ Cache Operations        █████ (5) 9%                       │
 │ Validation              ███ (3) 6%                         │
 └─────────────────────────────────────────────────────────────┘
 ```

@@ -14,10 +14,10 @@ This document provides a quick reference for the comprehensive refactoring plan 
 
 | Metric | Current | Target | Improvement |
 | --- | --- | --- | --- |
-| Lines per file | 1,967 (generator.ts) | <100 per file | 95% reduction |
-| Functions per file | 53 (generator.ts) | 1-3 per file | Better organization |
-| Test file size | 2,650 lines | <100 per file | Better focus |
-| Test organization | 1 monolithic file | ~50+ focused files | Easier to navigate |
+| Lines per file | ~2,000 (generator.ts) | <100 per file | 95% reduction |
+| Functions per file | 54 (generator.ts) | 1-3 per file | Better organization |
+| Test file size | ~2,700 lines | <100 per file | Better focus |
+| Test organization | 1 monolithic file | ~54+ focused files | Easier to navigate |
 | Function discoverability | Low (scroll to find) | High (file name) | Fast lookup |
 | Test discoverability | Low (search in file) | High (file name) | Fast lookup |
 
@@ -26,7 +26,7 @@ This document provides a quick reference for the comprehensive refactoring plan 
 ```
 packages/workspace/src/generators/move-file/
 ├── generator.ts                    # Main entry point (~200 lines)
-├── cache/                          # 5 functions, 5 test files
+├── cache/                          # 6 functions, 6 test files
 ├── validation/                     # 3 functions, 3 test files
 ├── path-utils/                     # 9 functions, 9 test files
 ├── import-updates/                 # 9 functions, 9 test files
@@ -42,7 +42,7 @@ packages/workspace/src/generators/move-file/
 └── jscodeshift-utils.ts            # Keep as-is ✓
 ```
 
-**Total**: ~53 function files, ~53 test files, ~4 benchmark files
+**Total**: ~54 function files, ~54 test files, ~4 benchmark files
 
 ## Implementation Phases
 

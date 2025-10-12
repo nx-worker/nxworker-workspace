@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-The `@nxworker/workspace:move-file` generator has grown to ~2,000 lines in a single file (`generator.ts`) with 53 functions. The main test file (`generator.spec.ts`) has grown to ~2,650 lines. This monolithic structure makes the codebase difficult to:
+The `@nxworker/workspace:move-file` generator has grown to ~2,000 lines in a single file (`generator.ts`) with 54 functions. The main test file (`generator.spec.ts`) has grown to ~2,700 lines. This monolithic structure makes the codebase difficult to:
 
 - **Navigate**: Finding specific functionality requires scrolling through thousands of lines
 - **Understand**: Complex interactions between functions are not immediately clear
@@ -15,14 +15,14 @@ The `@nxworker/workspace:move-file` generator has grown to ~2,000 lines in a sin
 - **Review**: PRs with changes to the generator file are difficult to review due to file size
 - **Optimize**: Performance bottlenecks are hard to identify and benchmark
 
-The codebase has already undergone several performance optimizations (glob batching, AST caching, tree caching, smart file cache) that are well-documented but scattered throughout the monolithic file.
+The codebase has already undergone several performance optimizations (glob batching, AST caching, tree caching, smart file cache, dependency graph cache) that are well-documented but scattered throughout the monolithic file.
 
 ### Current Metrics
 
-- **generator.ts**: 1,967 lines, 53 functions
-- **generator.spec.ts**: 2,650 lines, 140 tests
+- **generator.ts**: ~2,000 lines, 54 functions
+- **generator.spec.ts**: ~2,700 lines, 141 tests
 - **Test coverage**: Good (all tests passing)
-- **Performance**: Good (already optimized)
+- **Performance**: Good (already optimized with multiple caches)
 - **Maintainability**: Poor (monolithic structure)
 
 ### Issue Requirements
@@ -259,6 +259,11 @@ import { function1, function2 } from './directory';
 ### State Management
 
 - Module-level caches will be moved to dedicated cache modules
+- Four caches are currently in use:
+  - `projectSourceFilesCache` - caches source file lists per project
+  - `fileExistenceCache` - caches file existence checks
+  - `compilerPathsCache` - caches TypeScript compiler paths
+  - `dependencyGraphCache` - caches dependent project lookups (newly added)
 - Cache state will be explicit and documented
 - Cache lifecycle (clear, update, invalidate) will be clear
 
@@ -277,7 +282,7 @@ import { function1, function2 } from './directory';
 
 ## Success Criteria
 
-- [ ] All 140+ existing tests pass
+- [ ] All 141+ existing tests pass
 - [ ] 100+ new unit tests added
 - [ ] Test coverage maintained or improved (>95%)
 - [ ] No performance regression in benchmarks
@@ -295,6 +300,7 @@ import { function1, function2 } from './directory';
 - [Existing Performance Documentation](../../PERFORMANCE_OPTIMIZATION_SUGGESTIONS.md)
 - [Glob Optimization](../../GLOB_OPTIMIZATION.md)
 - [AST Cache Optimization](../../INCREMENTAL_UPDATES_OPTIMIZATION.md)
+- [Dependency Graph Cache](../../DEPENDENCY_GRAPH_CACHE_RESULTS.md)
 
 ## Timeline
 
