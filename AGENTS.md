@@ -140,29 +140,6 @@ Nx interprets commands in the following order (per the [Nx CLI reference](https:
   3. `npx nx affected -t lint test build e2e`
 - Reproduce step 3 locally with the exact command when debugging CI: it will determine the base via `nrwl/nx-set-shas`. On a feature branch without SHAs, fall back to `npx nx run-many -t lint test build e2e`.
 
-### Format Workflow (Auto-fix Formatting Issues)
-
-The repository includes a **Format Workflow** (`.github/workflows/format.yml`) that can automatically fix formatting issues in your branch:
-
-- **Trigger:** Manual workflow dispatch only (`workflow_dispatch`)
-- **Scope:** Works on any branch **except** the default branch (`main`)
-- **Behavior:**
-  1. Compares your branch with `main` and identifies all commits that differ
-  2. For each commit, checks if the code is properly formatted
-  3. If formatting issues are found, applies `npm run format` and amends the commit
-  4. Force-pushes the amended commit history back to your branch
-
-**How to use:**
-
-1. Push your feature branch with unformatted code
-2. Go to the Actions tab in GitHub
-3. Select "Format Code" workflow
-4. Click "Run workflow" and select your branch
-5. Wait for the workflow to complete
-6. Pull the updated branch with `git pull --force-with-lease`
-
-**⚠️ Warning:** This workflow rewrites Git history by amending commits. Ensure no one else is working on the same branch before running it.
-
 ## Conventional Commits (PR titles & commit messages)
 
 Short rules (for agents and humans):
