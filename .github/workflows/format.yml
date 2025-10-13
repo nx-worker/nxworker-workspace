@@ -10,6 +10,13 @@ jobs:
   format:
     runs-on: ubuntu-24.04-arm
     steps:
+      - uses: actions/checkout@v5
+        with:
+          # Fetch all history to compare with main branch
+          fetch-depth: 0
+          # Use token that allows force push
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Check if running on default branch
         id: check-branch
         run: |
@@ -24,13 +31,6 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/checkout@v5
-        with:
-          # Fetch all history to compare with main branch
-          fetch-depth: 0
-          # Use token that allows force push
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: ./.github/actions/set-nx-shas
 
