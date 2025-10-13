@@ -8,6 +8,11 @@ This document outlines a comprehensive plan to refactor the `@nxworker/workspace
 - **One unit test suite per file**
 - **Optional performance benchmark test per function** (for critical path operations)
 
+**Status Update**:
+
+- ✅ **Phase 1 Complete**: Constants and types have been successfully extracted
+- 📋 **Phase 2 Ready**: Cache functions implementation guide created ([REFACTORING_PHASE_2_GUIDE.md](./REFACTORING_PHASE_2_GUIDE.md))
+
 **Note**: This plan has been updated to reflect the recent dependency graph cache optimization that was added after the initial planning phase. The cache adds one additional function (`getCachedDependentProjects`) to be extracted during Phase 2.
 
 ## Current State Analysis
@@ -60,8 +65,7 @@ packages/workspace/src/generators/move-file/
 │   ├── update-file-existence-cache.ts
 │   ├── update-file-existence-cache.spec.ts
 │   ├── get-cached-dependent-projects.ts
-│   ├── get-cached-dependent-projects.spec.ts
-│   └── index.ts                    # Re-exports
+│   └── get-cached-dependent-projects.spec.ts
 │
 ├── validation/                     # Validation and resolution
 │   ├── resolve-and-validate.ts
@@ -69,8 +73,7 @@ packages/workspace/src/generators/move-file/
 │   ├── resolve-wildcard-alias.ts
 │   ├── resolve-wildcard-alias.spec.ts
 │   ├── check-for-imports-in-project.ts
-│   ├── check-for-imports-in-project.spec.ts
-│   └── index.ts
+│   └── check-for-imports-in-project.spec.ts
 │
 ├── path-utils/                     # Path manipulation and resolution
 │   ├── build-file-names.ts
@@ -90,8 +93,7 @@ packages/workspace/src/generators/move-file/
 │   ├── remove-source-file-extension.ts
 │   ├── remove-source-file-extension.spec.ts
 │   ├── get-relative-import-specifier.ts
-│   ├── get-relative-import-specifier.spec.ts
-│   └── index.ts
+│   └── get-relative-import-specifier.spec.ts
 │
 ├── import-updates/                 # Import path update logic
 │   ├── update-moved-file-imports-if-needed.ts
@@ -111,8 +113,7 @@ packages/workspace/src/generators/move-file/
 │   ├── update-import-paths-to-package-alias.ts
 │   ├── update-import-paths-to-package-alias.spec.ts
 │   ├── update-import-paths-in-project.ts
-│   ├── update-import-paths-in-project.spec.ts
-│   └── index.ts
+│   └── update-import-paths-in-project.spec.ts
 │
 ├── export-management/              # Export management
 │   ├── ensure-export-if-needed.ts
@@ -124,8 +125,7 @@ packages/workspace/src/generators/move-file/
 │   ├── ensure-file-exported.ts
 │   ├── ensure-file-exported.spec.ts
 │   ├── remove-file-export.ts
-│   ├── remove-file-export.spec.ts
-│   └── index.ts
+│   └── remove-file-export.spec.ts
 │
 ├── project-analysis/               # Project-related utilities
 │   ├── find-project-for-file.ts
@@ -153,8 +153,7 @@ packages/workspace/src/generators/move-file/
 │   ├── build-reverse-dependency-map.ts
 │   ├── build-reverse-dependency-map.spec.ts
 │   ├── to-first-path.ts
-│   ├── to-first-path.spec.ts
-│   └── index.ts
+│   └── to-first-path.spec.ts
 │
 ├── core-operations/                # Core move operations
 │   ├── execute-move.ts
@@ -172,17 +171,14 @@ packages/workspace/src/generators/move-file/
 │   ├── handle-default-move.ts
 │   ├── handle-default-move.spec.ts
 │   ├── finalize-move.ts
-│   ├── finalize-move.spec.ts
-│   └── index.ts
+│   └── finalize-move.spec.ts
 │
 ├── constants/                      # Shared constants
 │   ├── file-extensions.ts
-│   ├── file-extensions.spec.ts
-│   └── index.ts
+│   └── file-extensions.spec.ts
 │
 ├── types/                          # Shared types
-│   ├── move-context.ts
-│   └── index.ts
+│   └── move-context.ts
 │
 ├── security-utils/                 # (Already refactored)
 │   ├── escape-regex.ts
@@ -190,8 +186,7 @@ packages/workspace/src/generators/move-file/
 │   ├── is-valid-path-input.ts
 │   ├── is-valid-path-input.spec.ts
 │   ├── sanitize-path.ts
-│   ├── sanitize-path.spec.ts
-│   └── index.ts
+│   └── sanitize-path.spec.ts
 │
 ├── ast-cache.ts                    # (Keep as-is, well-designed)
 ├── tree-cache.ts                   # (Keep as-is, well-designed)
@@ -209,27 +204,34 @@ packages/workspace/src/generators/move-file/
 
 ### Phase 1: Extract Constants and Types (Low Risk)
 
+**Status**: ✅ **COMPLETED**
+
 **Duration**: 1-2 hours  
 **Impact**: Low  
 **Testing**: Unit tests
 
 #### Tasks
 
-1. Create `constants/file-extensions.ts`
+1. ✅ Create `constants/file-extensions.ts`
    - Extract `entrypointExtensions`, `primaryEntryBaseNames`, `sourceFileExtensions`, `strippableExtensions`
    - Add unit tests for constant validation
-2. Create `types/move-context.ts`
+2. ✅ Create `types/move-context.ts`
    - Extract `MoveContext` type
    - Add JSDoc documentation
-3. Update imports in `generator.ts`
+3. ✅ Update imports in `generator.ts`
 
 #### Success Criteria
 
-- All existing tests pass
-- No functional changes
-- Better code organization
+- ✅ All existing tests pass
+- ✅ No functional changes
+- ✅ Better code organization
+- ✅ 20 new tests for constants (all passing)
+
+**Implementation Guide**: [REFACTORING_PHASE_1_GUIDE.md](./REFACTORING_PHASE_1_GUIDE.md)
 
 ### Phase 2: Extract Cache Functions (Low-Medium Risk)
+
+**Status**: 📋 **READY TO IMPLEMENT**
 
 **Duration**: 2-3 hours  
 **Impact**: Low  
@@ -244,7 +246,6 @@ packages/workspace/src/generators/move-file/
    - `update-project-source-files-cache.ts` (and .spec.ts)
    - `update-file-existence-cache.ts` (and .spec.ts)
    - `get-cached-dependent-projects.ts` (and .spec.ts) - **NEW: Added in dependency graph cache optimization**
-   - `index.ts` for re-exports
 
 2. Move cache state management to separate module or keep in generator.ts as module-level variables
    - **Note**: Now includes 4 caches:
@@ -264,6 +265,8 @@ packages/workspace/src/generators/move-file/
 - All existing tests pass
 - New unit tests provide >95% coverage
 - Cache behavior remains identical
+
+**Implementation Guide**: [REFACTORING_PHASE_2_GUIDE.md](./REFACTORING_PHASE_2_GUIDE.md)
 
 ### Phase 3: Extract Path Utilities (Low-Medium Risk)
 
