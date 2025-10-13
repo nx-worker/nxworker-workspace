@@ -10,6 +10,13 @@ jobs:
   format:
     runs-on: ubuntu-24.04-arm
     steps:
+      - uses: actions/checkout@v5
+        with:
+          # Fetch all history to compare with main branch
+          fetch-depth: 0
+          # Use token that allows force push
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Check if running on default branch
         id: check-branch
         run: |
@@ -24,13 +31,6 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/checkout@v5
-        with:
-          # Fetch all history to compare with main branch
-          fetch-depth: 0
-          # Use token that allows force push
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: ./.github/actions/set-nx-shas
 
@@ -94,32 +94,40 @@ jobs:
             git log -1 --oneline "$COMMIT"
             echo "=========================================="
             
-            # Cherry-pick the commit (this applies it to current HEAD)
-            if ! git cherry-pick "$COMMIT"; then
-              echo "Error: Failed to cherry-pick commit $COMMIT"
-              git cherry-pick --abort
-              exit 1
-            fi
-            
-            # Run format check
-            echo "Checking formatting..."
-            if npx nx format:check; then
-              echo "✓ Commit is properly formatted, no changes needed"
-            else
-              echo "✗ Formatting issues found, applying fixes..."
+            # Check if this commit is empty (has no changes compared to its parent)
+            if git diff-tree --no-commit-id --name-only -r "$COMMIT" | grep -q .; then
+              # Commit has changes, process it normally
               
-              # Apply formatting
-              npx nx format:write
-              
-              # Check if there are any changes after formatting
-              if ! git diff --quiet; then
-                echo "Amending commit with formatting changes..."
-                git add -A
-                git commit --amend --no-edit
-                echo "✓ Commit amended with formatting fixes"
-              else
-                echo "✓ No formatting changes needed after all"
+              # Cherry-pick the commit (this applies it to current HEAD)
+              if ! git cherry-pick "$COMMIT"; then
+                echo "Error: Failed to cherry-pick commit $COMMIT"
+                git cherry-pick --abort
+                exit 1
               fi
+              
+              # Run format check
+              echo "Checking formatting..."
+              if npx nx format:check; then
+                echo "✓ Commit is properly formatted, no changes needed"
+              else
+                echo "✗ Formatting issues found, applying fixes..."
+                
+                # Apply formatting
+                npx nx format:write
+                
+                # Check if there are any changes after formatting
+                if ! git diff --quiet; then
+                  echo "Amending commit with formatting changes..."
+                  git add -A
+                  git commit --amend --no-edit
+                  echo "✓ Commit amended with formatting fixes"
+                else
+                  echo "✓ No formatting changes needed after all"
+                fi
+              fi
+            else
+              # Commit is empty, skip it
+              echo "⊘ Skipping empty commit (no file changes)"
             fi
           done
 
