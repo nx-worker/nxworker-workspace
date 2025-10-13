@@ -83,6 +83,32 @@ jobs:
           MERGE_BASE=$(git merge-base "$BASE_BRANCH" "$CURRENT_BRANCH")
           echo "Merge base: $MERGE_BASE"
 
+          # Check if the branch has been rebased with the latest base branch
+          BASE_BRANCH_HEAD=$(git rev-parse "$BASE_BRANCH")
+          echo "Base branch HEAD: $BASE_BRANCH_HEAD"
+
+          if [ "$MERGE_BASE" != "$BASE_BRANCH_HEAD" ]; then
+            echo ""
+            echo "============================================"
+            echo "ERROR: Branch has not been rebased"
+            echo "============================================"
+            echo ""
+            echo "This branch has diverged from $BASE_BRANCH."
+            echo "The merge base ($MERGE_BASE) does not match the HEAD of $BASE_BRANCH ($BASE_BRANCH_HEAD)."
+            echo ""
+            echo "This prevents the format workflow from running with an outdated version of its own workflow file."
+            echo ""
+            echo "To fix this issue, please rebase your branch:"
+            echo "  git fetch origin $BASE_BRANCH"
+            echo "  git rebase origin/$BASE_BRANCH"
+            echo "  git push --force-with-lease"
+            echo ""
+            exit 1
+          fi
+
+          echo "✓ Branch is up to date with $BASE_BRANCH (rebase check passed)"
+          echo ""
+
           # Reset to merge base to start replaying commits
           git reset --hard "$MERGE_BASE"
 
