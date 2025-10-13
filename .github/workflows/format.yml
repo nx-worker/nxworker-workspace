@@ -109,7 +109,8 @@ jobs:
                 # - Commit A: adds unformatted code
                 # - Commit B: formats the same code
                 # When we format Commit A, Commit B becomes empty and should be skipped.
-                if git status | grep -q "nothing to commit"; then
+                # Use --porcelain for reliable machine-readable status
+                if [ -z "$(git status --porcelain)" ]; then
                   echo "⊘ Cherry-pick resulted in empty commit (changes already applied by earlier formatting fixes)"
                   echo "Skipping this commit..."
                   git cherry-pick --skip
