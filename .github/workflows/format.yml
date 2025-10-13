@@ -98,55 +98,73 @@ jobs:
             if git diff-tree --no-commit-id --name-only -r "$COMMIT" | grep -q .; then
               # Commit has changes, process it normally
               
+              # Track whether we should format this commit
+              SHOULD_FORMAT=true
+              
               # Cherry-pick the commit (this applies it to current HEAD)
               if ! git cherry-pick "$COMMIT"; then
-                echo "⚠ Cherry-pick failed, likely due to formatting conflicts from earlier commits"
-                echo "Resolving conflicts by accepting incoming changes..."
-                
-                # Get the list of conflicted files
-                CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
-                
-                if [ -z "$CONFLICTED_FILES" ]; then
-                  echo "Error: Cherry-pick failed but no conflicted files found"
-                  git cherry-pick --abort
-                  exit 1
+                # Check if the cherry-pick resulted in an empty commit (changes already applied)
+                # This can happen when a previous commit was formatted and the changes in the current
+                # commit have already been applied. For example:
+                # - Commit A: adds unformatted code
+                # - Commit B: formats the same code
+                # When we format Commit A, Commit B becomes empty and should be skipped.
+                if git status | grep -q "nothing to commit"; then
+                  echo "⊘ Cherry-pick resulted in empty commit (changes already applied by earlier formatting fixes)"
+                  echo "Skipping this commit..."
+                  git cherry-pick --skip
+                  SHOULD_FORMAT=false
+                else
+                  echo "⚠ Cherry-pick failed, likely due to formatting conflicts from earlier commits"
+                  echo "Resolving conflicts by accepting incoming changes..."
+                  
+                  # Get the list of conflicted files
+                  CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
+                  
+                  if [ -z "$CONFLICTED_FILES" ]; then
+                    echo "Error: Cherry-pick failed but no conflicted files found"
+                    git cherry-pick --abort
+                    exit 1
+                  fi
+                  
+                  echo "Conflicted files:"
+                  echo "$CONFLICTED_FILES"
+                  
+                  # For each conflicted file, accept the incoming version (from the commit being cherry-picked)
+                  for FILE in $CONFLICTED_FILES; do
+                    echo "  Resolving: $FILE"
+                    # Accept theirs (the version from the commit we're cherry-picking)
+                    git checkout --theirs "$FILE"
+                    git add "$FILE"
+                  done
+                  
+                  # Complete the cherry-pick with resolved conflicts
+                  git -c core.editor=true cherry-pick --continue
+                  
+                  echo "✓ Conflicts resolved, cherry-pick completed"
                 fi
-                
-                echo "Conflicted files:"
-                echo "$CONFLICTED_FILES"
-                
-                # For each conflicted file, accept the incoming version (from the commit being cherry-picked)
-                for FILE in $CONFLICTED_FILES; do
-                  echo "  Resolving: $FILE"
-                  # Accept theirs (the version from the commit we're cherry-picking)
-                  git checkout --theirs "$FILE"
-                  git add "$FILE"
-                done
-                
-                # Complete the cherry-pick with resolved conflicts
-                git -c core.editor=true cherry-pick --continue
-                
-                echo "✓ Conflicts resolved, cherry-pick completed"
               fi
               
-              # Run format check
-              echo "Checking formatting..."
-              if npx nx format:check; then
-                echo "✓ Commit is properly formatted, no changes needed"
-              else
-                echo "✗ Formatting issues found, applying fixes..."
-                
-                # Apply formatting
-                npx nx format:write
-                
-                # Check if there are any changes after formatting
-                if ! git diff --quiet; then
-                  echo "Amending commit with formatting changes..."
-                  git add -A
-                  git commit --amend --no-edit
-                  echo "✓ Commit amended with formatting fixes"
+              # Run format check only if we have a commit to format
+              if [ "$SHOULD_FORMAT" = true ]; then
+                echo "Checking formatting..."
+                if npx nx format:check; then
+                  echo "✓ Commit is properly formatted, no changes needed"
                 else
-                  echo "✓ No formatting changes needed after all"
+                  echo "✗ Formatting issues found, applying fixes..."
+                  
+                  # Apply formatting
+                  npx nx format:write
+                  
+                  # Check if there are any changes after formatting
+                  if ! git diff --quiet; then
+                    echo "Amending commit with formatting changes..."
+                    git add -A
+                    git commit --amend --no-edit
+                    echo "✓ Commit amended with formatting fixes"
+                  else
+                    echo "✓ No formatting changes needed after all"
+                  fi
                 fi
               fi
             else
