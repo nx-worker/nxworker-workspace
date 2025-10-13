@@ -49,8 +49,8 @@ packages/workspace/src/generators/move-file/
 | Phase | Focus | Risk | Duration | Files Changed | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Constants & Types | Low | 1-2h | ~6 new files | ✅ Complete |
-| 2 | Cache Functions | Low-Med | 2-3h | ~13 new files | 📋 Ready |
-| 3 | Path Utilities | Low-Med | 3-4h | ~18 new files | ⏳ Planned |
+| 2 | Cache Functions | Low-Med | 2-3h | ~13 new files | ✅ Complete |
+| 3 | Path Utilities | Low-Med | 3-4h | ~18 new files | 📋 Ready |
 | 4 | Project Analysis | Medium | 4-5h | ~26 new files | ⏳ Planned |
 | 5 | Import Updates | Med-High | 5-6h | ~18 new files | ⏳ Planned |
 | 6 | Export Management | Medium | 3-4h | ~10 new files | ⏳ Planned |
@@ -61,8 +61,8 @@ packages/workspace/src/generators/move-file/
 | 11 | Documentation | Low | 2-3h | README updates | 🔄 In Progress |
 
 **Total Duration**: 35-42 hours (~1 week of focused work)  
-**Completed**: Phase 1 (✅)  
-**Next Up**: Phase 2 Cache Functions ([Guide](./REFACTORING_PHASE_2_GUIDE.md))
+**Completed**: Phases 1-2 (✅)  
+**Next Up**: Phase 3 Path Utilities
 
 ## Key Principles
 
@@ -77,12 +77,12 @@ packages/workspace/src/generators/move-file/
 
 - [x] ✅ Phase 1 complete: Constants and types extracted
 - [x] ✅ 20 new unit tests for constants (all passing)
-- [ ] 📋 Phase 2 ready: Cache functions implementation guide created
-- [ ] All 140+ existing tests pass (currently passing)
-- [ ] 100+ new unit tests added (20/100+ complete)
+- [x] ✅ Phase 2 complete: Cache functions extracted
+- [x] ✅ 37 new unit tests for cache functions (all passing)
+- [x] ✅ All 198 tests pass (Phase 1 + Phase 2 + existing tests)
 - [ ] Test coverage >95%
 - [ ] No performance regression
-- [ ] `generator.ts` reduced to <200 lines
+- [ ] `generator.ts` reduced to <200 lines (currently 1921 lines)
 - [ ] All functions documented with JSDoc
 - [ ] All functions have unit tests
 - [ ] Critical functions have benchmarks
@@ -230,22 +230,23 @@ npx nx e2e workspace-e2e
 2. ✅ **Create feature branch** for refactoring - Created
 3. ✅ **Start Phase 1** following the implementation guide - Complete
 4. ✅ **Submit PR after Phase 1** for early feedback - In progress
-5. 📋 **Continue with Phase 2** - [Implementation guide ready](./REFACTORING_PHASE_2_GUIDE.md)
-6. [ ] **Continue with remaining phases** iteratively
-7. [ ] **Update documentation** throughout
-8. [ ] **Final review and merge**
+5. ✅ **Continue with Phase 2** - Complete
+6. [ ] **Continue with Phase 3** - Path Utilities
+7. [ ] **Continue with remaining phases** iteratively
+8. [ ] **Update documentation** throughout
+9. [ ] **Final review and merge**
 
 ## Questions?
 
 - Review the [Full Refactoring Plan](./REFACTORING_PLAN.md) for details
 - Check the [ADR](./docs/adr/001-refactor-for-maintainability.md) for rationale
 - ✅ [Phase 1 Guide](./REFACTORING_PHASE_1_GUIDE.md) - Complete
-- 📋 [Phase 2 Guide](./REFACTORING_PHASE_2_GUIDE.md) - Ready to implement
+- ✅ [Phase 2 Guide](./REFACTORING_PHASE_2_GUIDE.md) - Complete
 
 ---
 
-**Status**: In Progress (Phase 1 Complete, Phase 2 Ready)  
+**Status**: In Progress (Phases 1-2 Complete, Phase 3 Ready)  
 **Last Updated**: 2025-10-13  
 **Author**: GitHub Copilot  
 **Phase 1**: ✅ Completed  
-**Phase 2**: 📋 Implementation guide ready
+**Phase 2**: ✅ Completed
