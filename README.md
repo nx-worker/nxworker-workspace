@@ -123,6 +123,19 @@ See `packages/workspace-e2e/QUICK_START_STRESS_TESTS.md` for a quick start guide
 | Verdaccio port still in use | Run `npx nx reset` or manually stop lingering Node processes |
 | `create-nx-workspace` download failures in e2e | Ensure internet access and retry; the script scaffolds into `tmp/` |
 
+## Refactoring Plan
+
+A comprehensive refactoring plan is available to improve the maintainability, testability, and performance of the `move-file` generator:
+
+- **[REFACTORING_INDEX.md](./REFACTORING_INDEX.md)** - Navigation hub for all refactoring documentation
+- **[REFACTORING_SUMMARY.md](./REFACTORING_SUMMARY.md)** - Quick reference guide (start here!)
+- **[REFACTORING_PLAN.md](./REFACTORING_PLAN.md)** - Complete 11-phase implementation plan
+- **[REFACTORING_VISUAL_GUIDE.md](./REFACTORING_VISUAL_GUIDE.md)** - Visual before/after comparisons
+- **[REFACTORING_PHASE_1_GUIDE.md](./REFACTORING_PHASE_1_GUIDE.md)** - Step-by-step implementation guide
+- **[docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)** - Architecture decision record
+
+The plan transforms the generator from a monolithic 1,967-line file to a well-organized structure with one function per file, comprehensive tests, and performance benchmarks.
+
 ## Contributing
 
 1. Create a feature branch

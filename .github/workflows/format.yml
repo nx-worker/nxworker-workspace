@@ -213,6 +213,7 @@ jobs:
       - name: Force push formatted commits
         run: |
           # Force push the reformatted branch
-          # Use --force-with-lease with --force-if-includes for safety
-          git push --force-with-lease --force-if-includes origin "HEAD:${{ github.ref_name }}"
+          # Use --force-with-lease for safety (protects against concurrent updates)
+          # Note: --force-if-includes requires Git 2.30+, so we use just --force-with-lease
+          git push --force-with-lease origin "HEAD:${{ github.ref_name }}"
           echo "✓ Successfully pushed formatted commits to ${{ github.ref_name }}"
