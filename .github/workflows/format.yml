@@ -100,9 +100,33 @@ jobs:
               
               # Cherry-pick the commit (this applies it to current HEAD)
               if ! git cherry-pick "$COMMIT"; then
-                echo "Error: Failed to cherry-pick commit $COMMIT"
-                git cherry-pick --abort
-                exit 1
+                echo "⚠ Cherry-pick failed, likely due to formatting conflicts from earlier commits"
+                echo "Resolving conflicts by accepting incoming changes..."
+                
+                # Get the list of conflicted files
+                CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
+                
+                if [ -z "$CONFLICTED_FILES" ]; then
+                  echo "Error: Cherry-pick failed but no conflicted files found"
+                  git cherry-pick --abort
+                  exit 1
+                fi
+                
+                echo "Conflicted files:"
+                echo "$CONFLICTED_FILES"
+                
+                # For each conflicted file, accept the incoming version (from the commit being cherry-picked)
+                for FILE in $CONFLICTED_FILES; do
+                  echo "  Resolving: $FILE"
+                  # Accept theirs (the version from the commit we're cherry-picking)
+                  git checkout --theirs "$FILE"
+                  git add "$FILE"
+                done
+                
+                # Complete the cherry-pick with resolved conflicts
+                git -c core.editor=true cherry-pick --continue
+                
+                echo "✓ Conflicts resolved, cherry-pick completed"
               fi
               
               # Run format check
