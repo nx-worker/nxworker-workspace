@@ -29,8 +29,8 @@ import {
   primaryEntryBaseNames,
   sourceFileExtensions,
   strippableExtensions,
-} from './constants';
-import type { MoveContext } from './types';
+} from './constants/file-extensions';
+import type { MoveContext } from './types/move-context';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
