@@ -77,13 +77,21 @@ npx nx release             # build, version, publish
 
 If you forgot to run `npm run format` before committing, you can use the **Format Workflow** to automatically fix formatting issues:
 
-1. Push your feature branch to GitHub
-2. Go to the **Actions** tab
-3. Select **"Format Code"** workflow
-4. Click **"Run workflow"** and select your branch
-5. After the workflow completes, pull the updated branch: `git pull --force-with-lease`
+1. **Ensure your branch is rebased** with the latest main branch:
+   ```bash
+   git fetch origin main
+   git rebase origin/main
+   git push --force-with-lease
+   ```
+2. Push your feature branch to GitHub
+3. Go to the **Actions** tab
+4. Select **"Format Code"** workflow
+5. Click **"Run workflow"** and select your branch
+6. After the workflow completes, pull the updated branch: `git pull --force-with-lease`
 
 The workflow processes each commit individually, applying formatting fixes and amending the commits as needed. Note that this rewrites Git history, so use it only on branches where you're the sole contributor.
+
+**Important:** The workflow will refuse to run if your branch hasn't been rebased with the latest base branch. This prevents the workflow from running with an outdated version of its own workflow file.
 
 ### Performance Testing
 
