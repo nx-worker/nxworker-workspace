@@ -24,12 +24,7 @@ import {
   getCacheStats,
 } from './jscodeshift-utils';
 import { treeReadCache } from './tree-cache';
-import {
-  entrypointExtensions,
-  primaryEntryBaseNames,
-  sourceFileExtensions,
-  strippableExtensions,
-} from './constants/file-extensions';
+import { primaryEntryBaseNames } from './constants/file-extensions';
 import type { MoveContext } from './types/move-context';
 import { clearAllCaches as clearAllCachesImpl } from './cache/clear-all-caches';
 import { cachedTreeExists as cachedTreeExistsImpl } from './cache/cached-tree-exists';
@@ -41,8 +36,6 @@ import { buildFileNames } from './path-utils/build-file-names';
 import { buildPatterns } from './path-utils/build-patterns';
 import { buildTargetPath } from './path-utils/build-target-path';
 import { splitPatterns } from './path-utils/split-patterns';
-import { toAbsoluteWorkspacePath } from './path-utils/to-absolute-workspace-path';
-import { stripFileExtension } from './path-utils/strip-file-extension';
 import { hasSourceFileExtension } from './path-utils/has-source-file-extension';
 import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
 import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
