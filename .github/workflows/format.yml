@@ -104,6 +104,11 @@ jobs:
               # Cherry-pick the commit (this applies it to current HEAD)
               if ! git cherry-pick "$COMMIT"; then
                 # Check if the cherry-pick resulted in an empty commit (changes already applied)
+                # This can happen when a previous commit was formatted and the changes in the current
+                # commit have already been applied. For example:
+                # - Commit A: adds unformatted code
+                # - Commit B: formats the same code
+                # When we format Commit A, Commit B becomes empty and should be skipped.
                 if git status | grep -q "nothing to commit"; then
                   echo "⊘ Cherry-pick resulted in empty commit (changes already applied by earlier formatting fixes)"
                   echo "Skipping this commit..."
