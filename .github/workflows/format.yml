@@ -103,13 +103,13 @@ jobs:
             
             # Run format check
             echo "Checking formatting..."
-            if npx nx format:check --all; then
+            if npx nx format:check; then
               echo "✓ Commit is properly formatted, no changes needed"
             else
               echo "✗ Formatting issues found, applying fixes..."
               
               # Apply formatting
-              npx nx format:write --all
+              npx nx format:write
               
               # Check if there are any changes after formatting
               if ! git diff --quiet; then
@@ -136,9 +136,6 @@ jobs:
       - name: Force push formatted commits
         run: |
           # Force push the reformatted branch
-          # Use --force-with-lease for safety, fallback to --force if it fails
-          if ! git push --force-with-lease origin "HEAD:${{ github.ref_name }}"; then
-            echo "⚠️ --force-with-lease was rejected, falling back to --force"
-            git push --force origin "HEAD:${{ github.ref_name }}"
-          fi
+          # Use --force-with-lease with --force-if-includes for safety
+          git push --force-with-lease --force-if-includes origin "HEAD:${{ github.ref_name }}"
           echo "✓ Successfully pushed formatted commits to ${{ github.ref_name }}"
