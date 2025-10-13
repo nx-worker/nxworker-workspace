@@ -24,34 +24,13 @@ import {
   getCacheStats,
 } from './jscodeshift-utils';
 import { treeReadCache } from './tree-cache';
-
-const entrypointExtensions = Object.freeze([
-  'ts',
-  'mts',
-  'cts',
-  'mjs',
-  'cjs',
-  'js',
-  'tsx',
-  'jsx',
-] as const);
-
-const primaryEntryBaseNames = Object.freeze(['public-api', 'index'] as const);
-
-/**
- * File extensions for TypeScript and JavaScript source files.
- * Used for identifying files to process during import updates.
- */
-const sourceFileExtensions = Object.freeze([
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.mts',
-  '.mjs',
-  '.cts',
-  '.cjs',
-] as const);
+import {
+  entrypointExtensions,
+  primaryEntryBaseNames,
+  sourceFileExtensions,
+  strippableExtensions,
+} from './constants/file-extensions';
+import type { MoveContext } from './types/move-context';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -174,18 +153,6 @@ function cachedTreeExists(tree: Tree, filePath: string): boolean {
 function updateFileExistenceCache(filePath: string, exists: boolean): void {
   fileExistenceCache.set(filePath, exists);
 }
-
-/**
- * File extensions that should be stripped from imports.
- * ESM-specific extensions (.mjs, .mts, .cjs, .cts) are excluded as they are
- * required by the ESM specification.
- */
-const strippableExtensions = Object.freeze([
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-] as const);
 
 const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
 const mainEntryFilenames = buildFileNames(['main']);
@@ -589,7 +556,7 @@ function resolveAndValidate(
   tree: Tree,
   options: MoveFileGeneratorSchema,
   projects: Map<string, ProjectConfiguration>,
-) {
+): MoveContext {
   // Check if the file input contains glob characters
   const isGlobPattern = /[*?[\]{}]/.test(options.file);
 
@@ -750,8 +717,6 @@ function resolveAndValidate(
     isSameProject,
   };
 }
-
-type MoveContext = ReturnType<typeof resolveAndValidate>;
 
 /**
  * Coordinates the move workflow by executing the individual move steps in order.
