@@ -31,6 +31,12 @@ import {
   strippableExtensions,
 } from './constants/file-extensions';
 import type { MoveContext } from './types/move-context';
+import { clearAllCaches as clearAllCachesImpl } from './cache/clear-all-caches';
+import { cachedTreeExists as cachedTreeExistsImpl } from './cache/cached-tree-exists';
+import { getProjectSourceFiles as getProjectSourceFilesImpl } from './cache/get-project-source-files';
+import { updateProjectSourceFilesCache as updateProjectSourceFilesCacheImpl } from './cache/update-project-source-files-cache';
+import { updateFileExistenceCache as updateFileExistenceCacheImpl } from './cache/update-file-existence-cache';
+import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './cache/get-cached-dependent-projects';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -57,101 +63,59 @@ let compilerPathsCache: Record<string, unknown> | null | undefined = undefined;
 const dependencyGraphCache = new Map<string, Set<string>>();
 
 /**
- * Clears all caches. Should be called when starting a new generator operation
- * to ensure fresh state.
+ * Wrapper for clearAllCaches that passes cache state
  */
 function clearAllCaches(): void {
-  projectSourceFilesCache.clear();
-  fileExistenceCache.clear();
+  clearAllCachesImpl(
+    projectSourceFilesCache,
+    fileExistenceCache,
+    { value: compilerPathsCache },
+    dependencyGraphCache,
+  );
+  // Update compilerPathsCache reference after clearing
   compilerPathsCache = undefined;
-  treeReadCache.clear();
-  dependencyGraphCache.clear();
 }
 
 /**
- * Gets all source files in a project with caching to avoid repeated traversals.
- * @param tree - The virtual file system tree
- * @param projectRoot - Root path of the project
- * @returns Array of source file paths
+ * Wrapper for getProjectSourceFiles that passes cache state
  */
 function getProjectSourceFiles(tree: Tree, projectRoot: string): string[] {
-  const cached = projectSourceFilesCache.get(projectRoot);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const sourceFiles: string[] = [];
-
-  // Early exit: check if project directory exists to avoid traversal overhead
-  if (!cachedTreeExists(tree, projectRoot)) {
-    projectSourceFilesCache.set(projectRoot, sourceFiles);
-    return sourceFiles;
-  }
-
-  visitNotIgnoredFiles(tree, projectRoot, (filePath) => {
-    if (sourceFileExtensions.some((ext) => filePath.endsWith(ext))) {
-      sourceFiles.push(normalizePath(filePath));
-    }
-  });
-
-  projectSourceFilesCache.set(projectRoot, sourceFiles);
-  return sourceFiles;
+  return getProjectSourceFilesImpl(
+    tree,
+    projectRoot,
+    projectSourceFilesCache,
+    fileExistenceCache,
+  );
 }
 
 /**
- * Updates the project source files cache incrementally when a file is moved.
- * This is more efficient than invalidating and re-scanning the entire project.
- *
- * @param projectRoot - Root path of the project
- * @param oldPath - Path of the file being moved
- * @param newPath - New path of the file (or null if file is being removed from project)
+ * Wrapper for updateProjectSourceFilesCache that passes cache state
  */
 function updateProjectSourceFilesCache(
   projectRoot: string,
   oldPath: string,
   newPath: string | null,
 ): void {
-  const cached = projectSourceFilesCache.get(projectRoot);
-  if (!cached) {
-    return; // Cache doesn't exist for this project, nothing to update
-  }
-
-  // Remove old path
-  const oldIndex = cached.indexOf(oldPath);
-  if (oldIndex !== -1) {
-    cached.splice(oldIndex, 1);
-  }
-
-  // Add new path if it's still in this project
-  if (newPath && newPath.startsWith(projectRoot + '/')) {
-    cached.push(newPath);
-  }
+  updateProjectSourceFilesCacheImpl(
+    projectRoot,
+    oldPath,
+    newPath,
+    projectSourceFilesCache,
+  );
 }
 
 /**
- * Cached wrapper for tree.exists() to avoid redundant file system checks.
- * @param tree - The virtual file system tree
- * @param filePath - Path to check for existence
- * @returns True if file exists
+ * Wrapper for cachedTreeExists that passes cache state
  */
 function cachedTreeExists(tree: Tree, filePath: string): boolean {
-  const cached = fileExistenceCache.get(filePath);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const exists = tree.exists(filePath);
-  fileExistenceCache.set(filePath, exists);
-  return exists;
+  return cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
 }
 
 /**
- * Updates the file existence cache when a file is created or deleted.
- * @param filePath - Path of the file
- * @param exists - Whether the file exists after the operation
+ * Wrapper for updateFileExistenceCache that passes cache state
  */
 function updateFileExistenceCache(filePath: string, exists: boolean): void {
-  fileExistenceCache.set(filePath, exists);
+  updateFileExistenceCacheImpl(filePath, exists, fileExistenceCache);
 }
 
 const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
@@ -1732,26 +1696,18 @@ function buildReverseDependencyMap(
 }
 
 /**
- * Gets dependent projects with caching to avoid repeated graph traversals.
- * The cache is cleared at the start of each generator execution.
- *
- * @param projectGraph - The project dependency graph
- * @param projectName - The name of the project to get dependents for
- * @returns Set of dependent project names
+ * Wrapper for getCachedDependentProjects that passes cache state
  */
 function getCachedDependentProjects(
   projectGraph: ProjectGraph,
   projectName: string,
 ): Set<string> {
-  const cached = dependencyGraphCache.get(projectName);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const dependents = new Set(
-    getDependentProjectNames(projectGraph, projectName),
+  return getCachedDependentProjectsImpl(
+    projectGraph,
+    projectName,
+    getDependentProjectNames,
+    dependencyGraphCache,
   );
-  dependencyGraphCache.set(projectName, dependents);
-  return dependents;
 }
 
 function getDependentProjectNames(
