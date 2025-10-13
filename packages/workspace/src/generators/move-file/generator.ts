@@ -24,12 +24,7 @@ import {
   getCacheStats,
 } from './jscodeshift-utils';
 import { treeReadCache } from './tree-cache';
-import {
-  entrypointExtensions,
-  primaryEntryBaseNames,
-  sourceFileExtensions,
-  strippableExtensions,
-} from './constants/file-extensions';
+import { primaryEntryBaseNames } from './constants/file-extensions';
 import type { MoveContext } from './types/move-context';
 import { clearAllCaches as clearAllCachesImpl } from './cache/clear-all-caches';
 import { cachedTreeExists as cachedTreeExistsImpl } from './cache/cached-tree-exists';
@@ -37,6 +32,13 @@ import { getProjectSourceFiles as getProjectSourceFilesImpl } from './cache/get-
 import { updateProjectSourceFilesCache as updateProjectSourceFilesCacheImpl } from './cache/update-project-source-files-cache';
 import { updateFileExistenceCache as updateFileExistenceCacheImpl } from './cache/update-file-existence-cache';
 import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './cache/get-cached-dependent-projects';
+import { buildFileNames } from './path-utils/build-file-names';
+import { buildPatterns } from './path-utils/build-patterns';
+import { buildTargetPath } from './path-utils/build-target-path';
+import { splitPatterns } from './path-utils/split-patterns';
+import { hasSourceFileExtension } from './path-utils/has-source-file-extension';
+import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
+import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -126,48 +128,6 @@ const entrypointPatterns = buildPatterns(
   primaryEntryFilenames,
 );
 const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
-
-function buildFileNames(baseNames: readonly string[]): string[] {
-  return baseNames.flatMap((base) =>
-    entrypointExtensions.map((ext) => `${base}.${ext}`),
-  );
-}
-
-function buildPatterns(
-  prefixes: readonly string[],
-  fileNames: readonly string[],
-): string[] {
-  return prefixes.flatMap((prefix) =>
-    fileNames.map((fileName) => `${prefix}${fileName}`),
-  );
-}
-
-/**
- * Checks if a file has one of the supported source file extensions.
- * @param filePath - The file path to check
- * @returns true if the file has a supported extension
- */
-function hasSourceFileExtension(filePath: string): boolean {
-  const ext = path.extname(filePath);
-  return sourceFileExtensions.includes(
-    ext as (typeof sourceFileExtensions)[number],
-  );
-}
-
-/**
- * Removes the file extension from a path if it's one of the supported extensions.
- * @param filePath - The file path to process
- * @returns The path with extension removed, or the original path if no supported extension
- */
-function removeSourceFileExtension(filePath: string): string {
-  const ext = path.extname(filePath);
-  if (
-    sourceFileExtensions.includes(ext as (typeof sourceFileExtensions)[number])
-  ) {
-    return filePath.slice(0, -ext.length);
-  }
-  return filePath;
-}
 
 function getProjectEntryPointPaths(
   tree: Tree,
@@ -404,41 +364,6 @@ export async function moveFileGenerator(
  * Split a string by commas, but ignore commas inside brace expansions.
  * For example: "file1.ts,file.{ts,js}" => ["file1.ts", "file.{ts,js}"]
  */
-function splitPatterns(input: string): string[] {
-  const patterns: string[] = [];
-  let current = '';
-  let braceDepth = 0;
-
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-
-    if (char === '{') {
-      braceDepth++;
-      current += char;
-    } else if (char === '}') {
-      braceDepth--;
-      current += char;
-    } else if (char === ',' && braceDepth === 0) {
-      // This is a separator comma, not part of a brace expansion
-      const trimmed = current.trim();
-      if (trimmed.length > 0) {
-        patterns.push(trimmed);
-      }
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  // Don't forget the last pattern
-  const trimmed = current.trim();
-  if (trimmed.length > 0) {
-    patterns.push(trimmed);
-  }
-
-  return patterns;
-}
-
 /**
  * Derives the project directory from the source file path relative to the source project.
  * Extracts the directory structure between the base directory (lib/app) and the filename.
@@ -486,28 +411,6 @@ function deriveProjectDirectoryFromSource(
  * @param projectDirectory - Optional directory within the target project, appended to base directory.
  * @returns The full target file path.
  */
-function buildTargetPath(
-  targetProject: ProjectConfiguration,
-  sourceFilePath: string,
-  projectDirectory?: string,
-): string {
-  const fileName = path.basename(sourceFilePath);
-
-  // Determine base directory
-  const baseRoot =
-    targetProject.sourceRoot || path.join(targetProject.root, 'src');
-
-  // Use 'app' for application projects, 'lib' for library projects
-  const baseDir = targetProject.projectType === 'application' ? 'app' : 'lib';
-
-  // If projectDirectory is specified, append it to the base directory
-  const targetDir = projectDirectory
-    ? path.join(baseDir, projectDirectory)
-    : baseDir;
-
-  return normalizePath(path.join(baseRoot, targetDir, fileName));
-}
-
 /**
  * Normalizes, validates, and gathers metadata about the source and target files.
  *
@@ -1738,49 +1641,6 @@ function getDependentProjectNames(
 
   dependents.delete(projectName);
   return Array.from(dependents);
-}
-
-function toAbsoluteWorkspacePath(filePath: string): string {
-  const normalized = normalizePath(filePath);
-  return path.join('/', normalized);
-}
-
-/**
- * Strips file extension from import path for TypeScript and regular JavaScript files.
- * Preserves extensions for ESM-specific files (.mjs, .mts, .cjs, .cts) as they are
- * required by the ESM specification.
- *
- * @param importPath - The import path to process
- * @returns The import path with extension stripped (or preserved for ESM files)
- */
-function stripFileExtension(importPath: string): string {
-  // Only strip .ts, .tsx, .js, .jsx extensions
-  // Preserve .mjs, .mts, .cjs, .cts as they are required for ESM
-  const ext = path.extname(importPath);
-  if (
-    strippableExtensions.includes(ext as (typeof strippableExtensions)[number])
-  ) {
-    return importPath.slice(0, -ext.length);
-  }
-  return importPath;
-}
-
-function getRelativeImportSpecifier(
-  fromFilePath: string,
-  toFilePath: string,
-): string {
-  const normalizedFrom = normalizePath(fromFilePath);
-  const normalizedTo = normalizePath(toFilePath);
-  const absoluteFromDir = path.dirname(toAbsoluteWorkspacePath(normalizedFrom));
-  const absoluteTarget = toAbsoluteWorkspacePath(normalizedTo);
-  let relativePath = path.relative(absoluteFromDir, absoluteTarget);
-
-  if (!relativePath.startsWith('.')) {
-    relativePath = `./${relativePath}`;
-  }
-
-  relativePath = normalizePath(relativePath);
-  return stripFileExtension(relativePath);
 }
 
 /**

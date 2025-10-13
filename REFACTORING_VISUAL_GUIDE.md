@@ -1,18 +1,16 @@
 # Refactoring Visual Guide
 
-**Status**: Phase 1 ✅ Complete | Phase 2 📋 Ready
+**Status**: Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete
 
-## Current Structure (After Phase 1)
+## Current Structure (After Phases 1-3)
 
 ```
 packages/workspace/src/generators/move-file/
 │
-├── generator.ts (~1,940 lines) ⚠️ STILL LARGE (Phase 1 reduced ~30 lines)
-│   ├── Cache functions (6 functions) ← includes dependency graph cache [Phase 2 📋]
-│   ├── Path utilities (15 functions) [Phase 3 ⏳]
+├── generator.ts (~1,790 lines) ⚠️ STILL LARGE (Phases 1-3 reduced ~131 lines)
 │   ├── Import updates (7 functions) [Phase 5 ⏳]
 │   ├── Export management (7 functions) [Phase 6 ⏳]
-│   ├── Project analysis (7 functions) [Phase 4 ⏳]
+│   ├── Project analysis (7 functions) [Phase 4 📋]
 │   ├── Validation (3 functions) [Phase 7 ⏳]
 │   └── Core operations (10 functions) [Phase 8 ⏳]
 │
@@ -25,8 +23,44 @@ packages/workspace/src/generators/move-file/
 │   ├── move-context.ts (~80 lines)
 │   └── index.ts
 │
+├── cache/ ✅ PHASE 2 COMPLETE
+│   ├── clear-all-caches.ts
+│   ├── clear-all-caches.spec.ts
+│   ├── cached-tree-exists.ts
+│   ├── cached-tree-exists.spec.ts
+│   ├── get-project-source-files.ts
+│   ├── get-project-source-files.spec.ts
+│   ├── update-project-source-files-cache.ts
+│   ├── update-project-source-files-cache.spec.ts
+│   ├── update-file-existence-cache.ts
+│   ├── update-file-existence-cache.spec.ts
+│   ├── get-cached-dependent-projects.ts
+│   ├── get-cached-dependent-projects.spec.ts
+│   └── index.ts (37 tests)
+│
+├── path-utils/ ✅ PHASE 3 COMPLETE
+│   ├── build-file-names.ts
+│   ├── build-file-names.spec.ts
+│   ├── build-patterns.ts
+│   ├── build-patterns.spec.ts
+│   ├── build-target-path.ts
+│   ├── build-target-path.spec.ts
+│   ├── split-patterns.ts
+│   ├── split-patterns.spec.ts
+│   ├── to-absolute-workspace-path.ts
+│   ├── to-absolute-workspace-path.spec.ts
+│   ├── strip-file-extension.ts
+│   ├── strip-file-extension.spec.ts
+│   ├── has-source-file-extension.ts
+│   ├── has-source-file-extension.spec.ts
+│   ├── remove-source-file-extension.ts
+│   ├── remove-source-file-extension.spec.ts
+│   ├── get-relative-import-specifier.ts
+│   ├── get-relative-import-specifier.spec.ts
+│   └── index.ts (103 tests)
+│
 ├── generator.spec.ts (~2,700 lines) ⚠️ MONOLITHIC
-│   └── 141 tests mixed together
+│   └── 161 tests mixed together
 │
 ├── jscodeshift-utils.ts (418 lines)
 ├── jscodeshift-utils.spec.ts (302 lines)
@@ -42,12 +76,14 @@ packages/workspace/src/generators/move-file/
     └── sanitize-path.spec.ts
 ```
 
-**Phase 1 Progress:**
+**Phase 1-3 Progress:**
 
 - ✅ Constants extracted and tested (20 tests passing)
 - ✅ Types extracted with full documentation
-- ✅ All existing tests still passing
-- ✅ ~30 lines removed from generator.ts
+- ✅ Cache functions extracted and tested (37 tests passing)
+- ✅ Path utilities extracted and tested (103 tests passing)
+- ✅ All 301 tests still passing
+- ✅ ~131 lines removed from generator.ts
 
 **Remaining Issues:**
 

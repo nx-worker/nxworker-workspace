@@ -50,8 +50,8 @@ packages/workspace/src/generators/move-file/
 | --- | --- | --- | --- | --- | --- |
 | 1 | Constants & Types | Low | 1-2h | ~6 new files | ✅ Complete |
 | 2 | Cache Functions | Low-Med | 2-3h | ~13 new files | ✅ Complete |
-| 3 | Path Utilities | Low-Med | 3-4h | ~18 new files | 📋 Ready |
-| 4 | Project Analysis | Medium | 4-5h | ~26 new files | ⏳ Planned |
+| 3 | Path Utilities | Low-Med | 3-4h | ~18 new files | ✅ Complete |
+| 4 | Project Analysis | Medium | 4-5h | ~26 new files | 📋 Ready |
 | 5 | Import Updates | Med-High | 5-6h | ~18 new files | ⏳ Planned |
 | 6 | Export Management | Medium | 3-4h | ~10 new files | ⏳ Planned |
 | 7 | Validation | Low-Med | 2-3h | ~6 new files | ⏳ Planned |
@@ -61,8 +61,8 @@ packages/workspace/src/generators/move-file/
 | 11 | Documentation | Low | 2-3h | README updates | 🔄 In Progress |
 
 **Total Duration**: 35-42 hours (~1 week of focused work)  
-**Completed**: Phases 1-2 (✅)  
-**Next Up**: Phase 3 Path Utilities
+**Completed**: Phases 1-3 (✅)  
+**Next Up**: Phase 4 Project Analysis
 
 ## Key Principles
 
@@ -79,10 +79,12 @@ packages/workspace/src/generators/move-file/
 - [x] ✅ 20 new unit tests for constants (all passing)
 - [x] ✅ Phase 2 complete: Cache functions extracted
 - [x] ✅ 37 new unit tests for cache functions (all passing)
-- [x] ✅ All 198 tests pass (Phase 1 + Phase 2 + existing tests)
+- [x] ✅ Phase 3 complete: Path utilities extracted
+- [x] ✅ 103 new unit tests for path utilities (all passing)
+- [x] ✅ All 301 tests pass (Phases 1-3 + existing tests)
 - [ ] Test coverage >95%
 - [ ] No performance regression
-- [ ] `generator.ts` reduced to <200 lines (currently 1921 lines)
+- [ ] `generator.ts` reduced to <200 lines (currently 1790 lines, was 1921)
 - [ ] All functions documented with JSDoc
 - [ ] All functions have unit tests
 - [ ] Critical functions have benchmarks
@@ -231,10 +233,11 @@ npx nx e2e workspace-e2e
 3. ✅ **Start Phase 1** following the implementation guide - Complete
 4. ✅ **Submit PR after Phase 1** for early feedback - In progress
 5. ✅ **Continue with Phase 2** - Complete
-6. [ ] **Continue with Phase 3** - Path Utilities
-7. [ ] **Continue with remaining phases** iteratively
-8. [ ] **Update documentation** throughout
-9. [ ] **Final review and merge**
+6. ✅ **Continue with Phase 3** - Complete
+7. [ ] **Continue with Phase 4** - Project Analysis
+8. [ ] **Continue with remaining phases** iteratively
+9. [ ] **Update documentation** throughout
+10. [ ] **Final review and merge**
 
 ## Questions?
 
@@ -242,11 +245,13 @@ npx nx e2e workspace-e2e
 - Check the [ADR](./docs/adr/001-refactor-for-maintainability.md) for rationale
 - ✅ [Phase 1 Guide](./REFACTORING_PHASE_1_GUIDE.md) - Complete
 - ✅ [Phase 2 Guide](./REFACTORING_PHASE_2_GUIDE.md) - Complete
+- ✅ Phase 3: Path Utilities - Complete
 
 ---
 
-**Status**: In Progress (Phases 1-2 Complete, Phase 3 Ready)  
+**Status**: In Progress (Phases 1-3 Complete, Phase 4 Ready)  
 **Last Updated**: 2025-10-13  
 **Author**: GitHub Copilot  
 **Phase 1**: ✅ Completed  
-**Phase 2**: ✅ Completed
+**Phase 2**: ✅ Completed  
+**Phase 3**: ✅ Completed
