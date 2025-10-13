@@ -67,12 +67,10 @@ packages/workspace/src/generators/move-file/
 │
 ├── constants/ 📦 SHARED CONSTANTS
 │   ├── file-extensions.ts (~90 lines)
-│   ├── file-extensions.spec.ts (~120 lines)
-│   └── index.ts
+│   └── file-extensions.spec.ts (~120 lines)
 │
 ├── types/ 📦 SHARED TYPES
-│   ├── move-context.ts (~60 lines)
-│   └── index.ts
+│   └── move-context.ts (~60 lines)
 │
 ├── cache/ 💾 CACHE OPERATIONS (6 functions)
 │   ├── clear-all-caches.ts (~20 lines)
@@ -86,8 +84,7 @@ packages/workspace/src/generators/move-file/
 │   ├── update-file-existence-cache.ts (~15 lines)
 │   ├── update-file-existence-cache.spec.ts (~40 lines)
 │   ├── get-cached-dependent-projects.ts (~30 lines) ← NEW: dependency graph cache
-│   ├── get-cached-dependent-projects.spec.ts (~60 lines)
-│   └── index.ts
+│   └── get-cached-dependent-projects.spec.ts (~60 lines)
 │
 ├── validation/ ✅ VALIDATION & RESOLUTION (3 functions)
 │   ├── resolve-and-validate.ts (~150 lines)
@@ -95,8 +92,7 @@ packages/workspace/src/generators/move-file/
 │   ├── resolve-wildcard-alias.ts (~30 lines)
 │   ├── resolve-wildcard-alias.spec.ts (~60 lines)
 │   ├── check-for-imports-in-project.ts (~40 lines)
-│   ├── check-for-imports-in-project.spec.ts (~80 lines)
-│   └── index.ts
+│   └── check-for-imports-in-project.spec.ts (~80 lines)
 │
 ├── path-utils/ 🛤️ PATH OPERATIONS (9 functions)
 │   ├── build-file-names.ts (~15 lines)
@@ -116,8 +112,7 @@ packages/workspace/src/generators/move-file/
 │   ├── remove-source-file-extension.ts (~25 lines)
 │   ├── remove-source-file-extension.spec.ts (~50 lines)
 │   ├── get-relative-import-specifier.ts (~30 lines)
-│   ├── get-relative-import-specifier.spec.ts (~70 lines)
-│   └── index.ts
+│   └── get-relative-import-specifier.spec.ts (~70 lines)
 │
 ├── import-updates/ 📥 IMPORT PATH UPDATES (9 functions)
 │   ├── update-moved-file-imports-if-needed.ts (~50 lines)
@@ -137,8 +132,7 @@ packages/workspace/src/generators/move-file/
 │   ├── update-import-paths-to-package-alias.ts (~50 lines)
 │   ├── update-import-paths-to-package-alias.spec.ts (~120 lines)
 │   ├── update-import-paths-in-project.ts (~60 lines)
-│   ├── update-import-paths-in-project.spec.ts (~150 lines)
-│   └── index.ts
+│   └── update-import-paths-in-project.spec.ts (~150 lines)
 │
 ├── export-management/ 📤 EXPORT MANAGEMENT (5 functions)
 │   ├── ensure-export-if-needed.ts (~40 lines)
@@ -150,8 +144,7 @@ packages/workspace/src/generators/move-file/
 │   ├── ensure-file-exported.ts (~50 lines)
 │   ├── ensure-file-exported.spec.ts (~120 lines)
 │   ├── remove-file-export.ts (~70 lines)
-│   ├── remove-file-export.spec.ts (~180 lines)
-│   └── index.ts
+│   └── remove-file-export.spec.ts (~180 lines)
 │
 ├── project-analysis/ 🔬 PROJECT UTILITIES (13 functions)
 │   ├── find-project-for-file.ts (~30 lines)
@@ -179,8 +172,7 @@ packages/workspace/src/generators/move-file/
 │   ├── build-reverse-dependency-map.ts (~30 lines)
 │   ├── build-reverse-dependency-map.spec.ts (~70 lines)
 │   ├── to-first-path.ts (~25 lines)
-│   ├── to-first-path.spec.ts (~60 lines)
-│   └── index.ts
+│   └── to-first-path.spec.ts (~60 lines)
 │
 ├── core-operations/ ⚙️ CORE MOVE LOGIC (8 functions)
 │   ├── execute-move.ts (~80 lines)
@@ -198,8 +190,7 @@ packages/workspace/src/generators/move-file/
 │   ├── handle-default-move.ts (~30 lines)
 │   ├── handle-default-move.spec.ts (~70 lines)
 │   ├── finalize-move.ts (~40 lines)
-│   ├── finalize-move.spec.ts (~100 lines)
-│   └── index.ts
+│   └── finalize-move.spec.ts (~100 lines)
 │
 ├── benchmarks/ 📊 PERFORMANCE TESTS (4 files)
 │   ├── cache-operations.bench.ts
@@ -307,15 +298,8 @@ describe('buildTargetPath', () => {
 ```
 
 ```typescript
-// path-utils/index.ts
-export * from './build-target-path';
-export * from './split-patterns';
-// ... other exports
-```
-
-```typescript
 // generator.ts
-import { buildTargetPath } from './path-utils';
+import { buildTargetPath } from './path-utils/build-target-path';
 
 // Used in resolveAndValidate (now much shorter)
 const targetPath = buildTargetPath(

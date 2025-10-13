@@ -970,37 +970,19 @@ describe('getCachedDependentProjects', () => {
 });
 ```
 
-### Task 2.13: Create `cache/index.ts`
-
-**File**: `packages/workspace/src/generators/move-file/cache/index.ts`
-
-```typescript
-/**
- * Re-exports all cache-related functions for convenient importing.
- */
-export * from './clear-all-caches';
-export * from './cached-tree-exists';
-export * from './get-project-source-files';
-export * from './update-project-source-files-cache';
-export * from './update-file-existence-cache';
-export * from './get-cached-dependent-projects';
-```
-
-### Task 2.14: Update `generator.ts`
+### Task 2.13: Update `generator.ts`
 
 **Changes to make in `generator.ts`**:
 
 1. **Import cache functions** at the top (after other imports):
 
 ```typescript
-import {
-  clearAllCaches as clearAllCachesImpl,
-  cachedTreeExists as cachedTreeExistsImpl,
-  getProjectSourceFiles as getProjectSourceFilesImpl,
-  updateProjectSourceFilesCache as updateProjectSourceFilesCacheImpl,
-  updateFileExistenceCache as updateFileExistenceCacheImpl,
-  getCachedDependentProjects as getCachedDependentProjectsImpl,
-} from './cache';
+import { clearAllCaches as clearAllCachesImpl } from './cache/clear-all-caches';
+import { cachedTreeExists as cachedTreeExistsImpl } from './cache/cached-tree-exists';
+import { getProjectSourceFiles as getProjectSourceFilesImpl } from './cache/get-project-source-files';
+import { updateProjectSourceFilesCache as updateProjectSourceFilesCacheImpl } from './cache/update-project-source-files-cache';
+import { updateFileExistenceCache as updateFileExistenceCacheImpl } from './cache/update-file-existence-cache';
+import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './cache/get-cached-dependent-projects';
 ```
 
 2. **Create wrapper functions** that pass cache state to implementations:
@@ -1160,7 +1142,6 @@ npx nx test workspace
 - `generator.ts`: ~1,850 lines (90 lines removed, ~60 lines of wrapper functions added = net -30 lines)
 - `cache/` directory with 6 function files (~150 lines total)
 - `cache/` directory with 6 test files (~600 lines total)
-- `cache/index.ts` for re-exports
 - All 140+ existing tests still pass
 - 40+ new tests for cache functions
 
