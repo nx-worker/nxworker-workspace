@@ -1,19 +1,29 @@
 # Refactoring Visual Guide
 
-## Current Structure (Before)
+**Status**: Phase 1 ✅ Complete | Phase 2 📋 Ready
+
+## Current Structure (After Phase 1)
 
 ```
 packages/workspace/src/generators/move-file/
 │
-├── generator.ts (~2,000 lines) ⚠️ MONOLITHIC
-│   ├── Constants (lines 28-54)
-│   ├── Cache functions (5 functions) ← includes new dependency graph cache
-│   ├── Path utilities (15 functions)
-│   ├── Import updates (7 functions)
-│   ├── Export management (7 functions)
-│   ├── Project analysis (7 functions)
-│   ├── Validation (3 functions)
-│   └── Core operations (10 functions)
+├── generator.ts (~1,940 lines) ⚠️ STILL LARGE (Phase 1 reduced ~30 lines)
+│   ├── Cache functions (6 functions) ← includes dependency graph cache [Phase 2 📋]
+│   ├── Path utilities (15 functions) [Phase 3 ⏳]
+│   ├── Import updates (7 functions) [Phase 5 ⏳]
+│   ├── Export management (7 functions) [Phase 6 ⏳]
+│   ├── Project analysis (7 functions) [Phase 4 ⏳]
+│   ├── Validation (3 functions) [Phase 7 ⏳]
+│   └── Core operations (10 functions) [Phase 8 ⏳]
+│
+├── constants/ ✅ PHASE 1 COMPLETE
+│   ├── file-extensions.ts (~76 lines)
+│   ├── file-extensions.spec.ts (~231 lines, 20 tests)
+│   └── index.ts
+│
+├── types/ ✅ PHASE 1 COMPLETE
+│   ├── move-context.ts (~80 lines)
+│   └── index.ts
 │
 ├── generator.spec.ts (~2,700 lines) ⚠️ MONOLITHIC
 │   └── 141 tests mixed together
@@ -32,10 +42,17 @@ packages/workspace/src/generators/move-file/
     └── sanitize-path.spec.ts
 ```
 
-**Problems:**
+**Phase 1 Progress:**
 
-- 😫 Hard to find specific functions (need to scroll through 2,000 lines)
-- 🔍 Hard to find specific tests (need to search through 2,650 lines)
+- ✅ Constants extracted and tested (20 tests passing)
+- ✅ Types extracted with full documentation
+- ✅ All existing tests still passing
+- ✅ ~30 lines removed from generator.ts
+
+**Remaining Issues:**
+
+- 😫 Still hard to find specific functions (need to scroll through ~1,940 lines)
+- 🔍 Still hard to find specific tests (need to search through ~2,700 lines)
 - 🐛 Changes to one function can affect others (unclear dependencies)
 - 📝 Large PRs are hard to review
 - 🎯 Performance bottlenecks are hidden
