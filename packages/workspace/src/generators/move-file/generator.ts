@@ -37,17 +37,15 @@ import { getProjectSourceFiles as getProjectSourceFilesImpl } from './cache/get-
 import { updateProjectSourceFilesCache as updateProjectSourceFilesCacheImpl } from './cache/update-project-source-files-cache';
 import { updateFileExistenceCache as updateFileExistenceCacheImpl } from './cache/update-file-existence-cache';
 import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './cache/get-cached-dependent-projects';
-import {
-  buildFileNames,
-  buildPatterns,
-  buildTargetPath,
-  splitPatterns,
-  toAbsoluteWorkspacePath,
-  stripFileExtension,
-  hasSourceFileExtension,
-  removeSourceFileExtension,
-  getRelativeImportSpecifier,
-} from './path-utils';
+import { buildFileNames } from './path-utils/build-file-names';
+import { buildPatterns } from './path-utils/build-patterns';
+import { buildTargetPath } from './path-utils/build-target-path';
+import { splitPatterns } from './path-utils/split-patterns';
+import { toAbsoluteWorkspacePath } from './path-utils/to-absolute-workspace-path';
+import { stripFileExtension } from './path-utils/strip-file-extension';
+import { hasSourceFileExtension } from './path-utils/has-source-file-extension';
+import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
+import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
