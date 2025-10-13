@@ -1,0 +1,141 @@
+name: Format Code
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to amend commits and force push
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check if running on default branch
+        id: check-branch
+        run: |
+          # Determine the default branch dynamically
+          DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+          echo "default-branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
+
+          # Prevent running on the default branch
+          if [ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "Error: This workflow cannot run on the default branch ($DEFAULT_BRANCH)"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/checkout@v5
+        with:
+          # Fetch all history to compare with main branch
+          fetch-depth: 0
+          # Use token that allows force push
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Format commits
+        shell: bash -e {0}
+        run: |
+          # Get the default branch from the previous step
+          DEFAULT_BRANCH="${{ steps.check-branch.outputs.default-branch }}"
+
+          # Get the current branch name
+          CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+
+          # Check if this branch has an open pull request and use its target branch
+          BASE_BRANCH=$(gh pr view "$CURRENT_BRANCH" --json baseRefName --jq '.baseRefName' 2>/dev/null || echo "")
+
+          if [ -z "$BASE_BRANCH" ]; then
+            # No PR found, use default branch
+            BASE_BRANCH="$DEFAULT_BRANCH"
+            echo "No open pull request found. Using default branch: $BASE_BRANCH"
+          else
+            echo "Found open pull request targeting: $BASE_BRANCH"
+          fi
+
+          echo "Formatting commits on branch: $CURRENT_BRANCH"
+          echo "Comparing with base branch: $BASE_BRANCH"
+
+          # Fetch the base branch
+          git fetch origin "$BASE_BRANCH:$BASE_BRANCH"
+
+          # Get the list of commits between base branch and current branch
+          COMMITS=$(git rev-list --reverse "$BASE_BRANCH..$CURRENT_BRANCH")
+
+          if [ -z "$COMMITS" ]; then
+            echo "No commits to format (branch is up to date with $BASE_BRANCH)"
+            exit 0
+          fi
+
+          echo "Found commits to format:"
+          git log --oneline "$BASE_BRANCH..$CURRENT_BRANCH"
+          echo ""
+
+          # Get the merge base (common ancestor)
+          MERGE_BASE=$(git merge-base "$BASE_BRANCH" "$CURRENT_BRANCH")
+          echo "Merge base: $MERGE_BASE"
+
+          # Reset to merge base to start replaying commits
+          git reset --hard "$MERGE_BASE"
+
+          # Process each commit
+          for COMMIT in $COMMITS; do
+            echo ""
+            echo "=========================================="
+            echo "Processing commit: $COMMIT"
+            git log -1 --oneline "$COMMIT"
+            echo "=========================================="
+            
+            # Cherry-pick the commit (this applies it to current HEAD)
+            if ! git cherry-pick "$COMMIT"; then
+              echo "Error: Failed to cherry-pick commit $COMMIT"
+              git cherry-pick --abort
+              exit 1
+            fi
+            
+            # Run format check
+            echo "Checking formatting..."
+            if npx nx format:check; then
+              echo "✓ Commit is properly formatted, no changes needed"
+            else
+              echo "✗ Formatting issues found, applying fixes..."
+              
+              # Apply formatting
+              npx nx format:write
+              
+              # Check if there are any changes after formatting
+              if ! git diff --quiet; then
+                echo "Amending commit with formatting changes..."
+                git add -A
+                git commit --amend --no-edit
+                echo "✓ Commit amended with formatting fixes"
+              else
+                echo "✓ No formatting changes needed after all"
+              fi
+            fi
+          done
+
+          echo ""
+          echo "=========================================="
+          echo "All commits processed successfully"
+          echo "=========================================="
+          echo ""
+          echo "Final commit history:"
+          git log --oneline "$BASE_BRANCH..$CURRENT_BRANCH"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Force push formatted commits
+        run: |
+          # Force push the reformatted branch
+          # Use --force-with-lease with --force-if-includes for safety
+          git push --force-with-lease --force-if-includes origin "HEAD:${{ github.ref_name }}"
+          echo "✓ Successfully pushed formatted commits to ${{ github.ref_name }}"
