@@ -16,8 +16,6 @@ import { sanitizePath } from './security-utils/sanitize-path';
 import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
 import {
-  updateImportSpecifier,
-  updateImportSpecifierPattern,
   hasImportSpecifier,
   clearCache,
   getCacheStats,
@@ -32,7 +30,6 @@ import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './
 import { buildTargetPath } from './path-utils/build-target-path';
 import { splitPatterns } from './path-utils/split-patterns';
 import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
-import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
 import { findProjectForFile } from './project-analysis/find-project-for-file';
 import { isProjectEmpty } from './project-analysis/is-project-empty';
 import { getDependentProjectNames } from './project-analysis/get-dependent-project-names';
@@ -40,6 +37,11 @@ import { deriveProjectDirectoryFromSource } from './project-analysis/derive-proj
 import { getProjectImportPath } from './project-analysis/get-project-import-path';
 import { clearCompilerPathsCache } from './project-analysis/read-compiler-paths';
 import { getProjectEntryPointPaths } from './project-analysis/get-project-entry-point-paths';
+import { updateMovedFileImportsIfNeeded } from './import-updates/update-moved-file-imports-if-needed';
+import { updateTargetProjectImportsIfNeeded } from './import-updates/update-target-project-imports-if-needed';
+import { updateImportPathsInDependentProjects } from './import-updates/update-import-paths-in-dependent-projects';
+import { updateImportPathsToPackageAlias } from './import-updates/update-import-paths-to-package-alias';
+import { updateImportPathsInProject } from './import-updates/update-import-paths-in-project';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -521,12 +523,17 @@ async function executeMove(
     updateProjectSourceFilesCache(targetProject.root, '', normalizedTarget);
   }
 
-  updateMovedFileImportsIfNeeded(tree, ctx);
+  updateMovedFileImportsIfNeeded(tree, ctx, cachedTreeExists);
 
   await handleMoveStrategy(tree, getProjectGraphAsync, projects, ctx);
 
   const sourceIdentifier = sourceImportPath || normalizedSource;
-  updateTargetProjectImportsIfNeeded(tree, ctx, sourceIdentifier);
+  updateTargetProjectImportsIfNeeded(
+    tree,
+    ctx,
+    sourceIdentifier,
+    getProjectSourceFiles,
+  );
 
   ensureExportIfNeeded(tree, ctx, options);
 
@@ -548,26 +555,7 @@ function createTargetFile(
 }
 
 /**
- * Updates relative imports within the moved file to use alias imports to the source project.
- *
- * @param tree - The virtual file system tree.
- * @param ctx - Resolved move context.
- */
-function updateMovedFileImportsIfNeeded(tree: Tree, ctx: MoveContext): void {
-  const {
-    isSameProject,
-    normalizedSource,
-    normalizedTarget,
-    sourceProject,
-    sourceImportPath,
-  } = ctx;
-
-  if (isSameProject) {
-    // For same-project moves, update relative imports to maintain correct paths
-    updateRelativeImportsInMovedFile(tree, normalizedSource, normalizedTarget);
-  } else if (sourceImportPath) {
-    // For cross-project moves, convert relative imports to the source project to alias imports
-    updateRelativeImportsToAliasInMovedFile(
+ * Resolves a relative import path to an absolute workspace path.
       tree,
       normalizedSource,
       normalizedTarget,
@@ -575,127 +563,6 @@ function updateMovedFileImportsIfNeeded(tree: Tree, ctx: MoveContext): void {
       sourceImportPath,
     );
   }
-}
-
-/**
- * Updates relative imports within the moved file when moving within the same project.
- *
- * @param tree - The virtual file system tree.
- * @param normalizedSource - Original file path.
- * @param normalizedTarget - New file path.
- */
-function updateRelativeImportsInMovedFile(
-  tree: Tree,
-  normalizedSource: string,
-  normalizedTarget: string,
-): void {
-  const content = treeReadCache.read(tree, normalizedTarget, 'utf-8');
-  if (!content) {
-    return;
-  }
-
-  logger.verbose(
-    `Updating relative imports in moved file to maintain correct paths`,
-  );
-
-  // Use jscodeshift to update relative imports in the moved file
-  updateImportSpecifierPattern(
-    tree,
-    normalizedTarget,
-    (specifier) => {
-      // Only process relative imports
-      return specifier.startsWith('.');
-    },
-    (oldImportPath) => {
-      // Calculate the new relative path from target to the imported file
-      const sourceDir = path.dirname(normalizedSource);
-
-      // Resolve the import path relative to the original location
-      const absoluteImportPath = path.join(sourceDir, oldImportPath);
-
-      // Calculate the new relative path from the target location
-      const newRelativePath = getRelativeImportSpecifier(
-        normalizedTarget,
-        absoluteImportPath,
-      );
-
-      if (newRelativePath !== oldImportPath) {
-        logger.verbose(
-          `Updated import '${oldImportPath}' to '${newRelativePath}' in moved file`,
-        );
-      }
-
-      return newRelativePath;
-    },
-  );
-}
-
-/**
- * Updates relative imports within the moved file to use alias imports when moving across projects.
- *
- * @param tree - The virtual file system tree.
- * @param normalizedSource - Original file path.
- * @param normalizedTarget - New file path.
- * @param sourceProject - Source project configuration.
- * @param sourceImportPath - Import alias for the source project.
- */
-function updateRelativeImportsToAliasInMovedFile(
-  tree: Tree,
-  normalizedSource: string,
-  normalizedTarget: string,
-  sourceProject: ProjectConfiguration,
-  sourceImportPath: string,
-): void {
-  const content = treeReadCache.read(tree, normalizedTarget, 'utf-8');
-  if (!content) {
-    return;
-  }
-
-  logger.verbose(
-    `Updating relative imports in moved file to use alias imports to source project`,
-  );
-
-  const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
-
-  // Use jscodeshift to update relative imports to alias
-  updateImportSpecifierPattern(
-    tree,
-    normalizedTarget,
-    (specifier) => {
-      // Only process relative imports
-      if (!specifier.startsWith('.')) {
-        return false;
-      }
-
-      // Resolve the import path relative to the ORIGINAL (source) file location
-      const sourceDir = path.dirname(normalizedSource);
-      const resolvedPath = path.join(sourceDir, specifier);
-
-      // Check if this import points to a file in the source project
-      return resolvedPath.startsWith(sourceRoot + '/');
-    },
-    (importPath) => {
-      // Resolve the import path relative to the ORIGINAL (source) file location
-      const sourceDir = path.dirname(normalizedSource);
-      const resolvedPath = path.join(sourceDir, importPath);
-
-      // Check if the resolved file is exported from the source project's entrypoint
-      const relativeFilePathInSource = path.relative(sourceRoot, resolvedPath);
-      const isExported = isFileExported(
-        tree,
-        sourceProject,
-        relativeFilePathInSource,
-      );
-
-      if (!isExported) {
-        logger.warn(
-          `Import '${importPath}' in ${normalizedTarget} is being converted to '${sourceImportPath}', but the imported file is not exported from the source project's entrypoint. This may result in an invalid import.`,
-        );
-      }
-
-      return sourceImportPath;
-    },
-  );
 }
 
 /**
@@ -757,6 +624,7 @@ function handleSameProjectMove(tree: Tree, ctx: MoveContext): void {
     sourceProject,
     normalizedSource,
     normalizedTarget,
+    getProjectSourceFiles,
   );
 }
 
@@ -814,6 +682,8 @@ async function handleExportedMove(
       targetProjectName,
       targetRelativePath: relativeFilePathInTarget,
     },
+    getCachedDependentProjects,
+    getProjectSourceFiles,
   );
 
   // Remove the export from source index BEFORE updating imports to package alias
@@ -827,6 +697,7 @@ async function handleExportedMove(
     normalizedSource,
     targetImportPath,
     [normalizedTarget], // Exclude the moved file
+    getProjectSourceFiles,
   );
 }
 
@@ -858,6 +729,7 @@ function handleNonExportedAliasMove(tree: Tree, ctx: MoveContext): void {
     normalizedSource,
     targetImportPath,
     [normalizedTarget], // Exclude the moved file
+    getProjectSourceFiles,
   );
 }
 
@@ -877,44 +749,7 @@ function handleDefaultMove(tree: Tree, ctx: MoveContext): void {
     sourceProject,
     normalizedSource,
     normalizedTarget,
-  );
-}
-
-/**
- * Updates imports in the target project when necessary after moving the file.
- *
- * @param tree - The virtual file system tree.
- * @param ctx - Resolved move context.
- * @param sourceIdentifier - The import specifier to replace.
- */
-function updateTargetProjectImportsIfNeeded(
-  tree: Tree,
-  ctx: MoveContext,
-  sourceIdentifier: string,
-): void {
-  const {
-    isSameProject,
-    hasImportsInTarget,
-    targetImportPath,
-    targetProject,
-    normalizedTarget,
-  } = ctx;
-
-  if (isSameProject || !hasImportsInTarget || !targetImportPath) {
-    return;
-  }
-
-  logger.verbose(`Updating imports in target project to relative imports`);
-
-  const targetRoot = targetProject.sourceRoot || targetProject.root;
-  const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
-
-  updateImportsToRelative(
-    tree,
-    targetProject,
-    sourceIdentifier,
-    relativeFilePathInTarget,
-    [normalizedTarget], // Exclude the moved file
+    getProjectSourceFiles,
   );
 }
 
@@ -992,7 +827,8 @@ async function finalizeMove(
 }
 
 /**
- * Checks if a file is exported from the project's entrypoint
+ * Checks if a file is exported from the project's entrypoint.
+ * This is used in the main generator flow to determine export status.
  */
 function isFileExported(
   tree: Tree,
@@ -1023,178 +859,8 @@ function isFileExported(
 }
 
 /**
- * Updates import paths in all projects that depend on the source project
- */
-async function updateImportPathsInDependentProjects(
-  tree: Tree,
-  projectGraph: ProjectGraph,
-  projects: Map<string, ProjectConfiguration>,
-  sourceProjectName: string,
-  sourceImportPath: string,
-  targetImportPath: string,
-  target?: { targetProjectName?: string; targetRelativePath?: string },
-): Promise<void> {
-  const { targetProjectName, targetRelativePath } = target ?? {};
-  const dependentProjectNames = Array.from(
-    getCachedDependentProjects(projectGraph, sourceProjectName),
-  );
-
-  let candidates: Array<[string, ProjectConfiguration]>;
-
-  if (dependentProjectNames.length) {
-    // Use dependency graph when available
-    candidates = dependentProjectNames
-      .map((name) => {
-        const project = projects.get(name);
-        return project ? [name, project] : null;
-      })
-      .filter(
-        (entry): entry is [string, ProjectConfiguration] => entry !== null,
-      );
-  } else {
-    // Filter: check all projects for imports
-    const projectEntries = Array.from(projects.entries());
-    candidates = projectEntries
-      .filter(([, project]) =>
-        checkForImportsInProject(tree, project, sourceImportPath),
-      )
-      .map(
-        ([name, project]) => [name, project] as [string, ProjectConfiguration],
-      );
-  }
-
-  // Preload project file caches for all dependent projects to improve performance
-  // This avoids sequential file tree traversals when updating imports
-  candidates.forEach(([, dependentProject]) => {
-    getProjectSourceFiles(tree, dependentProject.root);
-  });
-
-  candidates.forEach(([dependentName, dependentProject]) => {
-    logger.verbose(`Checking project ${dependentName} for imports`);
-
-    // If the dependent project is the target project, use relative imports
-    if (
-      targetProjectName &&
-      targetRelativePath &&
-      dependentName === targetProjectName
-    ) {
-      logger.verbose(
-        `Updating imports in target project ${dependentName} to use relative paths`,
-      );
-      updateImportsToRelative(
-        tree,
-        dependentProject,
-        sourceImportPath,
-        targetRelativePath,
-        [],
-      );
-    } else {
-      updateImportsByAliasInProject(
-        tree,
-        dependentProject,
-        sourceImportPath,
-        targetImportPath,
-      );
-    }
-  });
-}
-
-/**
- * Updates import paths within a single project to use a package alias
- */
-function updateImportPathsToPackageAlias(
-  tree: Tree,
-  project: ProjectConfiguration,
-  sourceFilePath: string,
-  targetPackageAlias: string,
-  excludeFilePaths: string[] = [],
-): void {
-  const normalizedSourceWithoutExt = normalizePath(
-    removeSourceFileExtension(sourceFilePath),
-  );
-  const excludeSet = new Set([sourceFilePath, ...excludeFilePaths]);
-  const sourceFiles = getProjectSourceFiles(tree, project.root);
-
-  for (const normalizedFilePath of sourceFiles) {
-    if (excludeSet.has(normalizedFilePath)) {
-      continue;
-    }
-
-    // Use jscodeshift to update imports that reference the source file
-    updateImportSpecifierPattern(
-      tree,
-      normalizedFilePath,
-      (specifier) => {
-        // Match relative imports that reference the source file
-        if (!specifier.startsWith('.')) {
-          return false;
-        }
-        // Resolve the import specifier to an absolute path
-        const importerDir = path.dirname(normalizedFilePath);
-        const resolvedImport = path.join(importerDir, specifier);
-        // Normalize and compare with source file (both without extension)
-        const normalizedResolvedImport = normalizePath(
-          removeSourceFileExtension(resolvedImport),
-        );
-        return normalizedResolvedImport === normalizedSourceWithoutExt;
-      },
-      () => targetPackageAlias,
-    );
-  }
-}
-
-/**
- * Updates import paths within a single project
- */
-function updateImportPathsInProject(
-  tree: Tree,
-  project: ProjectConfiguration,
-  sourceFilePath: string,
-  targetFilePath: string,
-): void {
-  const sourceFiles = getProjectSourceFiles(tree, project.root);
-  const normalizedSourceWithoutExt = normalizePath(
-    removeSourceFileExtension(sourceFilePath),
-  );
-
-  for (const normalizedFilePath of sourceFiles) {
-    if (
-      normalizedFilePath === sourceFilePath ||
-      normalizedFilePath === targetFilePath
-    ) {
-      continue;
-    }
-
-    const relativeSpecifier = getRelativeImportSpecifier(
-      normalizedFilePath,
-      targetFilePath,
-    );
-
-    // Use jscodeshift to update imports that reference the source file
-    updateImportSpecifierPattern(
-      tree,
-      normalizedFilePath,
-      (specifier) => {
-        // Match relative imports that reference the source file
-        if (!specifier.startsWith('.')) {
-          return false;
-        }
-        // Resolve the import specifier to an absolute path
-        const importerDir = path.dirname(normalizedFilePath);
-        const resolvedImport = path.join(importerDir, specifier);
-        // Normalize and compare with source file (both without extension)
-        const normalizedResolvedImport = normalizePath(
-          removeSourceFileExtension(resolvedImport),
-        );
-        return normalizedResolvedImport === normalizedSourceWithoutExt;
-      },
-      () => relativeSpecifier,
-    );
-  }
-}
-
-/**
- * Checks if a project has imports to a given file/path
+ * Checks if a project has imports to a given file/path.
+ * This is used in the main generator flow.
  */
 function checkForImportsInProject(
   tree: Tree,
@@ -1211,55 +877,6 @@ function checkForImportsInProject(
   }
 
   return false;
-}
-
-/**
- * Updates imports in target project from absolute import path to relative imports
- */
-function updateImportsToRelative(
-  tree: Tree,
-  project: ProjectConfiguration,
-  sourceImportPath: string,
-  targetRelativePath: string,
-  excludeFilePaths: string[] = [],
-): void {
-  const excludeSet = new Set(excludeFilePaths);
-  const sourceFiles = getProjectSourceFiles(tree, project.root);
-
-  for (const normalizedFilePath of sourceFiles) {
-    if (excludeSet.has(normalizedFilePath)) {
-      continue;
-    }
-
-    const projectRoot = project.sourceRoot || project.root;
-    const targetFilePath = path.join(projectRoot, targetRelativePath);
-    const relativeSpecifier = getRelativeImportSpecifier(
-      normalizedFilePath,
-      targetFilePath,
-    );
-
-    // Use jscodeshift to update imports from source import path to relative path
-    updateImportSpecifier(
-      tree,
-      normalizedFilePath,
-      sourceImportPath,
-      relativeSpecifier,
-    );
-  }
-}
-
-function updateImportsByAliasInProject(
-  tree: Tree,
-  project: ProjectConfiguration,
-  sourceImportPath: string,
-  targetImportPath: string,
-): void {
-  const sourceFiles = getProjectSourceFiles(tree, project.root);
-
-  for (const filePath of sourceFiles) {
-    // Use jscodeshift to update imports from source to target path
-    updateImportSpecifier(tree, filePath, sourceImportPath, targetImportPath);
-  }
 }
 
 /**

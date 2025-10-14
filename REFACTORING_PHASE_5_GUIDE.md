@@ -4,7 +4,7 @@
 
 This document provides a detailed implementation guide for Phase 5 of the refactoring plan. Phase 5 focuses on extracting import update functions from `generator.ts` into a dedicated `import-updates/` directory.
 
-**Phase 5 Status**: 📋 **READY TO IMPLEMENT**
+**Phase 5 Status**: ✅ **COMPLETE**
 
 ## Goals
 
@@ -543,4 +543,41 @@ Estimated effort: 3-4 hours
 
 **Created**: 2025-10-14  
 **Author**: GitHub Copilot  
-**Status**: Ready for Implementation
+**Status**: ✅ Complete
+
+## Phase 5 Completion Summary
+
+**Completed**: 2025-10-14
+
+### Implementation Results
+
+- ✅ Created `import-updates/` directory with 10 function files
+- ✅ Extracted all 9 import update functions plus 1 helper function
+- ✅ Reduced `generator.ts` from 1,368 to 988 lines (380 lines removed)
+- ✅ All 471 existing tests passing
+- ✅ Zero functional changes
+- ✅ Updated all function calls to use new module structure
+
+### Functions Extracted
+
+1. ✅ `updateMovedFileImportsIfNeeded` - Orchestrates import updates in moved file
+2. ✅ `updateRelativeImportsInMovedFile` - Updates relative imports within same project
+3. ✅ `updateRelativeImportsToAliasInMovedFile` - Converts relative to alias imports (includes isFileExported helper)
+4. ✅ `updateTargetProjectImportsIfNeeded` - Updates imports in target project
+5. ✅ `updateImportPathsInDependentProjects` - Updates imports in dependent projects
+6. ✅ `updateImportPathsToPackageAlias` - Updates imports to use package alias
+7. ✅ `updateImportPathsInProject` - Updates imports within a project
+8. ✅ `updateImportsToRelative` - Converts alias to relative imports
+9. ✅ `updateImportsByAliasInProject` - Updates alias-to-alias imports
+10. ✅ `checkForImportsInProject` - Helper to check for imports (also kept in generator.ts for resolveAndValidate)
+
+### Notes
+
+- `isFileExported` and `checkForImportsInProject` are kept in `generator.ts` as they're used by the `resolveAndValidate` function
+- The `isFileExported` function was also extracted as a helper inside `update-relative-imports-to-alias-in-moved-file.ts` for that module's use
+- All extracted functions use dependency injection pattern for cache wrappers (e.g., `getProjectSourceFilesFn`, `cachedTreeExistsFn`)
+- Total lines in `import-updates/` directory: 576 lines across 10 files
+
+### Next Phase
+
+Ready to proceed to **Phase 6: Export Management Functions**
