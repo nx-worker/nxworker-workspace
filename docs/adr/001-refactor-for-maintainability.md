@@ -56,7 +56,7 @@ We will refactor the move-file generator using an **incremental, phased approach
 
 3. **Organized by Domain**
    - Functions grouped into directories by domain (cache, path-utils, import-updates, etc.)
-   - Each directory has an `index.ts` for re-exports
+   - Direct imports from specific files (no barrel exports)
    - Clear separation of concerns
 
 4. **Performance Benchmarks**
@@ -124,7 +124,7 @@ describe('buildTargetPath', () => {
 });
 
 // File: generator.ts
-import { buildTargetPath } from './path-utils';
+import { buildTargetPath } from './path-utils/build-target-path';
 ```
 
 ## Consequences
@@ -233,33 +233,27 @@ import { buildTargetPath } from './path-utils';
 - **Tests**: `kebab-case.spec.ts` (e.g., `build-target-path.spec.ts`)
 - **Benchmarks**: `kebab-case.bench.ts` (e.g., `import-updates.bench.ts`)
 - **Types**: `kebab-case.ts` (e.g., `move-context.ts`)
-- **Re-exports**: `index.ts` in each directory
 
 ### Module Organization
 
-Each directory will have:
+Each directory will have function files and their corresponding test files:
 
 ```
 directory/
 ├── function-1.ts
 ├── function-1.spec.ts
 ├── function-2.ts
-├── function-2.spec.ts
-└── index.ts
+└── function-2.spec.ts
 ```
 
-The `index.ts` will re-export all functions:
+Import directly from specific files:
 
 ```typescript
-export * from './function-1';
-export * from './function-2';
+import { function1 } from './directory/function-1';
+import { function2 } from './directory/function-2';
 ```
 
-This allows importing from the directory:
-
-```typescript
-import { function1, function2 } from './directory';
-```
+**Note:** We avoid barrel exports (index.ts files that re-export from multiple modules) within the codebase. Barrel exports are only used for package entrypoints (e.g., `packages/workspace/src/index.ts`). This keeps imports explicit and improves tree-shaking.
 
 ### State Management
 

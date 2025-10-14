@@ -1556,7 +1556,7 @@ describe('Nx version compatibility (basic happy paths)', () => {
         const utilPath = join(projectDirectory, lib1, 'src', 'lib', 'util.ts');
         writeFileSync(utilPath, 'export function util() { return 42; }\n');
 
-        // Add to lib1's index.ts (barrel export)
+        // Add to lib1's index.ts (package entrypoint)
         const lib1IndexPath = join(projectDirectory, lib1, 'src', 'index.ts');
         writeFileSync(lib1IndexPath, "export * from './lib/util';\n");
 

@@ -172,6 +172,16 @@ When developing generators, executors, or other tools in the `@nxworker/workspac
 
 **Rationale:** Generators should produce minimal output to avoid cluttering the user experience. Users primarily care about what files changed, not the internal mechanics of how the generator works.
 
+### Module Organization and Imports
+
+When organizing code in the `@nxworker/workspace` package:
+
+- **Avoid barrel exports** (index.ts files that re-export from multiple modules) within the codebase
+- **Use explicit imports** from specific files (e.g., `import { foo } from './utils/foo'` instead of `import { foo } from './utils'`)
+- **Exception:** Barrel exports are acceptable for package entrypoints only (e.g., `packages/workspace/src/index.ts`)
+
+**Rationale:** Explicit imports improve tree-shaking, make dependencies clear, and reduce the risk of circular dependencies. Package entrypoint barrel exports are needed for proper public API exposure.
+
 ## File Inventory Cheat Sheet
 
 - **Repo root:** `.editorconfig`, `.eslintrc.json`, `.eslintignore`, `.prettierrc`, `.prettierignore`, `.node-version`, `.verdaccio/`, `.github/workflows/ci.yml`, `jest.config.ts`, `jest.preset.js`, `nx.json`, `package.json`, `package-lock.json`, `project.json`, `README.md`, `tsconfig.base.json`, `tools/`, `packages/`.
