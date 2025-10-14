@@ -42,6 +42,9 @@ import { updateTargetProjectImportsIfNeeded } from './import-updates/update-targ
 import { updateImportPathsInDependentProjects } from './import-updates/update-import-paths-in-dependent-projects';
 import { updateImportPathsToPackageAlias } from './import-updates/update-import-paths-to-package-alias';
 import { updateImportPathsInProject } from './import-updates/update-import-paths-in-project';
+import { ensureExportIfNeeded } from './export-management/ensure-export-if-needed';
+import { isFileExported } from './export-management/is-file-exported';
+import { removeFileExport } from './export-management/remove-file-export';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -431,6 +434,7 @@ function resolveAndValidate(
     tree,
     sourceProject,
     relativeFilePathInSource,
+    cachedTreeExists,
   );
 
   // Get import paths for both projects
@@ -535,7 +539,7 @@ async function executeMove(
     getProjectSourceFiles,
   );
 
-  ensureExportIfNeeded(tree, ctx, options);
+  ensureExportIfNeeded(tree, ctx, options, cachedTreeExists);
 
   if (!skipFinalization) {
     await finalizeMove(tree, normalizedSource, options);
@@ -689,7 +693,7 @@ async function handleExportedMove(
   // Remove the export from source index BEFORE updating imports to package alias
   // This ensures we can find and remove the relative path export before it's
   // converted to a package alias
-  removeFileExport(tree, sourceProject, relativeFilePathInSource);
+  removeFileExport(tree, sourceProject, relativeFilePathInSource, cachedTreeExists);
 
   updateImportPathsToPackageAlias(
     tree,
@@ -754,58 +758,6 @@ function handleDefaultMove(tree: Tree, ctx: MoveContext): void {
 }
 
 /**
- * Ensures the moved file is exported from the target project when required.
- *
- * @param tree - The virtual file system tree.
- * @param ctx - Resolved move context.
- * @param options - Generator options controlling export behavior.
- */
-function ensureExportIfNeeded(
-  tree: Tree,
-  ctx: MoveContext,
-  options: MoveFileGeneratorSchema,
-): void {
-  const { targetImportPath, targetProject, normalizedTarget } = ctx;
-
-  if (!targetImportPath) {
-    return;
-  }
-
-  if (!shouldExportFile(ctx, options)) {
-    return;
-  }
-
-  const targetRoot = targetProject.sourceRoot || targetProject.root;
-  const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
-
-  ensureFileExported(tree, targetProject, relativeFilePathInTarget);
-}
-
-/**
- * Determines whether the moved file should be exported after the move completes.
- *
- * @param ctx - Resolved move context.
- * @param options - Generator options controlling export behavior.
- * @returns True if an export statement should be ensured.
- */
-function shouldExportFile(
-  ctx: MoveContext,
-  options: MoveFileGeneratorSchema,
-): boolean {
-  const { isSameProject, isExported, hasImportsInTarget } = ctx;
-
-  if (options.skipExport) {
-    return false;
-  }
-
-  if (isSameProject) {
-    return isExported;
-  }
-
-  return isExported || hasImportsInTarget;
-}
-
-/**
  * Performs cleanup by deleting the source file and formatting if required.
  *
  * @param tree - The virtual file system tree.
@@ -824,38 +776,6 @@ async function finalizeMove(
   if (!options.skipFormat) {
     await formatFiles(tree);
   }
-}
-
-/**
- * Checks if a file is exported from the project's entrypoint.
- * This is used in the main generator flow to determine export status.
- */
-function isFileExported(
-  tree: Tree,
-  project: ProjectConfiguration,
-  file: string,
-): boolean {
-  const indexPaths = getProjectEntryPointPaths(tree, project);
-
-  const fileWithoutExt = removeSourceFileExtension(file);
-  const escapedFile = escapeRegex(fileWithoutExt);
-
-  return indexPaths.some((indexPath) => {
-    if (!cachedTreeExists(tree, indexPath)) {
-      return false;
-    }
-    const content = treeReadCache.read(tree, indexPath, 'utf-8');
-    if (!content) {
-      return false;
-    }
-    // Support: export ... from "path"
-    // Support: export * from "path"
-    // Support: export { Something } from "path"
-    const exportPattern = new RegExp(
-      `export\\s+(?:\\*|\\{[^}]+\\}|.+)\\s+from\\s+['"]\\.?\\.?/.*${escapedFile}['"]`,
-    );
-    return exportPattern.test(content);
-  });
 }
 
 /**
@@ -892,94 +812,6 @@ function getCachedDependentProjects(
     getDependentProjectNames,
     dependencyGraphCache,
   );
-}
-
-/**
- * Ensures the file is exported from the target project's entrypoint
- */
-function ensureFileExported(
-  tree: Tree,
-  project: ProjectConfiguration,
-  file: string,
-): void {
-  const indexPaths = getProjectEntryPointPaths(tree, project);
-
-  // Find the first existing index file
-  const indexPath =
-    indexPaths.find((p) => cachedTreeExists(tree, p)) || indexPaths[0];
-
-  let content = '';
-  if (cachedTreeExists(tree, indexPath)) {
-    content = treeReadCache.read(tree, indexPath, 'utf-8') || '';
-  }
-
-  // Add export for the moved file
-  const fileWithoutExt = removeSourceFileExtension(file);
-  const exportStatement = `export * from './${fileWithoutExt}';\n`;
-
-  // Check if export already exists
-  if (!content.includes(exportStatement.trim())) {
-    content += exportStatement;
-    tree.write(indexPath, content);
-    treeReadCache.invalidateFile(indexPath);
-    logger.verbose(`Added export to ${indexPath}`);
-  }
-}
-
-/**
- * Removes the export for a file from the project's entrypoint
- */
-function removeFileExport(
-  tree: Tree,
-  project: ProjectConfiguration,
-  file: string,
-): void {
-  const indexPaths = getProjectEntryPointPaths(tree, project);
-
-  // Find existing index files
-  indexPaths.forEach((indexPath) => {
-    if (!cachedTreeExists(tree, indexPath)) {
-      return;
-    }
-
-    const content = treeReadCache.read(tree, indexPath, 'utf-8');
-    if (!content) {
-      return;
-    }
-
-    // Remove export for the file
-    const fileWithoutExt = removeSourceFileExtension(file);
-    const escapedFile = escapeRegex(fileWithoutExt);
-
-    // Match various export patterns
-    const exportPatterns = [
-      new RegExp(
-        `export\\s+\\*\\s+from\\s+['"]\\.\\.?/${escapedFile}['"];?\\s*\\n?`,
-        'g',
-      ),
-      new RegExp(
-        `export\\s+\\{[^}]+\\}\\s+from\\s+['"]\\.\\.?/${escapedFile}['"];?\\s*\\n?`,
-        'g',
-      ),
-    ];
-
-    let updatedContent = content;
-    exportPatterns.forEach((pattern) => {
-      updatedContent = updatedContent.replace(pattern, '');
-    });
-
-    if (updatedContent !== content) {
-      // If the file becomes empty or whitespace-only, add export {}
-      // to prevent runtime errors when importing from the package
-      if (updatedContent.trim() === '') {
-        updatedContent = 'export {};\n';
-      }
-
-      tree.write(indexPath, updatedContent);
-      treeReadCache.invalidateFile(indexPath);
-      logger.verbose(`Removed export from ${indexPath}`);
-    }
-  });
 }
 
 export default moveFileGenerator;
