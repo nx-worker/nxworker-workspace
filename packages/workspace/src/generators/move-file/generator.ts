@@ -16,8 +16,6 @@ import { sanitizePath } from './security-utils/sanitize-path';
 import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
 import {
-  updateImportSpecifier,
-  updateImportSpecifierPattern,
   hasImportSpecifier,
   clearCache,
   getCacheStats,
@@ -32,7 +30,6 @@ import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './
 import { buildTargetPath } from './path-utils/build-target-path';
 import { splitPatterns } from './path-utils/split-patterns';
 import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
-import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
 import { findProjectForFile } from './project-analysis/find-project-for-file';
 import { isProjectEmpty } from './project-analysis/is-project-empty';
 import { getDependentProjectNames } from './project-analysis/get-dependent-project-names';
