@@ -412,6 +412,8 @@ packages/workspace/src/generators/move-file/
 
 ### Phase 7: Extract Validation Functions (Low-Medium Risk)
 
+**Status**: 📋 **READY TO IMPLEMENT**
+
 **Duration**: 2-3 hours  
 **Impact**: Low-Medium  
 **Testing**: Unit tests
@@ -420,16 +422,19 @@ packages/workspace/src/generators/move-file/
 
 1. Create `validation/` directory with individual files for:
    - `resolve-and-validate.ts`
-   - `resolve-wildcard-alias.ts`
-   - `check-for-imports-in-project.ts`
+   - `check-for-imports-in-project.ts` (move from import-updates/)
 
 2. Write unit tests with various validation scenarios
+
+**Note**: `resolveWildcardAlias` is already extracted as a private function in `project-analysis/get-project-import-path.ts`
 
 #### Success Criteria
 
 - All existing tests pass
 - Validation logic isolated and testable
 - Clear error messages maintained
+
+**Implementation Guide**: [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md)
 
 ### Phase 8: Extract Core Operations (Medium-High Risk)
 

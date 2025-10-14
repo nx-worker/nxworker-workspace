@@ -124,6 +124,20 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 
 **Best for**: Reference for the completed sixth phase of the refactoring (export management).
 
+### 🔧 [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md)
+
+**Implementation guide** - Step-by-step for Phase 7
+
+- Detailed tasks for Phase 7 (Validation Functions)
+- Complete code examples for 2 validation functions
+- Test examples with 40+ tests
+- Verification steps
+- Expected outcomes
+- Commit message template
+- **Status**: 📋 Ready to implement
+
+**Best for**: Implementation guide for extracting validation functions (resolveAndValidate, checkForImportsInProject).
+
 ### 📝 [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)
 
 **Architecture Decision Record** - Why and how
@@ -154,8 +168,9 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 5. ✅ Phase 3: Path Utilities - Completed
 6. ✅ [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md) - Completed
 7. ✅ [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md) - Completed
-8. 📋 [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Ready to implement
-9. Follow each remaining phase in sequence
+8. ✅ [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Completed
+9. 📋 [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md) - Ready to implement
+10. Follow each remaining phase in sequence
 
 ### For Stakeholders
 
