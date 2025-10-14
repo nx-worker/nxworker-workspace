@@ -1461,58 +1461,26 @@ export function toFirstPath(pathEntry: unknown): string | null {
 }
 ```
 
-### Task 4.14: Create `project-analysis/index.ts`
+### Task 4.14: Update `generator.ts` imports
 
-**File**: `packages/workspace/src/generators/move-file/project-analysis/index.ts`
-
-```typescript
-/**
- * Project analysis utilities for the move-file generator.
- *
- * This module contains functions for analyzing project structure,
- * dependencies, and TypeScript path mappings.
- */
-
-export { findProjectForFile } from './find-project-for-file';
-export { isProjectEmpty } from './is-project-empty';
-export { getDependentProjectNames } from './get-dependent-project-names';
-export { deriveProjectDirectoryFromSource } from './derive-project-directory-from-source';
-export { getProjectImportPath } from './get-project-import-path';
-export {
-  readCompilerPaths,
-  clearCompilerPathsCache,
-} from './read-compiler-paths';
-export { getProjectEntryPointPaths } from './get-project-entry-point-paths';
-export { getFallbackEntryPointPaths } from './get-fallback-entry-point-paths';
-export { pointsToProjectIndex } from './points-to-project-index';
-export { isIndexFilePath } from './is-index-file-path';
-export { isWildcardAlias } from './is-wildcard-alias';
-export { buildReverseDependencyMap } from './build-reverse-dependency-map';
-export { toFirstPath } from './to-first-path';
-```
-
-### Task 4.15: Update `generator.ts` imports
-
-Update the imports in `generator.ts` to use the new project-analysis module:
+Update the imports in `generator.ts` to use the new project-analysis functions:
 
 ```typescript
 // Add to imports at top of file
-import {
-  findProjectForFile,
-  isProjectEmpty,
-  getDependentProjectNames,
-  deriveProjectDirectoryFromSource,
-  getProjectImportPath,
-  readCompilerPaths,
-  getProjectEntryPointPaths,
-  getFallbackEntryPointPaths,
-  pointsToProjectIndex,
-  isIndexFilePath,
-  isWildcardAlias,
-  buildReverseDependencyMap,
-  toFirstPath,
-  clearCompilerPathsCache,
-} from './project-analysis';
+import { findProjectForFile } from './project-analysis/find-project-for-file';
+import { isProjectEmpty } from './project-analysis/is-project-empty';
+import { getDependentProjectNames } from './project-analysis/get-dependent-project-names';
+import { deriveProjectDirectoryFromSource } from './project-analysis/derive-project-directory-from-source';
+import { getProjectImportPath } from './project-analysis/get-project-import-path';
+import { readCompilerPaths } from './project-analysis/read-compiler-paths';
+import { getProjectEntryPointPaths } from './project-analysis/get-project-entry-point-paths';
+import { getFallbackEntryPointPaths } from './project-analysis/get-fallback-entry-point-paths';
+import { pointsToProjectIndex } from './project-analysis/points-to-project-index';
+import { isIndexFilePath } from './project-analysis/is-index-file-path';
+import { isWildcardAlias } from './project-analysis/is-wildcard-alias';
+import { buildReverseDependencyMap } from './project-analysis/build-reverse-dependency-map';
+import { toFirstPath } from './project-analysis/to-first-path';
+import { clearCompilerPathsCache } from './project-analysis/read-compiler-paths';
 ```
 
 Remove the corresponding function implementations from `generator.ts`.
