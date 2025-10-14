@@ -132,7 +132,7 @@ describe('buildReverseDependencyMap', () => {
   it('should handle null dependencies object', () => {
     const projectGraph: ProjectGraph = {
       nodes: {},
-      dependencies: null as any,
+      dependencies: null as unknown as Record<string, never>,
     };
 
     const result = buildReverseDependencyMap(projectGraph);

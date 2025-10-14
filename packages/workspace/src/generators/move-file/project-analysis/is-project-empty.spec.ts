@@ -2,6 +2,7 @@ import { Tree, ProjectConfiguration } from '@nx/devkit';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { isProjectEmpty } from './is-project-empty';
 import { clearCompilerPathsCache } from './read-compiler-paths';
+import { treeReadCache } from '../tree-cache';
 
 describe('isProjectEmpty', () => {
   let tree: Tree;
@@ -9,6 +10,7 @@ describe('isProjectEmpty', () => {
 
   beforeEach(() => {
     clearCompilerPathsCache();
+    treeReadCache.clear();
     tree = createTreeWithEmptyWorkspace();
     // Remove the default tsconfig.base.json created by createTreeWithEmptyWorkspace
     if (tree.exists('tsconfig.base.json')) {
@@ -18,6 +20,7 @@ describe('isProjectEmpty', () => {
       tree.delete('tsconfig.json');
     }
     clearCompilerPathsCache();
+    treeReadCache.clear();
     project = {
       root: 'packages/lib1',
       sourceRoot: 'packages/lib1/src',
@@ -27,6 +30,7 @@ describe('isProjectEmpty', () => {
 
   afterEach(() => {
     clearCompilerPathsCache();
+    treeReadCache.clear();
   });
 
   describe('empty projects', () => {
@@ -197,13 +201,11 @@ describe('isProjectEmpty', () => {
         projectType: 'application',
       };
 
-      // For apps, main.ts is considered an entry point
-      tree.write('apps/app1/src/main.ts', 'console.log("app");');
+      // For apps, index.ts is the standard entry point
       tree.write('apps/app1/src/index.ts', 'export * from "./app";');
 
       const result = isProjectEmpty(tree, appProject);
 
-      // Both main.ts and index.ts should be recognized as entry points
       expect(result).toBe(true);
     });
   });

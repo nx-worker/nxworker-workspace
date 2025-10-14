@@ -4,6 +4,7 @@ import {
   readCompilerPaths,
   clearCompilerPathsCache,
 } from './read-compiler-paths';
+import { treeReadCache } from '../tree-cache';
 
 describe('readCompilerPaths', () => {
   let tree: Tree;
@@ -11,6 +12,7 @@ describe('readCompilerPaths', () => {
   beforeEach(() => {
     // Clear cache FIRST before creating new tree
     clearCompilerPathsCache();
+    treeReadCache.clear();
     tree = createTreeWithEmptyWorkspace();
     // Remove the default tsconfig.base.json created by createTreeWithEmptyWorkspace
     if (tree.exists('tsconfig.base.json')) {
@@ -21,10 +23,12 @@ describe('readCompilerPaths', () => {
     }
     // Clear cache again to ensure clean state
     clearCompilerPathsCache();
+    treeReadCache.clear();
   });
 
   afterEach(() => {
     clearCompilerPathsCache();
+    treeReadCache.clear();
   });
 
   it('should read paths from tsconfig.base.json', () => {
@@ -167,6 +171,7 @@ describe('readCompilerPaths', () => {
     const result1 = readCompilerPaths(tree);
 
     clearCompilerPathsCache();
+    treeReadCache.clear(); // Also clear tree cache to re-read the file
 
     tree.write(
       'tsconfig.base.json',

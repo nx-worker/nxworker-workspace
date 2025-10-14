@@ -4,7 +4,6 @@ import {
   ProjectConfiguration,
   ProjectGraph,
   Tree,
-  visitNotIgnoredFiles,
   logger,
   createProjectGraphAsync,
   normalizePath,
@@ -24,19 +23,14 @@ import {
   getCacheStats,
 } from './jscodeshift-utils';
 import { treeReadCache } from './tree-cache';
-import { primaryEntryBaseNames } from './constants/file-extensions';
 import type { MoveContext } from './types/move-context';
-import { clearAllCaches as clearAllCachesImpl } from './cache/clear-all-caches';
 import { cachedTreeExists as cachedTreeExistsImpl } from './cache/cached-tree-exists';
 import { getProjectSourceFiles as getProjectSourceFilesImpl } from './cache/get-project-source-files';
 import { updateProjectSourceFilesCache as updateProjectSourceFilesCacheImpl } from './cache/update-project-source-files-cache';
 import { updateFileExistenceCache as updateFileExistenceCacheImpl } from './cache/update-file-existence-cache';
 import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './cache/get-cached-dependent-projects';
-import { buildFileNames } from './path-utils/build-file-names';
-import { buildPatterns } from './path-utils/build-patterns';
 import { buildTargetPath } from './path-utils/build-target-path';
 import { splitPatterns } from './path-utils/split-patterns';
-import { hasSourceFileExtension } from './path-utils/has-source-file-extension';
 import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
 import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
 import { findProjectForFile } from './project-analysis/find-project-for-file';
@@ -46,12 +40,6 @@ import { deriveProjectDirectoryFromSource } from './project-analysis/derive-proj
 import { getProjectImportPath } from './project-analysis/get-project-import-path';
 import { clearCompilerPathsCache } from './project-analysis/read-compiler-paths';
 import { getProjectEntryPointPaths } from './project-analysis/get-project-entry-point-paths';
-import { getFallbackEntryPointPaths } from './project-analysis/get-fallback-entry-point-paths';
-import { pointsToProjectIndex } from './project-analysis/points-to-project-index';
-import { isIndexFilePath } from './project-analysis/is-index-file-path';
-import { isWildcardAlias } from './project-analysis/is-wildcard-alias';
-import { buildReverseDependencyMap } from './project-analysis/build-reverse-dependency-map';
-import { toFirstPath } from './project-analysis/to-first-path';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -125,15 +113,6 @@ function cachedTreeExists(tree: Tree, filePath: string): boolean {
 function updateFileExistenceCache(filePath: string, exists: boolean): void {
   updateFileExistenceCacheImpl(filePath, exists, fileExistenceCache);
 }
-
-const primaryEntryFilenames = buildFileNames(primaryEntryBaseNames);
-const mainEntryFilenames = buildFileNames(['main']);
-
-const entrypointPatterns = buildPatterns(
-  ['', 'src/', 'lib/'],
-  primaryEntryFilenames,
-);
-const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
 
 /**
  * Generator to move a file from one Nx project to another
