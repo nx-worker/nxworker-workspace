@@ -235,18 +235,7 @@ describe('file-extensions', () => {
 });
 ```
 
-### Task 1.3: Create `constants/index.ts`
-
-**File**: `packages/workspace/src/generators/move-file/constants/index.ts`
-
-```typescript
-/**
- * Re-exports all constants for convenient importing.
- */
-export * from './file-extensions';
-```
-
-### Task 1.4: Create `types/move-context.ts`
+### Task 1.3: Create `types/move-context.ts`
 
 **File**: `packages/workspace/src/generators/move-file/types/move-context.ts`
 
@@ -312,18 +301,7 @@ export interface MoveContext {
 }
 ```
 
-### Task 1.5: Create `types/index.ts`
-
-**File**: `packages/workspace/src/generators/move-file/types/index.ts`
-
-```typescript
-/**
- * Re-exports all types for convenient importing.
- */
-export * from './move-context';
-```
-
-### Task 1.6: Update `generator.ts`
+### Task 1.4: Update `generator.ts`
 
 **Changes to make in `generator.ts`**:
 
@@ -346,8 +324,8 @@ import {
   primaryEntryBaseNames,
   sourceFileExtensions,
   strippableExtensions,
-} from './constants';
-import type { MoveContext } from './types';
+} from './constants/file-extensions';
+import type { MoveContext } from './types/move-context';
 ```
 
 3. Remove the `MoveContext` type declaration (currently around line 575):
@@ -458,9 +436,7 @@ npx nx test workspace
 
 - ✅ Created `constants/file-extensions.ts` with all file extension constants
 - ✅ Created `constants/file-extensions.spec.ts` with 20 comprehensive tests
-- ✅ Created `constants/index.ts` for re-exports
 - ✅ Created `types/move-context.ts` with MoveContext interface
-- ✅ Created `types/index.ts` for re-exports
 - ✅ Updated `generator.ts` imports and removed inline constants/types
 - ✅ All 140+ existing tests passing
 - ✅ All 20 new constant tests passing
