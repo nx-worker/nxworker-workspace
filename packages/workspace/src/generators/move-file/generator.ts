@@ -39,6 +39,21 @@ import { splitPatterns } from './path-utils/split-patterns';
 import { hasSourceFileExtension } from './path-utils/has-source-file-extension';
 import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
 import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
+import {
+  findProjectForFile,
+  isProjectEmpty,
+  getDependentProjectNames,
+  deriveProjectDirectoryFromSource,
+  getProjectImportPath,
+  clearCompilerPathsCache,
+  getProjectEntryPointPaths,
+  getFallbackEntryPointPaths,
+  pointsToProjectIndex,
+  isIndexFilePath,
+  isWildcardAlias,
+  buildReverseDependencyMap,
+  toFirstPath,
+} from './project-analysis';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
@@ -53,12 +68,6 @@ const projectSourceFilesCache = new Map<string, string[]>();
 const fileExistenceCache = new Map<string, boolean>();
 
 /**
- * Cache for TypeScript compiler paths to avoid repeated parsing of tsconfig files.
- * Value: paths object or null if unavailable
- */
-let compilerPathsCache: Record<string, unknown> | null | undefined = undefined;
-
-/**
  * Cache for dependent project lookups to avoid repeated graph traversals.
  * Key: project name, Value: set of dependent project names
  */
@@ -68,14 +77,13 @@ const dependencyGraphCache = new Map<string, Set<string>>();
  * Wrapper for clearAllCaches that passes cache state
  */
 function clearAllCaches(): void {
-  clearAllCachesImpl(
-    projectSourceFilesCache,
-    fileExistenceCache,
-    { value: compilerPathsCache },
-    dependencyGraphCache,
-  );
-  // Update compilerPathsCache reference after clearing
-  compilerPathsCache = undefined;
+  // Clear local caches
+  projectSourceFilesCache.clear();
+  fileExistenceCache.clear();
+  dependencyGraphCache.clear();
+
+  // Clear compiler paths cache from project-analysis module
+  clearCompilerPathsCache();
 }
 
 /**
@@ -128,56 +136,6 @@ const entrypointPatterns = buildPatterns(
   primaryEntryFilenames,
 );
 const mainEntryPatterns = buildPatterns(['', 'src/'], mainEntryFilenames);
-
-function getProjectEntryPointPaths(
-  tree: Tree,
-  project: ProjectConfiguration,
-): string[] {
-  const sourceRoot = project.sourceRoot || project.root;
-  const seen = new Set<string>();
-  const candidates: string[] = [];
-
-  const addCandidate = (value: string | null | undefined) => {
-    if (!value) {
-      return;
-    }
-    const normalized = normalizePath(value);
-    if (seen.has(normalized)) {
-      return;
-    }
-    seen.add(normalized);
-    candidates.push(normalized);
-  };
-
-  const compilerPaths = readCompilerPaths(tree);
-  if (compilerPaths) {
-    for (const [, pathEntry] of Object.entries(compilerPaths)) {
-      const pathStr = toFirstPath(pathEntry);
-      if (!pathStr) {
-        continue;
-      }
-
-      if (pointsToProjectIndex(tree, pathStr, sourceRoot)) {
-        addCandidate(pathStr);
-      }
-    }
-  }
-
-  getFallbackEntryPointPaths(project).forEach(addCandidate);
-
-  return candidates;
-}
-
-function getFallbackEntryPointPaths(project: ProjectConfiguration): string[] {
-  const sourceRoot = project.sourceRoot || project.root;
-
-  return [
-    ...primaryEntryFilenames.map((fileName) => path.join(sourceRoot, fileName)),
-    ...primaryEntryFilenames.map((fileName) =>
-      path.join(project.root, 'src', fileName),
-    ),
-  ];
-}
 
 /**
  * Generator to move a file from one Nx project to another
@@ -342,7 +300,7 @@ export async function moveFileGenerator(
   const cacheStats = getCacheStats();
   const fileExistenceCacheSize = fileExistenceCache.size;
   const projectCacheSize = projectSourceFilesCache.size;
-  const tsconfigCached = compilerPathsCache !== undefined;
+  // Note: compilerPaths cache is managed in project-analysis module
   const treeStats = treeReadCache.getStats();
   const dependencyGraphCacheSize = dependencyGraphCache.size;
 
@@ -350,7 +308,7 @@ export async function moveFileGenerator(
     `AST Cache stats: ${cacheStats.astCacheSize} cached ASTs, ${cacheStats.contentCacheSize} cached files, ${cacheStats.failedParseCount} parse failures`,
   );
   logger.verbose(
-    `File cache stats: ${projectCacheSize} project caches, ${fileExistenceCacheSize} file existence checks, tsconfig cached: ${tsconfigCached}`,
+    `File cache stats: ${projectCacheSize} project caches, ${fileExistenceCacheSize} file existence checks`,
   );
   logger.verbose(
     `Tree cache stats: ${treeStats.contentCacheSize} file reads cached, ${treeStats.childrenCacheSize} directory listings cached`,
@@ -363,53 +321,6 @@ export async function moveFileGenerator(
 /**
  * Split a string by commas, but ignore commas inside brace expansions.
  * For example: "file1.ts,file.{ts,js}" => ["file1.ts", "file.{ts,js}"]
- */
-/**
- * Derives the project directory from the source file path relative to the source project.
- * Extracts the directory structure between the base directory (lib/app) and the filename.
- *
- * @param sourceFilePath - Original source file path.
- * @param sourceProject - Source project configuration.
- * @returns The derived directory path, or undefined if the file is in the base directory.
- */
-function deriveProjectDirectoryFromSource(
-  sourceFilePath: string,
-  sourceProject: ProjectConfiguration,
-): string | undefined {
-  const sourceRoot = sourceProject.sourceRoot || sourceProject.root;
-  const baseDir = sourceProject.projectType === 'application' ? 'app' : 'lib';
-
-  // Get the path relative to source root
-  const relativeToSourceRoot = path.relative(sourceRoot, sourceFilePath);
-
-  // Check if the file is within the base directory (lib or app)
-  const baseDirPrefix = baseDir + '/';
-  if (!relativeToSourceRoot.startsWith(baseDirPrefix)) {
-    // File is not in the expected base directory, return undefined
-    return undefined;
-  }
-
-  // Remove the base directory prefix
-  const afterBaseDir = relativeToSourceRoot.substring(baseDirPrefix.length);
-
-  // Get the directory part (without the filename)
-  const dirPath = path.dirname(afterBaseDir);
-
-  // If dirPath is '.' it means the file is directly in the base directory
-  if (dirPath === '.') {
-    return undefined;
-  }
-
-  return dirPath;
-}
-
-/**
- * Builds the target file path from the target project and optional directory.
- *
- * @param targetProject - Target project configuration.
- * @param sourceFilePath - Original source file path (used to extract filename).
- * @param projectDirectory - Optional directory within the target project, appended to base directory.
- * @returns The full target file path.
  */
 /**
  * Normalizes, validates, and gathers metadata about the source and target files.
@@ -1104,31 +1015,6 @@ async function finalizeMove(
 }
 
 /**
- * Finds the project that contains the given file path
- *
- * @param projects - Map of all projects in the workspace
- * @param filePath - File path relative to workspace root
- * @returns Project configuration and name, or null if not found
- */
-function findProjectForFile(
-  projects: Map<string, ProjectConfiguration>,
-  filePath: string,
-): { project: ProjectConfiguration; name: string } | null {
-  const entry = Array.from(projects.entries()).find(([, project]) => {
-    const projectRoot = project.root;
-    const sourceRoot = project.sourceRoot || project.root;
-
-    // Check if file is within project's source root or project root
-    return (
-      filePath.startsWith(sourceRoot + '/') ||
-      filePath.startsWith(projectRoot + '/')
-    );
-  });
-
-  return entry ? { project: entry[1], name: entry[0] } : null;
-}
-
-/**
  * Checks if a file is exported from the project's entrypoint
  */
 function isFileExported(
@@ -1157,184 +1043,6 @@ function isFileExported(
     );
     return exportPattern.test(content);
   });
-}
-
-/**
- * Gets the TypeScript import path for a project from tsconfig.base.json
- */
-function getProjectImportPath(
-  tree: Tree,
-  projectName: string,
-  project: ProjectConfiguration,
-): string | null {
-  const paths = readCompilerPaths(tree);
-  if (!paths) {
-    return null;
-  }
-
-  const sourceRoot = project.sourceRoot || project.root;
-
-  for (const [alias, pathEntry] of Object.entries(paths)) {
-    const pathStr = toFirstPath(pathEntry);
-    if (!pathStr) {
-      continue;
-    }
-
-    if (!pointsToProjectIndex(tree, pathStr, sourceRoot)) {
-      continue;
-    }
-
-    if (isWildcardAlias(alias, pathStr)) {
-      return resolveWildcardAlias(alias, sourceRoot, projectName);
-    }
-
-    return alias;
-  }
-
-  return null;
-}
-
-/**
- * Reads the TypeScript compiler path mappings from tsconfig files at the workspace root.
- * Tries tsconfig.base.json, tsconfig.json, and any tsconfig.*.json files.
- *
- * @param tree - The virtual file system tree.
- * @returns The paths object or null if unavailable.
- */
-function readCompilerPaths(tree: Tree): Record<string, unknown> | null {
-  // Return cached value if available
-  if (compilerPathsCache !== undefined) {
-    return compilerPathsCache;
-  }
-
-  // Try common tsconfig files in order of preference
-  const tsconfigFiles = ['tsconfig.base.json', 'tsconfig.json'];
-
-  // Add any tsconfig.*.json files found at the root
-  const rootFiles = treeReadCache.children(tree, '');
-  const additionalTsconfigFiles = rootFiles
-    .filter((file) => file.startsWith('tsconfig.') && file.endsWith('.json'))
-    .filter((file) => !tsconfigFiles.includes(file));
-
-  const allTsconfigFiles = [...tsconfigFiles, ...additionalTsconfigFiles];
-
-  for (const tsconfigPath of allTsconfigFiles) {
-    if (!cachedTreeExists(tree, tsconfigPath)) {
-      continue;
-    }
-
-    try {
-      const tsconfigContent = treeReadCache.read(tree, tsconfigPath, 'utf-8');
-      if (!tsconfigContent) {
-        continue;
-      }
-
-      const tsconfig = JSON.parse(tsconfigContent);
-      const paths = tsconfig.compilerOptions?.paths;
-
-      if (typeof paths === 'object' && paths) {
-        compilerPathsCache = paths;
-        return paths;
-      }
-    } catch (error) {
-      logger.warn(`Could not parse ${tsconfigPath}: ${error}`);
-    }
-  }
-
-  compilerPathsCache = null;
-  return null;
-}
-
-/**
- * Normalizes a path mapping entry to its first string value.
- *
- * @param pathEntry - Single string or string array entry from tsconfig paths.
- * @returns The first path string or null when not resolvable.
- */
-function toFirstPath(pathEntry: unknown): string | null {
-  if (typeof pathEntry === 'string') {
-    return pathEntry;
-  }
-
-  if (Array.isArray(pathEntry) && typeof pathEntry[0] === 'string') {
-    return pathEntry[0];
-  }
-
-  return null;
-}
-
-/**
- * Checks whether the provided path string points to the project's index file.
- *
- * @param tree - The virtual file system tree.
- * @param pathStr - Path value from the tsconfig mapping.
- * @param sourceRoot - Source root of the project.
- * @returns True when the path targets the project's index.
- */
-function pointsToProjectIndex(
-  tree: Tree,
-  pathStr: string,
-  sourceRoot: string,
-): boolean {
-  const normalizedPathStr = normalizePath(pathStr);
-  const normalizedSourceRoot = normalizePath(sourceRoot);
-
-  // First, check if path is within the project's source root
-  if (
-    normalizedPathStr !== normalizedSourceRoot &&
-    !normalizedPathStr.startsWith(`${normalizedSourceRoot}/`)
-  ) {
-    return false;
-  }
-
-  // Try dynamic verification: check if the file actually exists
-  if (cachedTreeExists(tree, normalizedPathStr)) {
-    return true;
-  }
-
-  // Fallback to hard-coded pattern matching for common index file patterns
-  return isIndexFilePath(normalizedPathStr);
-}
-
-/**
- * Determines if a path string references a supported index file using pattern matching.
- * This is a fallback when we can't dynamically verify the file exists.
- *
- * @param pathStr - Path value from the tsconfig mapping.
- * @returns True if the path matches common index file patterns.
- */
-function isIndexFilePath(pathStr: string): boolean {
-  const indexPatterns = [...entrypointPatterns, ...mainEntryPatterns];
-
-  return indexPatterns.some((pattern) => pathStr.endsWith(pattern));
-}
-
-/**
- * Checks whether both alias and path represent wildcard mappings.
- *
- * @param alias - The alias key from tsconfig paths.
- * @param pathStr - The resolved path string.
- * @returns True when both contain wildcard tokens.
- */
-function isWildcardAlias(alias: string, pathStr: string): boolean {
-  return alias.includes('*') && pathStr.includes('*');
-}
-
-/**
- * Resolves a wildcard alias to the project-specific alias string.
- *
- * @param alias - The alias key from tsconfig paths.
- * @param sourceRoot - Source root of the project.
- * @param projectName - Fallback project name when the directory name is missing.
- * @returns The resolved alias string.
- */
-function resolveWildcardAlias(
-  alias: string,
-  sourceRoot: string,
-  projectName: string,
-): string {
-  const projectDirName = sourceRoot.split('/').pop();
-  return alias.replace(/\*/g, projectDirName || projectName);
 }
 
 /**
@@ -1577,27 +1285,6 @@ function updateImportsByAliasInProject(
   }
 }
 
-function buildReverseDependencyMap(
-  projectGraph: ProjectGraph,
-): Map<string, Set<string>> {
-  const reverse = new Map<string, Set<string>>();
-
-  Object.entries(projectGraph.dependencies || {}).forEach(
-    ([source, dependencies]) => {
-      dependencies.forEach((dependency) => {
-        const dependents = reverse.get(dependency.target);
-        if (dependents) {
-          dependents.add(source);
-        } else {
-          reverse.set(dependency.target, new Set([source]));
-        }
-      });
-    },
-  );
-
-  return reverse;
-}
-
 /**
  * Wrapper for getCachedDependentProjects that passes cache state
  */
@@ -1611,36 +1298,6 @@ function getCachedDependentProjects(
     getDependentProjectNames,
     dependencyGraphCache,
   );
-}
-
-function getDependentProjectNames(
-  projectGraph: ProjectGraph,
-  projectName: string,
-): string[] {
-  const reverseMap = buildReverseDependencyMap(projectGraph);
-  const dependents = new Set<string>();
-  const queue: string[] = [projectName];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
-    }
-    const directDependents = reverseMap.get(current);
-    if (!directDependents) {
-      continue;
-    }
-
-    directDependents.forEach((dependent) => {
-      if (!dependents.has(dependent)) {
-        dependents.add(dependent);
-        queue.push(dependent);
-      }
-    });
-  }
-
-  dependents.delete(projectName);
-  return Array.from(dependents);
 }
 
 /**
@@ -1729,53 +1386,6 @@ function removeFileExport(
       logger.verbose(`Removed export from ${indexPath}`);
     }
   });
-}
-
-/**
- * Checks if a project is empty (contains only configuration files and index file).
- * A project is considered empty if it has no source files other than the entrypoint.
- *
- * @param tree - The virtual file system tree
- * @param project - Project configuration to check
- * @returns True if the project is empty (only index file remains)
- */
-function isProjectEmpty(tree: Tree, project: ProjectConfiguration): boolean {
-  const sourceRoot = project.sourceRoot || project.root;
-  const indexCandidates = new Set(
-    getProjectEntryPointPaths(tree, project).map((candidate) =>
-      normalizePath(candidate),
-    ),
-  );
-
-  if (indexCandidates.size === 0) {
-    indexCandidates.add(
-      normalizePath(path.join(sourceRoot, primaryEntryFilenames[0])),
-    );
-  }
-
-  // Don't use cache for isProjectEmpty check as we need the current state
-  let hasNonIndexSourceFiles = false;
-
-  visitNotIgnoredFiles(tree, sourceRoot, (filePath) => {
-    if (hasNonIndexSourceFiles) {
-      return; // Short-circuit if we already found a non-index file
-    }
-
-    const normalizedFilePath = normalizePath(filePath);
-    const isSourceFile = hasSourceFileExtension(normalizedFilePath);
-
-    if (!isSourceFile) {
-      return;
-    }
-
-    if (indexCandidates.has(normalizedFilePath)) {
-      return;
-    }
-
-    hasNonIndexSourceFiles = true;
-  });
-
-  return !hasNonIndexSourceFiles;
 }
 
 export default moveFileGenerator;
