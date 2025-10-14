@@ -3,7 +3,7 @@
 ## Repository Snapshot
 
 - **Purpose:** Nx workspace hosting an Nx plugin/library (`packages/workspace`) plus an end-to-end test harness that validates publishing the plugin to a temporary Verdaccio registry and installing it into a freshly generated Nx workspace.
-- **Scale & Stack:** Small repo (<50 files). TypeScript/JavaScript with Nx 19, SWC for builds, Jest for unit/e2e tests, Verdaccio 5 for local package registry, Prettier/ESLint for formatting and linting. Supports Node.js 18+ and npm 10+; development uses Node.js 22 LTS "Jod" (see `.node-version` and `package.json#engines`). ESLint rules enforce Node.js 18 baseline by banning features from Node.js 20+.
+- **Scale & Stack:** Small repo (~110 TypeScript/JSON files, expanded from <50 after move-file generator refactoring). TypeScript/JavaScript with Nx 19, SWC for builds, Jest for unit/e2e tests, Verdaccio 5 for local package registry, Prettier/ESLint for formatting and linting. Supports Node.js 18+ and npm 10+; development uses Node.js 22 LTS "Jod" (see `.node-version` and `package.json#engines`). ESLint rules enforce Node.js 18 baseline by banning features from Node.js 20+.
 
 ## Workspace Layout Highlights
 
@@ -159,6 +159,112 @@ Short rules (for agents and humans):
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
+## Move-File Generator Refactoring (Phases 1-4 Complete)
+
+The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-4 are complete** as of 2025-10-14.
+
+### Refactored Structure
+
+The generator code in `packages/workspace/src/generators/move-file/` is now organized by domain:
+
+- **`constants/`** ✅ Phase 1 - File extension constants and related data
+  - `file-extensions.ts` - All file extension constants (source, entrypoint, strippable)
+  - `file-extensions.spec.ts` - 20 unit tests for constants validation
+
+- **`types/`** ✅ Phase 1 - Shared TypeScript types
+  - `move-context.ts` - MoveContext type definition with full JSDoc
+
+- **`cache/`** ✅ Phase 2 - Cache management functions (6 functions)
+  - `clear-all-caches.ts` - Clears all generator caches
+  - `cached-tree-exists.ts` - Cached file existence checks
+  - `get-project-source-files.ts` - Retrieves cached project source files
+  - `update-project-source-files-cache.ts` - Updates source file cache
+  - `update-file-existence-cache.ts` - Updates file existence cache
+  - `get-cached-dependent-projects.ts` - Dependency graph cache optimization
+  - All functions have comprehensive unit tests (37 tests total)
+
+- **`path-utils/`** ✅ Phase 3 - Path manipulation and resolution (9 functions)
+  - `build-file-names.ts` - Constructs file name patterns
+  - `build-patterns.ts` - Builds glob patterns for file matching
+  - `build-target-path.ts` - Calculates target file paths
+  - `split-patterns.ts` - Splits compound path patterns
+  - `to-absolute-workspace-path.ts` - Converts to absolute workspace paths
+  - `get-relative-import-specifier.ts` - Generates relative import paths
+  - `has-source-file-extension.ts` - Checks for source file extensions
+  - `remove-source-file-extension.ts` - Removes file extensions
+  - `strip-file-extension.ts` - Strips extensions from paths
+  - All functions have comprehensive unit tests (103 tests total)
+
+- **`project-analysis/`** ✅ Phase 4 - Project analysis and resolution (13 functions)
+  - `find-project-for-file.ts` - Locates project containing a file
+  - `is-project-empty.ts` - Checks if project has source files
+  - `get-dependent-project-names.ts` - Gets projects that depend on target
+  - `derive-project-directory-from-source.ts` - Derives project directory from source file
+  - `get-project-import-path.ts` - Gets import path for project
+  - `read-compiler-paths.ts` - Reads TypeScript compiler path mappings
+  - `get-project-entry-point-paths.ts` - Gets project entry point paths
+  - `get-fallback-entry-point-paths.ts` - Gets fallback entry points
+  - `points-to-project-index.ts` - Checks if path points to project index
+  - `is-index-file-path.ts` - Checks if path is an index file
+  - `is-wildcard-alias.ts` - Checks if import uses wildcard alias
+  - `build-reverse-dependency-map.ts` - Builds reverse dependency graph
+  - `to-first-path.ts` - Helper to get first path from array/string
+  - All functions have comprehensive unit tests (170 tests total)
+
+- **`security-utils/`** - Already well-organized (pre-existing)
+  - Path sanitization and validation utilities
+
+- **Core files** (not yet refactored in Phases 1-4)
+  - `generator.ts` - Main orchestration (reduced from 1,967 to ~1,691 lines after Phase 4)
+  - `generator.spec.ts` - Integration tests (94 tests, all passing)
+  - `ast-cache.ts` - AST caching utilities
+  - `tree-cache.ts` - File tree caching
+  - `jscodeshift-utils.ts` - Code transformation utilities
+
+### Testing & Quality Metrics (Post-Phase 4)
+
+- **Total tests**: 471 tests (all passing ✅)
+  - 20 tests for constants (Phase 1)
+  - 37 tests for cache functions (Phase 2)
+  - 103 tests for path utilities (Phase 3)
+  - 170 tests for project analysis (Phase 4)
+  - 94 integration tests in generator.spec.ts
+  - Additional tests in jscodeshift-utils and other utilities
+
+- **Test pass rate**: 100% (471/471 tests passing)
+- **Lines reduced**: ~276 lines removed from generator.ts through Phase 4
+
+### Key Principles Applied
+
+1. **One function per file** - Each extracted function in its own file
+2. **Co-located tests** - Test file next to implementation (`.spec.ts`)
+3. **Domain organization** - Functions grouped by purpose (cache, path-utils, etc.)
+4. **Comprehensive testing** - Each function has dedicated unit tests
+5. **Zero breaking changes** - All existing tests continue passing
+
+### Documentation
+
+For detailed information about the refactoring:
+
+- [REFACTORING_INDEX.md](./REFACTORING_INDEX.md) - Overview and navigation guide
+- [REFACTORING_SUMMARY.md](./REFACTORING_SUMMARY.md) - Quick reference
+- [REFACTORING_PLAN.md](./REFACTORING_PLAN.md) - Full 11-phase plan
+- [REFACTORING_VISUAL_GUIDE.md](./REFACTORING_VISUAL_GUIDE.md) - Visual comparisons
+- [REFACTORING_PHASE_1_GUIDE.md](./REFACTORING_PHASE_1_GUIDE.md) - Phase 1 details
+- [REFACTORING_PHASE_2_GUIDE.md](./REFACTORING_PHASE_2_GUIDE.md) - Phase 2 details
+- [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md) - Phase 4 details
+- [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md) - Architecture decision
+
+### Remaining Phases (Planned)
+
+- **Phase 5**: Import Update Functions (7 functions)
+- **Phase 6**: Export Management (7 functions)
+- **Phase 7**: Validation (3 functions)
+- **Phase 8**: Core Operations (10 functions)
+- **Phase 9**: Split Tests (organize remaining tests)
+- **Phase 10**: Performance Benchmarks
+- **Phase 11**: Documentation updates
+
 ## Development Standards for @nxworker/workspace
 
 ### Logging Policy
@@ -186,6 +292,15 @@ When organizing code in the `@nxworker/workspace` package:
 
 - **Repo root:** `.editorconfig`, `.eslintrc.json`, `.eslintignore`, `.prettierrc`, `.prettierignore`, `.node-version`, `.verdaccio/`, `.github/workflows/ci.yml`, `jest.config.ts`, `jest.preset.js`, `nx.json`, `package.json`, `package-lock.json`, `project.json`, `README.md`, `tsconfig.base.json`, `tools/`, `packages/`.
 - **`packages/workspace/`:** `.swcrc`, `eslint.config.js`, `jest.config.ts`, `package.json`, `project.json`, `README.md`, `src/index.ts`, `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`.
+- **`packages/workspace/src/generators/move-file/`:** Refactored generator with modular structure:
+  - `generator.ts`, `generator.spec.ts`, `schema.json`, `schema.d.ts`, `README.md`
+  - `constants/` - File extension constants (2 files: implementation + tests)
+  - `types/` - MoveContext type definition (1 file)
+  - `cache/` - Cache management (12 files: 6 implementations + 6 test files)
+  - `path-utils/` - Path utilities (18 files: 9 implementations + 9 test files)
+  - `project-analysis/` - Project analysis (26 files: 13 implementations + 13 test files)
+  - `security-utils/` - Security utilities (6 files, pre-existing)
+  - `ast-cache.ts`, `tree-cache.ts`, `jscodeshift-utils.ts` (+ spec files)
 - **`packages/workspace-e2e/`:** `eslint.config.js`, `jest.config.ts`, `project.json`, `src/workspace.spec.ts`, `tsconfig.json`, `tsconfig.spec.json`.
 - **`tools/scripts/`:** `start-local-registry.ts`, `stop-local-registry.ts`.
 
