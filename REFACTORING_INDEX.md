@@ -110,6 +110,20 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 
 **Best for**: Reference for the completed fifth phase of the refactoring (import updates).
 
+### 🔧 [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md)
+
+**Implementation guide** - Step-by-step for Phase 6
+
+- Detailed tasks for Phase 6 (Export Management Functions)
+- Complete code examples for 5 export management functions
+- Test examples with 40-60+ tests
+- Verification steps
+- Expected outcomes
+- Commit message template
+- **Status**: 📋 Ready to Implement
+
+**Best for**: Implementing the sixth phase of the refactoring (export management).
+
 ### 📝 [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)
 
 **Architecture Decision Record** - Why and how
@@ -140,7 +154,7 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 5. ✅ Phase 3: Path Utilities - Completed
 6. ✅ [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md) - Completed
 7. ✅ [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md) - Completed
-8. 📋 Phase 6: Export Management - Ready to implement
+8. 📋 [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Ready to implement
 9. Follow each remaining phase in sequence
 
 ### For Stakeholders
