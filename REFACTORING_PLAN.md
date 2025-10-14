@@ -13,7 +13,9 @@ This document outlines a comprehensive plan to refactor the `@nxworker/workspace
 - ✅ **Phase 1 Complete**: Constants and types have been successfully extracted
 - ✅ **Phase 2 Complete**: Cache functions have been successfully extracted
 - ✅ **Phase 3 Complete**: Path utilities have been successfully extracted
-- 📋 **Phase 4 Ready**: Project Analysis functions ready for implementation
+- ✅ **Phase 4 Complete**: Project Analysis functions have been successfully extracted
+- ✅ **Phase 5 Complete**: Import Update functions have been successfully extracted
+- 📋 **Phase 6 Ready**: Export Management functions ready for implementation
 
 **Note**: This plan has been updated to reflect the recent dependency graph cache optimization that was added after the initial planning phase. The cache adds one additional function (`getCachedDependentProjects`) to be extracted during Phase 2.
 
@@ -233,7 +235,7 @@ packages/workspace/src/generators/move-file/
 
 ### Phase 2: Extract Cache Functions (Low-Medium Risk)
 
-**Status**: 📋 **READY TO IMPLEMENT**
+**Status**: ✅ **COMPLETED**
 
 **Duration**: 2-3 hours  
 **Impact**: Low  
@@ -309,6 +311,8 @@ packages/workspace/src/generators/move-file/
 
 ### Phase 4: Extract Project Analysis Functions (Medium Risk)
 
+**Status**: ✅ **COMPLETED**
+
 **Duration**: 4-5 hours  
 **Impact**: Medium  
 **Testing**: Unit + integration tests
@@ -340,7 +344,11 @@ packages/workspace/src/generators/move-file/
 - Project analysis logic isolated and testable
 - Mock projects used in tests for speed
 
+**Implementation Guide**: [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md)
+
 ### Phase 5: Extract Import Update Functions (Medium-High Risk)
+
+**Status**: ✅ **COMPLETED**
 
 **Duration**: 5-6 hours  
 **Impact**: Medium-High  
@@ -370,7 +378,11 @@ packages/workspace/src/generators/move-file/
 - Import update logic isolated and testable
 - Performance benchmarks show no regression
 
+**Implementation Guide**: [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md)
+
 ### Phase 6: Extract Export Management Functions (Medium Risk)
+
+**Status**: 📋 **READY TO IMPLEMENT**
 
 **Duration**: 3-4 hours  
 **Impact**: Medium  
@@ -395,6 +407,8 @@ packages/workspace/src/generators/move-file/
 - All existing tests pass
 - Export logic isolated and testable
 - Different export strategies clearly separated
+
+**Implementation Guide**: [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md)
 
 ### Phase 7: Extract Validation Functions (Low-Medium Risk)
 
