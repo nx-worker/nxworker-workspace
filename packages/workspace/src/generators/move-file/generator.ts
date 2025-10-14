@@ -39,21 +39,19 @@ import { splitPatterns } from './path-utils/split-patterns';
 import { hasSourceFileExtension } from './path-utils/has-source-file-extension';
 import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
 import { getRelativeImportSpecifier } from './path-utils/get-relative-import-specifier';
-import {
-  findProjectForFile,
-  isProjectEmpty,
-  getDependentProjectNames,
-  deriveProjectDirectoryFromSource,
-  getProjectImportPath,
-  clearCompilerPathsCache,
-  getProjectEntryPointPaths,
-  getFallbackEntryPointPaths,
-  pointsToProjectIndex,
-  isIndexFilePath,
-  isWildcardAlias,
-  buildReverseDependencyMap,
-  toFirstPath,
-} from './project-analysis';
+import { findProjectForFile } from './project-analysis/find-project-for-file';
+import { isProjectEmpty } from './project-analysis/is-project-empty';
+import { getDependentProjectNames } from './project-analysis/get-dependent-project-names';
+import { deriveProjectDirectoryFromSource } from './project-analysis/derive-project-directory-from-source';
+import { getProjectImportPath } from './project-analysis/get-project-import-path';
+import { clearCompilerPathsCache } from './project-analysis/read-compiler-paths';
+import { getProjectEntryPointPaths } from './project-analysis/get-project-entry-point-paths';
+import { getFallbackEntryPointPaths } from './project-analysis/get-fallback-entry-point-paths';
+import { pointsToProjectIndex } from './project-analysis/points-to-project-index';
+import { isIndexFilePath } from './project-analysis/is-index-file-path';
+import { isWildcardAlias } from './project-analysis/is-wildcard-alias';
+import { buildReverseDependencyMap } from './project-analysis/build-reverse-dependency-map';
+import { toFirstPath } from './project-analysis/to-first-path';
 
 /**
  * Cache for source files per project to avoid repeated tree traversals.
