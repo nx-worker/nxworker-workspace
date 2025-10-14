@@ -1,6 +1,5 @@
 import type { Tree } from '@nx/devkit';
-import type { ProjectConfiguration } from '@nx/devkit';
-import * as path from 'path';
+import * as path from 'node:path';
 import type { MoveContext } from '../types/move-context';
 import type { MoveFileGeneratorSchema } from '../schema';
 import { shouldExportFile } from './should-export-file';
@@ -33,5 +32,10 @@ export function ensureExportIfNeeded(
   const targetRoot = targetProject.sourceRoot || targetProject.root;
   const relativeFilePathInTarget = path.relative(targetRoot, normalizedTarget);
 
-  ensureFileExported(tree, targetProject, relativeFilePathInTarget, cachedTreeExists);
+  ensureFileExported(
+    tree,
+    targetProject,
+    relativeFilePathInTarget,
+    cachedTreeExists,
+  );
 }

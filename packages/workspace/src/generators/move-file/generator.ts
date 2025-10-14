@@ -13,7 +13,6 @@ import { removeGenerator } from '@nx/workspace';
 import { posix as path } from 'node:path';
 import { MoveFileGeneratorSchema } from './schema';
 import { sanitizePath } from './security-utils/sanitize-path';
-import { escapeRegex } from './security-utils/escape-regex';
 import { isValidPathInput } from './security-utils/is-valid-path-input';
 import {
   hasImportSpecifier,
@@ -29,14 +28,12 @@ import { updateFileExistenceCache as updateFileExistenceCacheImpl } from './cach
 import { getCachedDependentProjects as getCachedDependentProjectsImpl } from './cache/get-cached-dependent-projects';
 import { buildTargetPath } from './path-utils/build-target-path';
 import { splitPatterns } from './path-utils/split-patterns';
-import { removeSourceFileExtension } from './path-utils/remove-source-file-extension';
 import { findProjectForFile } from './project-analysis/find-project-for-file';
 import { isProjectEmpty } from './project-analysis/is-project-empty';
 import { getDependentProjectNames } from './project-analysis/get-dependent-project-names';
 import { deriveProjectDirectoryFromSource } from './project-analysis/derive-project-directory-from-source';
 import { getProjectImportPath } from './project-analysis/get-project-import-path';
 import { clearCompilerPathsCache } from './project-analysis/read-compiler-paths';
-import { getProjectEntryPointPaths } from './project-analysis/get-project-entry-point-paths';
 import { updateMovedFileImportsIfNeeded } from './import-updates/update-moved-file-imports-if-needed';
 import { updateTargetProjectImportsIfNeeded } from './import-updates/update-target-project-imports-if-needed';
 import { updateImportPathsInDependentProjects } from './import-updates/update-import-paths-in-dependent-projects';
@@ -693,7 +690,12 @@ async function handleExportedMove(
   // Remove the export from source index BEFORE updating imports to package alias
   // This ensures we can find and remove the relative path export before it's
   // converted to a package alias
-  removeFileExport(tree, sourceProject, relativeFilePathInSource, cachedTreeExists);
+  removeFileExport(
+    tree,
+    sourceProject,
+    relativeFilePathInSource,
+    cachedTreeExists,
+  );
 
   updateImportPathsToPackageAlias(
     tree,

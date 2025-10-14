@@ -18,7 +18,10 @@ describe('shouldExportFile', () => {
     }) as MoveFileGeneratorSchema;
 
   it('should return false when skipExport is true', () => {
-    const ctx = createMockContext({ isExported: true, hasImportsInTarget: true });
+    const ctx = createMockContext({
+      isExported: true,
+      hasImportsInTarget: true,
+    });
     const options = createMockOptions({ skipExport: true });
     expect(shouldExportFile(ctx, options)).toBe(false);
   });

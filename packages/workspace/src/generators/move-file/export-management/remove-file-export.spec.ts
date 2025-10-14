@@ -80,10 +80,7 @@ describe('removeFileExport', () => {
   });
 
   it('should not modify file if no matching export found', () => {
-    tree.write(
-      'libs/mylib/src/index.ts',
-      `export * from './lib/helpers';\n`,
-    );
+    tree.write('libs/mylib/src/index.ts', `export * from './lib/helpers';\n`);
     removeFileExport(tree, project, 'lib/utils.ts', cachedTreeExists);
 
     const content = tree.read('libs/mylib/src/index.ts', 'utf-8');
@@ -167,7 +164,12 @@ describe('removeFileExport', () => {
       'libs/mylib/index.ts',
       `export * from './lib/utils';\nexport * from './lib/helpers';\n`,
     );
-    removeFileExport(tree, projectWithoutSourceRoot, 'lib/utils.ts', cachedTreeExists);
+    removeFileExport(
+      tree,
+      projectWithoutSourceRoot,
+      'lib/utils.ts',
+      cachedTreeExists,
+    );
 
     const content = tree.read('libs/mylib/index.ts', 'utf-8');
     expect(content).not.toContain(`export * from './lib/utils'`);

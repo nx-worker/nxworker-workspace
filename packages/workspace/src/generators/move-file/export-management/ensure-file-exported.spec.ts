@@ -52,7 +52,7 @@ describe('ensureFileExported', () => {
   it('should create new entrypoint with export when none exists', () => {
     // Pre-create an empty index file like integration tests do
     tree.write('libs/mylib/src/index.ts', '');
-    
+
     ensureFileExported(tree, project, 'lib/utils.ts', cachedTreeExists);
 
     const content = tree.read('libs/mylib/src/index.ts', 'utf-8');
@@ -77,7 +77,7 @@ describe('ensureFileExported', () => {
   it('should use first path when no entrypoint exists', () => {
     // Pre-create empty index file
     tree.write('libs/mylib/src/index.ts', '');
-    
+
     ensureFileExported(tree, project, 'lib/utils.ts', cachedTreeExists);
 
     // Should write to index.ts (first in the default list)
@@ -117,8 +117,13 @@ describe('ensureFileExported', () => {
     };
     // Pre-create index file
     tree.write('libs/mylib/index.ts', '');
-    
-    ensureFileExported(tree, projectWithoutSourceRoot, 'lib/utils.ts', cachedTreeExists);
+
+    ensureFileExported(
+      tree,
+      projectWithoutSourceRoot,
+      'lib/utils.ts',
+      cachedTreeExists,
+    );
 
     const content = tree.read('libs/mylib/index.ts', 'utf-8');
     expect(content).toBe(`export * from './lib/utils';\n`);
