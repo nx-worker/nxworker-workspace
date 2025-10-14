@@ -82,6 +82,20 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 
 **Best for**: Reference for the completed second phase of the refactoring.
 
+### 🔧 [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md)
+
+**Implementation guide** - Step-by-step for Phase 4
+
+- Detailed tasks for Phase 4 (Project Analysis)
+- Complete code examples for 13 project analysis functions
+- Test examples with 80+ tests
+- Verification steps
+- Expected outcomes
+- Commit message template
+- **Status**: 📋 Ready to implement
+
+**Best for**: Implementing Phase 4 - extracting project analysis functions.
+
 ### 📝 [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)
 
 **Architecture Decision Record** - Why and how
@@ -110,7 +124,7 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 3. ✅ [REFACTORING_PHASE_1_GUIDE.md](./REFACTORING_PHASE_1_GUIDE.md) - Completed
 4. ✅ [REFACTORING_PHASE_2_GUIDE.md](./REFACTORING_PHASE_2_GUIDE.md) - Completed
 5. ✅ Phase 3: Path Utilities - Completed
-6. 📋 Phase 4: Project Analysis - Next to implement
+6. 📋 [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md) - Next to implement
 7. Follow each remaining phase in sequence
 
 ### For Stakeholders
