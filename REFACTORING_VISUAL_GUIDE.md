@@ -1,16 +1,15 @@
 # Refactoring Visual Guide
 
-**Status**: Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete
+**Status**: Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete | Phase 4 ✅ Complete | Phase 5 📋 Ready
 
-## Current Structure (After Phases 1-3)
+## Current Structure (After Phases 1-4)
 
 ```
 packages/workspace/src/generators/move-file/
 │
-├── generator.ts (~1,790 lines) ⚠️ STILL LARGE (Phases 1-3 reduced ~131 lines)
-│   ├── Import updates (7 functions) [Phase 5 ⏳]
+├── generator.ts (~1,368 lines) ⚠️ STILL LARGE (Phases 1-4 reduced ~583 lines)
+│   ├── Import updates (9 functions) [Phase 5 📋 Guide Ready]
 │   ├── Export management (7 functions) [Phase 6 ⏳]
-│   ├── Project analysis (7 functions) [Phase 4 📋]
 │   ├── Validation (3 functions) [Phase 7 ⏳]
 │   └── Core operations (10 functions) [Phase 8 ⏳]
 │
@@ -59,6 +58,35 @@ packages/workspace/src/generators/move-file/
 │   ├── get-relative-import-specifier.spec.ts
 │   └── index.ts (103 tests)
 │
+├── project-analysis/ ✅ PHASE 4 COMPLETE
+│   ├── find-project-for-file.ts
+│   ├── find-project-for-file.spec.ts
+│   ├── is-project-empty.ts
+│   ├── is-project-empty.spec.ts
+│   ├── get-dependent-project-names.ts
+│   ├── get-dependent-project-names.spec.ts
+│   ├── derive-project-directory-from-source.ts
+│   ├── derive-project-directory-from-source.spec.ts
+│   ├── get-project-import-path.ts
+│   ├── get-project-import-path.spec.ts
+│   ├── read-compiler-paths.ts
+│   ├── read-compiler-paths.spec.ts
+│   ├── get-project-entry-point-paths.ts
+│   ├── get-project-entry-point-paths.spec.ts
+│   ├── get-fallback-entry-point-paths.ts
+│   ├── get-fallback-entry-point-paths.spec.ts
+│   ├── points-to-project-index.ts
+│   ├── points-to-project-index.spec.ts
+│   ├── is-index-file-path.ts
+│   ├── is-index-file-path.spec.ts
+│   ├── is-wildcard-alias.ts
+│   ├── is-wildcard-alias.spec.ts
+│   ├── build-reverse-dependency-map.ts
+│   ├── build-reverse-dependency-map.spec.ts
+│   ├── to-first-path.ts
+│   ├── to-first-path.spec.ts
+│   └── index.ts (170 tests)
+│
 ├── generator.spec.ts (~2,700 lines) ⚠️ MONOLITHIC
 │   └── 161 tests mixed together
 │
@@ -76,20 +104,21 @@ packages/workspace/src/generators/move-file/
     └── sanitize-path.spec.ts
 ```
 
-**Phase 1-3 Progress:**
+**Phase 1-4 Progress:**
 
 - ✅ Constants extracted and tested (20 tests passing)
 - ✅ Types extracted with full documentation
 - ✅ Cache functions extracted and tested (37 tests passing)
 - ✅ Path utilities extracted and tested (103 tests passing)
-- ✅ All 301 tests still passing
-- ✅ ~131 lines removed from generator.ts
+- ✅ Project analysis extracted and tested (170 tests passing)
+- ✅ All 471 tests passing
+- ✅ ~583 lines removed from generator.ts
 
 **Remaining Issues:**
 
-- 😫 Still hard to find specific functions (need to scroll through ~1,940 lines)
+- 😫 Still hard to find specific functions (need to scroll through ~1,368 lines)
 - 🔍 Still hard to find specific tests (need to search through ~2,700 lines)
-- 🐛 Changes to one function can affect others (unclear dependencies)
+- 🐛 Import update logic is complex and hard to test in isolation
 - 📝 Large PRs are hard to review
 - 🎯 Performance bottlenecks are hidden
 
