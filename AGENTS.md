@@ -215,7 +215,7 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - Path sanitization and validation utilities
 
 - **Core files** (not yet refactored in Phases 1-4)
-  - `generator.ts` - Main orchestration (reduced from 1,967 to ~1,691 lines after Phase 4)
+  - `generator.ts` - Main orchestration (reduced from 1,967 to ~1,368 lines after Phase 4)
   - `generator.spec.ts` - Integration tests (94 tests, all passing)
   - `ast-cache.ts` - AST caching utilities
   - `tree-cache.ts` - File tree caching
@@ -232,7 +232,7 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - Additional tests in jscodeshift-utils and other utilities
 
 - **Test pass rate**: 100% (471/471 tests passing)
-- **Lines reduced**: ~276 lines removed from generator.ts through Phase 4
+- **Lines reduced**: ~599 lines removed from generator.ts through Phase 4 (1,967 → 1,368 lines)
 
 ### Key Principles Applied
 
