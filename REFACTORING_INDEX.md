@@ -92,9 +92,23 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 - Verification steps
 - Expected outcomes
 - Commit message template
-- **Status**: ✅ Complete (91.5% test pass rate)
+- **Status**: ✅ Complete (100% test pass rate)
 
 **Best for**: Reference for the completed fourth phase of the refactoring.
+
+### 🔧 [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md)
+
+**Implementation guide** - Step-by-step for Phase 5
+
+- Detailed tasks for Phase 5 (Import Update Functions)
+- Complete code examples for 9 import update functions
+- Test examples with 80+ tests
+- Verification steps
+- Expected outcomes
+- Commit message template
+- **Status**: 📋 Ready to implement
+
+**Best for**: Implementing the fifth phase of the refactoring (import updates).
 
 ### 📝 [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)
 
@@ -125,7 +139,7 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 4. ✅ [REFACTORING_PHASE_2_GUIDE.md](./REFACTORING_PHASE_2_GUIDE.md) - Completed
 5. ✅ Phase 3: Path Utilities - Completed
 6. ✅ [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md) - Completed
-7. 📋 Phase 5: Import Update Functions - Next to implement
+7. 📋 [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md) - Ready to implement
 8. Follow each remaining phase in sequence
 
 ### For Stakeholders
