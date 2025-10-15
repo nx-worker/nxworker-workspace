@@ -159,9 +159,9 @@ Short rules (for agents and humans):
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
-## Move-File Generator Refactoring (Phases 1-10 Complete)
+## Move-File Generator Refactoring (All Phases Complete)
 
-The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-10 are complete** as of 2025-10-15.
+The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **All 11 phases are complete** as of 2025-10-15.
 
 ### Refactored Structure
 
@@ -253,7 +253,7 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - `import-updates.bench.spec.ts` - Import update benchmarks (3 tests)
   - `export-management.bench.spec.ts` - Export management benchmarks (4 tests)
 
-### Testing & Quality Metrics (Post-Phase 10)
+### Testing & Quality Metrics (Post-Phase 11)
 
 - **Total tests**: 601 tests (all passing ✅)
   - 20 tests for constants (Phase 1)
@@ -269,9 +269,10 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - Additional tests in jscodeshift-utils and other utilities
 
 - **Test pass rate**: 100% (601/601 tests passing)
-- **Lines reduced**: ~324 lines removed from generator.ts in Phase 8 (633 → 309 lines, 51% reduction)
+- **Lines reduced**: ~1,660 lines removed from generator.ts (1,967 → 307 lines, 85% reduction)
 - **Test organization**: Integration tests reorganized with section headers and documentation (Phase 9)
 - **Performance benchmarks**: 16 tests covering cache, path, import, and export operations (Phase 10)
+- **Documentation**: 10 module READMEs + comprehensive refactoring guides (Phase 11)
 
 ### Key Principles Applied
 
@@ -298,11 +299,12 @@ For detailed information about the refactoring:
 - [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md) - Phase 8 details
 - [REFACTORING_PHASE_9_GUIDE.md](./REFACTORING_PHASE_9_GUIDE.md) - Phase 9 details
 - [REFACTORING_PHASE_10_GUIDE.md](./REFACTORING_PHASE_10_GUIDE.md) - Phase 10 details
+- [REFACTORING_PHASE_11_GUIDE.md](./REFACTORING_PHASE_11_GUIDE.md) - Phase 11 details
 - [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md) - Architecture decision
 
 ### Remaining Phases
 
-- **Phase 11**: Documentation updates (planned)
+**All 11 phases complete!** 🎉 The refactoring is finished.
 
 ## Development Standards for @nxworker/workspace
 
