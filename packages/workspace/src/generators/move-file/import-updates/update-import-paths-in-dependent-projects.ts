@@ -1,5 +1,5 @@
 import { Tree, logger, ProjectConfiguration, ProjectGraph } from '@nx/devkit';
-import { checkForImportsInProject } from './check-for-imports-in-project';
+import { checkForImportsInProject } from '../validation/check-for-imports-in-project';
 import { updateImportsToRelative } from './update-imports-to-relative';
 import { updateImportsByAliasInProject } from './update-imports-by-alias-in-project';
 

@@ -412,7 +412,7 @@ packages/workspace/src/generators/move-file/
 
 ### Phase 7: Extract Validation Functions (Low-Medium Risk)
 
-**Status**: 📋 **READY TO IMPLEMENT**
+**Status**: ✅ **COMPLETED**
 
 **Duration**: 2-3 hours  
 **Impact**: Low-Medium  
@@ -420,19 +420,20 @@ packages/workspace/src/generators/move-file/
 
 #### Tasks
 
-1. Create `validation/` directory with individual files for:
+1. ✅ Create `validation/` directory with individual files for:
    - `resolve-and-validate.ts`
-   - `check-for-imports-in-project.ts` (move from import-updates/)
+   - `check-for-imports-in-project.ts` (moved from import-updates/)
 
-2. Write unit tests with various validation scenarios
+2. ✅ Write unit tests with various validation scenarios
 
 **Note**: `resolveWildcardAlias` is already extracted as a private function in `project-analysis/get-project-import-path.ts`
 
 #### Success Criteria
 
-- All existing tests pass
-- Validation logic isolated and testable
-- Clear error messages maintained
+- ✅ All existing tests pass (553 tests passing, +30 new tests)
+- ✅ Validation logic isolated and testable
+- ✅ Clear error messages maintained
+- ✅ generator.ts reduced from 819 to 644 lines (175 lines removed)
 
 **Implementation Guide**: [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md)
 
