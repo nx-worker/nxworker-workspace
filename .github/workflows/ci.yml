@@ -259,9 +259,9 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      # Run all benchmark tests (unit benchmarks and e2e performance benchmarks)
+      # Run all benchmark tests using jest-bench
       - name: Run micro-benchmarks
-        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style=static | tee benchmark-results.txt
+        run: npx jest --projects jest-bench.config.ts | tee benchmark-results.txt
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1

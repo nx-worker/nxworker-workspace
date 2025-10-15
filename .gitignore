@@ -40,4 +40,6 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
-.backup
+
+# Jest-bench results
+benchmarks/result.txt
