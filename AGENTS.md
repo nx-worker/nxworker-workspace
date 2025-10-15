@@ -159,9 +159,9 @@ Short rules (for agents and humans):
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
-## Move-File Generator Refactoring (Phases 1-9 Complete)
+## Move-File Generator Refactoring (Phases 1-10 Complete)
 
-The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-9 are complete** as of 2025-10-15.
+The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-10 are complete** as of 2025-10-15.
 
 ### Refactored Structure
 
@@ -245,9 +245,17 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - `tree-cache.ts` - File tree caching
   - `jscodeshift-utils.ts` - Code transformation utilities
 
-### Testing & Quality Metrics (Post-Phase 9)
+- **`benchmarks/`** ✅ Phase 10 - Performance benchmarks (5 files)
+  - `README.md` - Benchmark documentation
+  - `PERFORMANCE_BASELINES.md` - Baseline metrics and results
+  - `cache-operations.bench.spec.ts` - Cache performance tests (4 tests)
+  - `path-resolution.bench.spec.ts` - Path utility benchmarks (5 tests)
+  - `import-updates.bench.spec.ts` - Import update benchmarks (3 tests)
+  - `export-management.bench.spec.ts` - Export management benchmarks (4 tests)
 
-- **Total tests**: 585 tests (all passing ✅)
+### Testing & Quality Metrics (Post-Phase 10)
+
+- **Total tests**: 601 tests (all passing ✅)
   - 20 tests for constants (Phase 1)
   - 37 tests for cache functions (Phase 2)
   - 103 tests for path utilities (Phase 3)
@@ -257,11 +265,13 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - 30 tests for validation (Phase 7)
   - 32 tests for core operations (Phase 8)
   - 88 integration tests in generator.spec.ts (Phase 9: reorganized with clear documentation)
+  - 16 benchmark tests (Phase 10: performance baselines established)
   - Additional tests in jscodeshift-utils and other utilities
 
-- **Test pass rate**: 100% (585/585 tests passing)
+- **Test pass rate**: 100% (601/601 tests passing)
 - **Lines reduced**: ~324 lines removed from generator.ts in Phase 8 (633 → 309 lines, 51% reduction)
 - **Test organization**: Integration tests reorganized with section headers and documentation (Phase 9)
+- **Performance benchmarks**: 16 tests covering cache, path, import, and export operations (Phase 10)
 
 ### Key Principles Applied
 
@@ -290,10 +300,9 @@ For detailed information about the refactoring:
 - [REFACTORING_PHASE_10_GUIDE.md](./REFACTORING_PHASE_10_GUIDE.md) - Phase 10 details
 - [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md) - Architecture decision
 
-### Remaining Phases (Planned)
+### Remaining Phases
 
-- **Phase 10**: Performance Benchmarks (🔄 In Progress - guide created)
-- **Phase 11**: Documentation updates
+- **Phase 11**: Documentation updates (planned)
 
 ## Development Standards for @nxworker/workspace
 
@@ -330,6 +339,7 @@ When organizing code in the `@nxworker/workspace` package:
   - `path-utils/` - Path utilities (18 files: 9 implementations + 9 test files)
   - `project-analysis/` - Project analysis (26 files: 13 implementations + 13 test files)
   - `security-utils/` - Security utilities (6 files, pre-existing)
+  - `benchmarks/` - Performance benchmarks (6 files: 4 benchmark suites + README + baselines)
   - `ast-cache.ts`, `tree-cache.ts`, `jscodeshift-utils.ts` (+ spec files)
 - **`packages/workspace-e2e/`:** `eslint.config.js`, `jest.config.ts`, `project.json`, `src/workspace.spec.ts`, `tsconfig.json`, `tsconfig.spec.json`.
 - **`tools/scripts/`:** `start-local-registry.ts`, `stop-local-registry.ts`.
