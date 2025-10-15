@@ -159,9 +159,9 @@ Short rules (for agents and humans):
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
-## Move-File Generator Refactoring (Phases 1-4 Complete)
+## Move-File Generator Refactoring (Phases 1-8 Complete)
 
-The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-4 are complete** as of 2025-10-14.
+The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-8 are complete** as of 2025-10-15.
 
 ### Refactored Structure
 
@@ -211,28 +211,56 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - `to-first-path.ts` - Helper to get first path from array/string
   - All functions have comprehensive unit tests (170 tests total)
 
+- **`import-updates/`** ✅ Phase 5 - Import update functions (9 functions)
+  - Import path update logic for different scenarios
+  - All functions have comprehensive unit tests
+
+- **`export-management/`** ✅ Phase 6 - Export management functions (5 functions)
+  - Export handling for index files
+  - All functions have comprehensive unit tests (52 tests total)
+
+- **`validation/`** ✅ Phase 7 - Validation functions (2 functions)
+  - `resolve-and-validate.ts` - Main validation orchestrator
+  - `check-for-imports-in-project.ts` - Import checking utilities
+  - All functions have comprehensive unit tests (30 tests total)
+
+- **`core-operations/`** ✅ Phase 8 - Core operations (8 functions)
+  - `execute-move.ts` - Main move orchestrator
+  - `create-target-file.ts` - Target file creation
+  - `handle-move-strategy.ts` - Strategy pattern router
+  - `handle-same-project-move.ts` - Same-project move handler
+  - `handle-exported-move.ts` - Exported file move handler
+  - `handle-non-exported-alias-move.ts` - Non-exported alias handler
+  - `handle-default-move.ts` - Default fallback handler
+  - `finalize-move.ts` - Cleanup and formatting
+  - All functions have comprehensive unit tests (32 tests total)
+
 - **`security-utils/`** - Already well-organized (pre-existing)
   - Path sanitization and validation utilities
 
-- **Core files** (not yet refactored in Phases 1-4)
-  - `generator.ts` - Main orchestration (reduced from 1,967 to ~1,368 lines after Phase 4)
-  - `generator.spec.ts` - Integration tests (94 tests, all passing)
+- **Core files**
+  - `generator.ts` - Main orchestration (reduced from 1,967 to 309 lines after Phase 8)
+  - `generator.spec.ts` - Integration tests (all passing)
   - `ast-cache.ts` - AST caching utilities
   - `tree-cache.ts` - File tree caching
   - `jscodeshift-utils.ts` - Code transformation utilities
 
-### Testing & Quality Metrics (Post-Phase 4)
+### Testing & Quality Metrics (Post-Phase 8)
 
-- **Total tests**: 471 tests (all passing ✅)
+- **Total tests**: 585 tests (all passing ✅)
   - 20 tests for constants (Phase 1)
   - 37 tests for cache functions (Phase 2)
   - 103 tests for path utilities (Phase 3)
   - 170 tests for project analysis (Phase 4)
-  - 94 integration tests in generator.spec.ts
+  - Tests for import updates (Phase 5)
+  - 52 tests for export management (Phase 6)
+  - 30 tests for validation (Phase 7)
+  - 32 tests for core operations (Phase 8)
+  - Integration tests in generator.spec.ts
   - Additional tests in jscodeshift-utils and other utilities
 
-- **Test pass rate**: 100% (471/471 tests passing)
-- **Lines reduced**: ~599 lines removed from generator.ts through Phase 4 (1,967 → 1,368 lines)
+- **Test pass rate**: 100% (585/585 tests passing)
+- **Lines reduced**: ~324 lines removed from generator.ts in Phase 8 (633 → 309 lines, 51% reduction)
 
 ### Key Principles Applied
 
@@ -253,14 +281,14 @@ For detailed information about the refactoring:
 - [REFACTORING_PHASE_1_GUIDE.md](./REFACTORING_PHASE_1_GUIDE.md) - Phase 1 details
 - [REFACTORING_PHASE_2_GUIDE.md](./REFACTORING_PHASE_2_GUIDE.md) - Phase 2 details
 - [REFACTORING_PHASE_4_GUIDE.md](./REFACTORING_PHASE_4_GUIDE.md) - Phase 4 details
+- [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md) - Phase 5 details
+- [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Phase 6 details
+- [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md) - Phase 7 details
+- [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md) - Phase 8 details
 - [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md) - Architecture decision
 
 ### Remaining Phases (Planned)
 
-- **Phase 5**: Import Update Functions (7 functions)
-- **Phase 6**: Export Management (7 functions)
-- **Phase 7**: Validation (3 functions)
-- **Phase 8**: Core Operations (10 functions)
 - **Phase 9**: Split Tests (organize remaining tests)
 - **Phase 10**: Performance Benchmarks
 - **Phase 11**: Documentation updates
