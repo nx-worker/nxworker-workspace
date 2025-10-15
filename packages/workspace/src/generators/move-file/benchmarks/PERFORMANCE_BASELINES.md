@@ -82,13 +82,18 @@ The Phase 1-9 refactoring focused on maintainability and testability, with perfo
 
 ## Performance Regression Detection
 
-### Automated Checks
+### Automated CI Checks ✅ IMPLEMENTED
 
-Benchmark tests can be run in CI to detect regressions:
+**Status**: Benchmark regression detection is now active on all pull requests!
 
-```bash
-npx nx test workspace --testPathPattern=benchmarks
-```
+The CI system automatically:
+
+1. Runs all micro-benchmark tests
+2. Compares results against stored baselines (`baselines.json`)
+3. Fails PRs if regressions exceed defined thresholds
+4. Provides clear output showing which benchmarks regressed
+
+**See:** [Benchmark Regression Detection Guide](../../../../../tools/scripts/README-benchmark-regression.md)
 
 ### Regression Thresholds
 
@@ -99,14 +104,54 @@ A regression is flagged if:
 - Import updates slow by > 20% (e.g., 10ms → 12ms)
 - Export operations slow by > 20% (e.g., 10ms → 12ms)
 
+These thresholds are automatically applied based on the benchmark name.
+
+### Managing Baselines
+
+**View current baselines:**
+
+```bash
+cat packages/workspace/src/generators/move-file/benchmarks/baselines.json
+```
+
+**Update baselines** (after intentional performance changes):
+
+```bash
+npx tsx tools/scripts/capture-benchmark-baselines.ts
+```
+
+**Compare against baselines** (runs in CI automatically):
+
+```bash
+npx tsx tools/scripts/compare-benchmark-results.ts
+```
+
 ### Investigation Process
+
+**Automated in CI**: The regression detection system now runs automatically on all pull requests.
 
 If regression detected:
 
-1. Identify which benchmark(s) are slower
-2. Review recent commits for changes to affected modules
-3. Profile the slow function to identify bottleneck
-4. Consider optimization or accept trade-off (e.g., for better maintainability)
+1. **Review the CI output** - See which benchmark(s) are slower and by how much
+2. **Identify the cause**:
+   - Review commits in the PR for performance-impacting changes
+   - Look at changes to affected modules (cache, path-utils, import-updates, etc.)
+3. **Decide on action**:
+   - **Unintentional regression**: Fix the code causing the slowdown
+   - **Intentional trade-off**: Update baseline if accepting performance cost for other benefits
+4. **Update baseline if needed**:
+   ```bash
+   npx tsx tools/scripts/capture-benchmark-baselines.ts
+   git add packages/workspace/src/generators/move-file/benchmarks/baselines.json
+   git commit -m "perf(workspace): update baselines after [reason]"
+   ```
+
+**Automated Alerts**: CI will fail the PR and show:
+
+- Which benchmarks regressed
+- Baseline vs current performance
+- Percentage change and threshold
+- Instructions for updating baselines
 
 ## Future Optimization Opportunities
 

@@ -444,11 +444,23 @@ Total:             601 tests
 
 #### Priority 3: CI/CD Integration
 
-7. **Add benchmark regression detection to CI**
-   - Estimated effort: 3-4 hours
-   - Impact: High (prevents performance regressions)
-   - Approach: Store baseline metrics, compare on PR
-   - Tool: Consider `benchmark.js` or custom comparison
+7. ✅ **Add benchmark regression detection to CI** - **COMPLETE (2025-10-15)**
+   - ~~Estimated effort: 3-4 hours~~
+   - ~~Impact: High (prevents performance regressions)~~
+   - ~~Approach: Store baseline metrics, compare on PR~~
+   - ~~Tool: Consider `benchmark.js` or custom comparison~~
+   - **Implementation**: Custom Node.js scripts with no additional dependencies
+   - **Features**:
+     - Automatic baseline comparison on all PRs
+     - Configurable thresholds per operation type (50% cache, 25% path, 20% import/export)
+     - Clear CI output showing regressions
+     - Scripts for baseline management
+   - **Files added**:
+     - `tools/scripts/capture-benchmark-baselines.ts` - Baseline capture script
+     - `tools/scripts/compare-benchmark-results.ts` - Comparison script
+     - `tools/scripts/README-benchmark-regression.md` - Complete documentation
+     - `benchmarks/baselines.json` - Stored baseline metrics
+   - **CI integration**: New `benchmark-regression` job runs on all PRs
 
 8. **Add code coverage reporting to CI**
    - Estimated effort: 2 hours

@@ -32,42 +32,43 @@ npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose
 
 ### CI Integration
 
-Benchmarks are **optional** and not required for CI to pass. They can be run:
+#### Regression Detection (Pull Requests)
 
-1. **Manually** - Run locally during development or when investigating performance
-2. **On-demand** - Trigger via workflow_dispatch on a dedicated benchmark workflow
-3. **Scheduled** - Run weekly/monthly to track performance trends over time
+**NEW**: Benchmark regression detection runs automatically on all pull requests!
 
-**Not recommended** for every PR/commit as they:
+The CI system:
 
-- Add ~5-10 seconds to test execution time
-- Results can vary based on runner load
-- Are informational rather than pass/fail checks
+1. Runs all benchmark tests
+2. Compares results against stored baselines
+3. Fails the PR if regressions exceed thresholds
+4. Shows which benchmarks regressed and by how much
 
-### Example: Optional Benchmark Workflow
+**Regression Thresholds:**
 
-You can create `.github/workflows/benchmarks.yml` for on-demand benchmark runs:
+- Cache operations: 50% slower
+- Path operations: 25% slower
+- Import/Export operations: 20% slower
 
-```yaml
-name: Benchmarks
+**If a regression is detected:**
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0' # Weekly on Sunday
-
-jobs:
-  benchmark:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-node-and-install
-      - name: Run benchmarks
-        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose
-      - name: Upload results
-        if: always()
-        run: echo "Store results in artifacts or comment on commit"
+```bash
+# If the regression is unintentional, fix the code
+# If the regression is intentional (e.g., trade-off for maintainability):
+npx tsx tools/scripts/capture-benchmark-baselines.ts
+git add packages/workspace/src/generators/move-file/benchmarks/baselines.json
+git commit -m "perf(workspace): update benchmark baselines"
 ```
+
+See [Benchmark Regression Detection Guide](../../../../../tools/scripts/README-benchmark-regression.md) for details.
+
+#### Benchmark Runs (Main Branch)
+
+Full benchmarks run on push to `main` and `workflow_dispatch`:
+
+1. **Micro-benchmarks** - Unit-level performance tests
+2. **E2E benchmarks** - End-to-end performance tests
+
+These runs validate that benchmarks still pass after merging.
 
 ## Benchmark Structure
 

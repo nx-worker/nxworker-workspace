@@ -261,3 +261,21 @@ jobs:
 
       - name: Run e2e performance benchmarks
         run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static
+
+  # Benchmark regression detection for PRs
+  benchmark-regression:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      # Compare current benchmarks against baseline
+      - name: Check for performance regressions
+        run: npx tsx tools/scripts/compare-benchmark-results.ts
