@@ -14,6 +14,8 @@ This document provides a quick reference for the comprehensive refactoring plan 
 - **[Phase 6 Implementation Guide](./REFACTORING_PHASE_6_GUIDE.md)** ✅ Complete
 - **[Phase 7 Implementation Guide](./REFACTORING_PHASE_7_GUIDE.md)** ✅ Complete
 - **[Phase 8 Implementation Guide](./REFACTORING_PHASE_8_GUIDE.md)** ✅ Complete
+- **[Phase 9 Implementation Guide](./REFACTORING_PHASE_9_GUIDE.md)** ✅ Complete
+- **[Phase 10 Implementation Guide](./REFACTORING_PHASE_10_GUIDE.md)** 🔄 In Progress
 - **[ADR 001: Architecture Decision](./docs/adr/001-refactor-for-maintainability.md)** - Decision rationale and trade-offs
 
 ## Current State vs. Target State
@@ -61,14 +63,14 @@ packages/workspace/src/generators/move-file/
 | 5 | Import Updates | Med-High | 5-6h | ~18 new files | ✅ Complete |
 | 6 | Export Management | Medium | 3-4h | ~10 new files | ✅ Complete |
 | 7 | Validation | Low-Med | 2-3h | ~6 new files | ✅ Complete |
-| 8 | Core Operations | Med-High | 4-5h | ~16 new files | ⏳ Planned |
-| 9 | Split Tests | Low | 3-4h | ~50+ test files | ⏳ Planned |
-| 10 | Benchmarks | Low | 2-3h | ~4 benchmark files | ⏳ Planned |
-| 11 | Documentation | Low | 2-3h | README updates | 🔄 In Progress |
+| 8 | Core Operations | Med-High | 4-5h | ~16 new files | ✅ Complete |
+| 9 | Split Tests | Low | 3-4h | ~50+ test files | ✅ Complete |
+| 10 | Benchmarks | Low | 2-3h | ~4 benchmark files | 🔄 In Progress |
+| 11 | Documentation | Low | 2-3h | README updates | ⏳ Planned |
 
 **Total Duration**: 35-42 hours (~1 week of focused work)  
-**Completed**: Phases 1-8 (✅)  
-**Next Up**: Phase 9 Test Suite Organization (or Phases 10-11)
+**Completed**: Phases 1-9 (✅)  
+**Next Up**: Phase 10 Performance Benchmarks (🔄 In Progress)
 
 ## Key Principles
 
@@ -94,10 +96,15 @@ packages/workspace/src/generators/move-file/
 - [x] ✅ 52 new unit tests for export management (all passing)
 - [x] ✅ Phase 7 complete: Validation functions extracted
 - [x] ✅ 30 new unit tests for validation functions (all passing)
-- [x] ✅ All 553 tests pass (Phases 1-7 + existing tests)
+- [x] ✅ Phase 8 complete: Core operations extracted
+- [x] ✅ 32 new unit tests for core operations (all passing)
+- [x] ✅ Phase 9 complete: Test organization improved
+- [x] ✅ 88 integration tests organized with clear documentation
+- [x] ✅ All 585 tests pass (Phases 1-9 + existing tests)
+- [ ] 🔄 Phase 10 in progress: Performance benchmarks
 - [ ] Test coverage >95%
 - [ ] No performance regression
-- [ ] `generator.ts` reduced to <200 lines (currently 644 lines, was 1951)
+- [ ] `generator.ts` reduced to <200 lines (currently 309 lines, was 1951)
 - [ ] All functions documented with JSDoc
 - [ ] All functions have unit tests
 - [ ] Critical functions have benchmarks
