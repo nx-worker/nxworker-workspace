@@ -1,17 +1,14 @@
 # Refactoring Visual Guide
 
-**Status**: Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete | Phase 4 ✅ Complete | Phase 5 📋 Ready
+**Status**: Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete | Phase 4 ✅ Complete | Phase 5 ✅ Complete | Phase 6 ✅ Complete | Phase 7 ✅ Complete | Phase 8 📋 Ready
 
-## Current Structure (After Phases 1-4)
+## Current Structure (After Phases 1-7)
 
 ```
 packages/workspace/src/generators/move-file/
 │
-├── generator.ts (~1,368 lines) ⚠️ STILL LARGE (Phases 1-4 reduced ~583 lines)
-│   ├── Import updates (9 functions) [Phase 5 📋 Guide Ready]
-│   ├── Export management (7 functions) [Phase 6 ⏳]
-│   ├── Validation (3 functions) [Phase 7 ⏳]
-│   └── Core operations (10 functions) [Phase 8 ⏳]
+├── generator.ts (~633 lines) ⚠️ STILL LARGE (Phases 1-7 reduced ~1,334 lines)
+│   └── Core operations (8 functions) [Phase 8 📋 Guide Ready]
 │
 ├── constants/ ✅ PHASE 1 COMPLETE
 │   ├── file-extensions.ts (~76 lines)
@@ -87,8 +84,42 @@ packages/workspace/src/generators/move-file/
 │   ├── to-first-path.spec.ts
 │   └── index.ts (170 tests)
 │
+├── import-updates/ ✅ PHASE 5 COMPLETE
+│   ├── update-moved-file-imports-if-needed.ts
+│   ├── update-moved-file-imports-if-needed.spec.ts
+│   ├── update-relative-imports-in-moved-file.ts
+│   ├── update-relative-imports-in-moved-file.spec.ts
+│   ├── update-target-project-imports-if-needed.ts
+│   ├── update-target-project-imports-if-needed.spec.ts
+│   ├── update-import-paths-in-dependent-projects.ts
+│   ├── update-import-paths-in-dependent-projects.spec.ts
+│   ├── update-import-paths-to-package-alias.ts
+│   ├── update-import-paths-to-package-alias.spec.ts
+│   ├── update-import-paths-in-project.ts
+│   ├── update-import-paths-in-project.spec.ts
+│   └── index.ts
+│
+├── export-management/ ✅ PHASE 6 COMPLETE
+│   ├── ensure-export-if-needed.ts
+│   ├── ensure-export-if-needed.spec.ts
+│   ├── should-export-file.ts
+│   ├── should-export-file.spec.ts
+│   ├── is-file-exported.ts
+│   ├── is-file-exported.spec.ts
+│   ├── ensure-file-exported.ts
+│   ├── ensure-file-exported.spec.ts
+│   ├── remove-file-export.ts
+│   ├── remove-file-export.spec.ts
+│   └── index.ts (52 tests)
+│
+├── validation/ ✅ PHASE 7 COMPLETE
+│   ├── resolve-and-validate.ts
+│   ├── resolve-and-validate.spec.ts
+│   ├── check-for-imports-in-project.ts
+│   └── index.ts (30 tests)
+│
 ├── generator.spec.ts (~2,700 lines) ⚠️ MONOLITHIC
-│   └── 161 tests mixed together
+│   └── 553+ tests mixed together
 │
 ├── jscodeshift-utils.ts (418 lines)
 ├── jscodeshift-utils.spec.ts (302 lines)
@@ -104,19 +135,22 @@ packages/workspace/src/generators/move-file/
     └── sanitize-path.spec.ts
 ```
 
-**Phase 1-4 Progress:**
+**Phase 1-7 Progress:**
 
 - ✅ Constants extracted and tested (20 tests passing)
 - ✅ Types extracted with full documentation
 - ✅ Cache functions extracted and tested (37 tests passing)
 - ✅ Path utilities extracted and tested (103 tests passing)
 - ✅ Project analysis extracted and tested (170 tests passing)
-- ✅ All 471 tests passing
-- ✅ ~583 lines removed from generator.ts
+- ✅ Import updates extracted and tested
+- ✅ Export management extracted and tested (52 tests passing)
+- ✅ Validation functions extracted and tested (30 tests passing)
+- ✅ All 553+ tests passing
+- ✅ ~1,334 lines removed from generator.ts
 
 **Remaining Issues:**
 
-- 😫 Still hard to find specific functions (need to scroll through ~1,368 lines)
+- 😫 Core operations still in generator.ts (need to extract ~280 lines)
 - 🔍 Still hard to find specific tests (need to search through ~2,700 lines)
 - 🐛 Import update logic is complex and hard to test in isolation
 - 📝 Large PRs are hard to review

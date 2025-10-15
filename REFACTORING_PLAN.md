@@ -441,6 +441,8 @@ packages/workspace/src/generators/move-file/
 
 ### Phase 8: Extract Core Operations (Medium-High Risk)
 
+**Status**: 📋 **READY TO START**
+
 **Duration**: 4-5 hours  
 **Impact**: Medium-High  
 **Testing**: Integration + e2e tests
@@ -466,6 +468,8 @@ packages/workspace/src/generators/move-file/
 - All existing tests pass
 - Core operations isolated and testable
 - `generator.ts` reduced to <200 lines (orchestration only)
+
+**Implementation Guide**: [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md)
 
 ### Phase 9: Split Test Suites (Low Risk)
 

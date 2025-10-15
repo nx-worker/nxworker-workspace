@@ -13,6 +13,7 @@ This document provides a quick reference for the comprehensive refactoring plan 
 - **[Phase 5 Implementation Guide](./REFACTORING_PHASE_5_GUIDE.md)** ✅ Complete
 - **[Phase 6 Implementation Guide](./REFACTORING_PHASE_6_GUIDE.md)** ✅ Complete
 - **[Phase 7 Implementation Guide](./REFACTORING_PHASE_7_GUIDE.md)** ✅ Complete
+- **[Phase 8 Implementation Guide](./REFACTORING_PHASE_8_GUIDE.md)** 📋 Ready to Start
 - **[ADR 001: Architecture Decision](./docs/adr/001-refactor-for-maintainability.md)** - Decision rationale and trade-offs
 
 ## Current State vs. Target State
@@ -265,6 +266,7 @@ npx nx e2e workspace-e2e
 - ✅ [Phase 5 Guide](./REFACTORING_PHASE_5_GUIDE.md) - Complete
 - ✅ [Phase 6 Guide](./REFACTORING_PHASE_6_GUIDE.md) - Complete
 - ✅ [Phase 7 Guide](./REFACTORING_PHASE_7_GUIDE.md) - Complete
+- 📋 [Phase 8 Guide](./REFACTORING_PHASE_8_GUIDE.md) - Ready to Start
 
 ---
 
