@@ -159,9 +159,9 @@ Short rules (for agents and humans):
 - `tools/scripts/start-local-registry.ts` orchestrates Verdaccio startup and Nx release actions during Jest `globalSetup`; `stop-local-registry.ts` shuts it down via a global handle.
 - No additional subpackages or apps at present; adding more libraries should follow the Nx workspace conventions.
 
-## Move-File Generator Refactoring (Phases 1-8 Complete)
+## Move-File Generator Refactoring (Phases 1-9 Complete)
 
-The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-8 are complete** as of 2025-10-15.
+The `@nxworker/workspace:move-file` generator has undergone a major refactoring to improve maintainability, testability, and performance. **Phases 1-9 are complete** as of 2025-10-15.
 
 ### Refactored Structure
 
@@ -245,7 +245,7 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - `tree-cache.ts` - File tree caching
   - `jscodeshift-utils.ts` - Code transformation utilities
 
-### Testing & Quality Metrics (Post-Phase 8)
+### Testing & Quality Metrics (Post-Phase 9)
 
 - **Total tests**: 585 tests (all passing ✅)
   - 20 tests for constants (Phase 1)
@@ -256,11 +256,12 @@ The generator code in `packages/workspace/src/generators/move-file/` is now orga
   - 52 tests for export management (Phase 6)
   - 30 tests for validation (Phase 7)
   - 32 tests for core operations (Phase 8)
-  - Integration tests in generator.spec.ts
+  - 88 integration tests in generator.spec.ts (Phase 9: reorganized with clear documentation)
   - Additional tests in jscodeshift-utils and other utilities
 
 - **Test pass rate**: 100% (585/585 tests passing)
 - **Lines reduced**: ~324 lines removed from generator.ts in Phase 8 (633 → 309 lines, 51% reduction)
+- **Test organization**: Integration tests reorganized with section headers and documentation (Phase 9)
 
 ### Key Principles Applied
 
@@ -285,12 +286,11 @@ For detailed information about the refactoring:
 - [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Phase 6 details
 - [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md) - Phase 7 details
 - [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md) - Phase 8 details
-- [REFACTORING_PHASE_9_GUIDE.md](./REFACTORING_PHASE_9_GUIDE.md) - Phase 9 details (planned)
+- [REFACTORING_PHASE_9_GUIDE.md](./REFACTORING_PHASE_9_GUIDE.md) - Phase 9 details
 - [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md) - Architecture decision
 
 ### Remaining Phases (Planned)
 
-- **Phase 9**: Split Tests (organize remaining tests)
 - **Phase 10**: Performance Benchmarks
 - **Phase 11**: Documentation updates
 
