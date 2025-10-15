@@ -449,18 +449,21 @@ Total:             601 tests
    - ~~Impact: High (prevents performance regressions)~~
    - ~~Approach: Store baseline metrics, compare on PR~~
    - ~~Tool: Consider `benchmark.js` or custom comparison~~
-   - **Implementation**: Custom Node.js scripts with no additional dependencies
+   - **Implementation**: Using **benchmark.js** library with **github-action-benchmark**
    - **Features**:
-     - Automatic baseline comparison on all PRs
-     - Configurable thresholds per operation type (50% cache, 25% path, 20% import/export)
-     - Clear CI output showing regressions
-     - Scripts for baseline management
-   - **Files added**:
-     - `tools/scripts/capture-benchmark-baselines.ts` - Baseline capture script
-     - `tools/scripts/compare-benchmark-results.ts` - Comparison script
-     - `tools/scripts/README-benchmark-regression.md` - Complete documentation
-     - `benchmarks/baselines.json` - Stored baseline metrics
-   - **CI integration**: New `benchmark-regression` job runs on all PRs
+     - Statistical analysis with benchmark.js (ops/sec reporting)
+     - Automatic baseline comparison on all PRs via github-action-benchmark
+     - GitHub Pages charts for performance trend tracking
+     - 150% regression threshold (configurable)
+     - PR comments and job summaries on regressions
+     - No manual baseline management required
+   - **Benefits over custom scripts**:
+     - Industry-standard benchmarking library (used by Node.js core)
+     - Statistical rigor: outlier detection, margin of error, confidence intervals
+     - Visual tracking via GitHub Pages
+     - Reduced maintenance (~1,064 lines of custom code removed)
+     - Consistent ops/sec format across ecosystem
+   - **CI integration**: Single unified `benchmark` job for PRs and main branch
 
 8. **Add code coverage reporting to CI**
    - Estimated effort: 2 hours

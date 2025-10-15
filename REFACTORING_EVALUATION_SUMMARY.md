@@ -111,10 +111,12 @@ After Refactoring (Phase 11):
    - ✅ Improved IDE experience significantly
 
 3. ✅ **Add benchmark regression detection to CI** (3-4 hours) - **COMPLETE (2025-10-15)**
-   - ✅ Store baseline metrics in `baselines.json`
-   - ✅ Compare on each PR via new CI job
-   - ✅ Alert on >50% cache, >25% path, >20% import/export regression
-   - ✅ Complete documentation and management scripts
+   - ✅ Implemented using **benchmark.js** library with **github-action-benchmark**
+   - ✅ Statistical analysis with ops/sec reporting
+   - ✅ Automatic regression detection on PRs (150% threshold)
+   - ✅ GitHub Pages charts for performance trend visualization
+   - ✅ PR comments and job summaries on regressions
+   - ✅ Removed ~1,064 lines of custom scripts in favor of industry-standard tooling
 
 4. **Expand benchmark coverage** (4-6 hours)
    - validation/validation.bench.spec.ts
