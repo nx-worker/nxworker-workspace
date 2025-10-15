@@ -285,6 +285,7 @@ For detailed information about the refactoring:
 - [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Phase 6 details
 - [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md) - Phase 7 details
 - [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md) - Phase 8 details
+- [REFACTORING_PHASE_9_GUIDE.md](./REFACTORING_PHASE_9_GUIDE.md) - Phase 9 details (planned)
 - [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md) - Architecture decision
 
 ### Remaining Phases (Planned)

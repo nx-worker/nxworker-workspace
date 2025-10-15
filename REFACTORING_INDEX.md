@@ -152,6 +152,21 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 
 **Best for**: Reference for the completed eighth phase of the refactoring (core operations).
 
+### 🔧 [REFACTORING_PHASE_9_GUIDE.md](./REFACTORING_PHASE_9_GUIDE.md)
+
+**Implementation guide** - Step-by-step for Phase 9
+
+- Detailed tasks for Phase 9 (Split Test Suites)
+- Test organization strategy
+- Consolidation approach for duplicate tests
+- Reorganization structure for integration tests
+- Verification steps
+- Expected outcomes
+- Commit message template
+- **Status**: ⏳ Planned
+
+**Best for**: Reference for implementing the ninth phase of the refactoring (test organization).
+
 ### 📝 [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)
 
 **Architecture Decision Record** - Why and how
@@ -185,7 +200,8 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 8. ✅ [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Completed
 9. ✅ [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md) - Completed
 10. ✅ [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md) - Completed
-11. Follow each remaining phase in sequence
+11. ⏳ [REFACTORING_PHASE_9_GUIDE.md](./REFACTORING_PHASE_9_GUIDE.md) - Planned
+12. Follow each remaining phase in sequence
 
 ### For Stakeholders
 
