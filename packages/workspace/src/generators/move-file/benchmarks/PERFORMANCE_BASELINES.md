@@ -84,47 +84,42 @@ The Phase 1-9 refactoring focused on maintainability and testability, with perfo
 
 ### Automated CI Checks ✅ IMPLEMENTED
 
-**Status**: Benchmark regression detection is now active on all pull requests!
+**Status**: Benchmark regression detection using github-action-benchmark is now active on all pull requests!
 
 The CI system automatically:
 
-1. Runs all micro-benchmark tests
-2. Compares results against stored baselines (`baselines.json`)
-3. Fails PRs if regressions exceed defined thresholds
-4. Provides clear output showing which benchmarks regressed
+1. Runs all micro-benchmark tests using benchmark.js
+2. Parses benchmark results (ops/sec from benchmark.js output)
+3. Compares against historical data stored in GitHub Pages
+4. Fails PRs if regressions exceed 150% threshold
+5. Posts comments and job summaries showing regressions
 
-**See:** [Benchmark Regression Detection Guide](../../../../../tools/scripts/README-benchmark-regression.md)
+**See:** [Benchmark README](./README.md)
 
-### Regression Thresholds
+### Regression Threshold
 
-A regression is flagged if:
+A regression is flagged if performance degrades by more than **150%** (i.e., becomes 2.5x slower).
 
-- Cache operations slow by > 50% (e.g., 0.1ms → 0.15ms)
-- Path operations slow by > 25% (e.g., 1ms → 1.25ms)
-- Import updates slow by > 20% (e.g., 10ms → 12ms)
-- Export operations slow by > 20% (e.g., 10ms → 12ms)
+This threshold is configured in `.github/workflows/ci.yml`:
 
-These thresholds are automatically applied based on the benchmark name.
-
-### Managing Baselines
-
-**View current baselines:**
-
-```bash
-cat packages/workspace/src/generators/move-file/benchmarks/baselines.json
+```yaml
+alert-threshold: '150%'
 ```
 
-**Update baselines** (after intentional performance changes):
+### Managing Regressions
 
-```bash
-npx tsx tools/scripts/capture-benchmark-baselines.ts
-```
+**Automated workflow:**
 
-**Compare against baselines** (runs in CI automatically):
+- PR benchmarks compare against main branch baseline
+- github-action-benchmark posts comments on regressions
+- Historical data updates automatically on merge to main
+- Performance charts available on GitHub Pages
 
-```bash
-npx tsx tools/scripts/compare-benchmark-results.ts
-```
+**Accepting intentional regressions:**
+
+- Document the trade-off in PR description
+- Reviewers approve despite regression
+- Baseline updates automatically when merged
 
 ### Investigation Process
 

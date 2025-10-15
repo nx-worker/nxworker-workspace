@@ -245,6 +245,9 @@ jobs:
   benchmark:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+      deployments: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -257,7 +260,20 @@ jobs:
 
       # Run all benchmark tests (unit benchmarks and e2e performance benchmarks)
       - name: Run micro-benchmarks
-        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style=static
+        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style=static | tee benchmark-results.txt
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Move-File Generator Benchmarks
+          tool: 'benchmarkjs'
+          output-file-path: benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
 
       - name: Run e2e performance benchmarks
         run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static
@@ -266,6 +282,9 @@ jobs:
   benchmark-regression:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -276,6 +295,20 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      # Compare current benchmarks against baseline
+      # Run benchmarks and compare against baseline
+      - name: Run micro-benchmarks
+        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style=static | tee benchmark-results.txt
+
       - name: Check for performance regressions
-        run: npx tsx tools/scripts/compare-benchmark-results.ts
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Move-File Generator Benchmarks
+          tool: 'benchmarkjs'
+          output-file-path: benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: false
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true

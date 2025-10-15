@@ -32,59 +32,75 @@ npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose
 
 ### CI Integration
 
+The benchmarks use [github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark) for automated regression detection.
+
 #### Regression Detection (Pull Requests)
 
-**NEW**: Benchmark regression detection runs automatically on all pull requests!
+**Automated**: Benchmark regression detection runs on all pull requests!
 
 The CI system:
 
-1. Runs all benchmark tests
-2. Compares results against stored baselines
-3. Fails the PR if regressions exceed thresholds
-4. Shows which benchmarks regressed and by how much
+1. Runs all benchmark tests using benchmark.js
+2. Parses benchmark results (ops/sec)
+3. Compares against historical baseline data
+4. Fails the PR if regressions exceed 150% threshold
+5. Posts a comment showing which benchmarks regressed
+6. Provides a job summary with visual comparison
 
-**Regression Thresholds:**
+#### Benchmark Tracking (Main Branch)
 
-- Cache operations: 50% slower
-- Path operations: 25% slower
-- Import/Export operations: 20% slower
+On pushes to `main`:
+
+1. Runs all benchmarks
+2. Stores results in GitHub Pages branch
+3. Updates historical performance charts
+4. Enables trend visualization over time
+
+Visit the [benchmark dashboard](https://nx-worker.github.io/nxworker-workspace/dev/bench/) to see performance trends.
 
 **If a regression is detected:**
 
-```bash
-# If the regression is unintentional, fix the code
-# If the regression is intentional (e.g., trade-off for maintainability):
-npx tsx tools/scripts/capture-benchmark-baselines.ts
-git add packages/workspace/src/generators/move-file/benchmarks/baselines.json
-git commit -m "perf(workspace): update benchmark baselines"
-```
+The github-action-benchmark will automatically:
 
-See [Benchmark Regression Detection Guide](../../../../../tools/scripts/README-benchmark-regression.md) for details.
+- Post a comment on the PR with details
+- Show the benchmark comparison in the job summary
+- Fail the CI check
 
-#### Benchmark Runs (Main Branch)
+To accept an intentional regression (e.g., trading performance for maintainability):
 
-Full benchmarks run on push to `main` and `workflow_dispatch`:
+- Document the trade-off in the PR description
+- Reviewers can approve despite the regression
+- The historical baseline will update automatically when merged to `main`
 
-1. **Micro-benchmarks** - Unit-level performance tests
-2. **E2E benchmarks** - End-to-end performance tests
+## Benchmark Implementation
 
-These runs validate that benchmarks still pass after merging.
+Benchmarks use the [benchmark.js](https://benchmarkjs.com/) library, which provides:
 
-## Benchmark Structure
+- Statistical analysis with multiple iterations
+- Automatic calibration of test duration
+- Detection of performance outliers
+- Standard deviation and margin of error calculation
 
-Each benchmark file follows this pattern:
-
-1. **Setup**: Create test fixtures and data
-2. **Warmup**: Run functions once to ensure JIT compilation
-3. **Measurement**: Run operations multiple times and measure execution time
-4. **Reporting**: Output results with averages and percentiles
+Each benchmark file exports a Jest test suite that runs benchmark.js suites.
 
 ## Interpreting Results
 
-- **< 1ms**: Excellent performance for micro-operations
-- **1-10ms**: Good performance for moderate operations
-- **10-50ms**: Acceptable for complex operations
-- **> 50ms**: May need optimization (context-dependent)
+Benchmark.js reports results in operations per second (ops/sec):
+
+```
+Cache hit x 132,000,000 ops/sec ±4.44% (81 runs sampled)
+```
+
+- **ops/sec**: Higher is better (more operations per second = faster)
+- **±%**: Margin of error (lower is better = more consistent)
+- **runs sampled**: Number of test iterations completed
+
+### Performance Guidelines
+
+- **> 1,000,000 ops/sec**: Excellent (sub-microsecond operations)
+- **100,000 - 1,000,000 ops/sec**: Good (single-digit microseconds)
+- **10,000 - 100,000 ops/sec**: Acceptable (tens of microseconds)
+- **< 10,000 ops/sec**: May need optimization (hundreds of microseconds+)
 
 ## Benchmark Files
 
