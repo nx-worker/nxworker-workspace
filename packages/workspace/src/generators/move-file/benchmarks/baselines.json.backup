@@ -1,0 +1,87 @@
+{
+  "capturedAt": "2025-10-15T18:33:59.074Z",
+  "nodeVersion": "v22.20.0",
+  "platform": "linux-x64",
+  "benchmarks": [
+    {
+      "name": "Export detection",
+      "averageMs": 0.141,
+      "unit": "ms"
+    },
+    {
+      "name": "Export addition",
+      "averageMs": 1.0934,
+      "unit": "ms"
+    },
+    {
+      "name": "Export removal",
+      "averageMs": 1.2861,
+      "unit": "ms"
+    },
+    {
+      "name": "Bulk export operations (20 files)",
+      "averageMs": 19.5359,
+      "unit": "ms"
+    },
+    {
+      "name": "Cache hit",
+      "averageMs": 0,
+      "unit": "ms"
+    },
+    {
+      "name": "Cache miss",
+      "averageMs": 0.0125,
+      "unit": "ms"
+    },
+    {
+      "name": "Source file retrieval",
+      "averageMs": 0.0001,
+      "unit": "ms"
+    },
+    {
+      "name": "Cache update",
+      "averageMs": 0.0002,
+      "unit": "ms"
+    },
+    {
+      "name": "Import update",
+      "averageMs": 0.0143,
+      "unit": "ms"
+    },
+    {
+      "name": "Batch import update (10 files)",
+      "averageMs": 0.0034,
+      "unit": "ms"
+    },
+    {
+      "name": "AST transformation",
+      "averageMs": 0.016,
+      "unit": "ms"
+    },
+    {
+      "name": "buildFileNames",
+      "averageMs": 0.0012,
+      "unit": "ms"
+    },
+    {
+      "name": "buildPatterns (100 files)",
+      "averageMs": 0.0216,
+      "unit": "ms"
+    },
+    {
+      "name": "getRelativeImportSpecifier",
+      "averageMs": 0.0037,
+      "unit": "ms"
+    },
+    {
+      "name": "toAbsoluteWorkspacePath",
+      "averageMs": 0.0006,
+      "unit": "ms"
+    },
+    {
+      "name": "removeSourceFileExtension",
+      "averageMs": 0.0002,
+      "unit": "ms"
+    }
+  ]
+}
