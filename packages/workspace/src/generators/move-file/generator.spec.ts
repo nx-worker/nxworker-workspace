@@ -1,3 +1,26 @@
+/**
+ * Integration tests for the move-file generator.
+ *
+ * This file contains end-to-end tests that validate the complete move workflow,
+ * including interaction between multiple modules. Unit tests for individual
+ * functions are co-located with their implementations in:
+ * - constants/*.spec.ts (20 tests)
+ * - cache/*.spec.ts (37 tests)
+ * - path-utils/*.spec.ts (103 tests)
+ * - project-analysis/*.spec.ts (170 tests)
+ * - import-updates/*.spec.ts
+ * - export-management/*.spec.ts (52 tests)
+ * - validation/*.spec.ts (30 tests)
+ * - core-operations/*.spec.ts (32 tests)
+ *
+ * These integration tests focus on:
+ * - End-to-end move scenarios (same-project, cross-project)
+ * - Batch operations (multiple files, glob patterns)
+ * - Project lifecycle (removeEmptyProject option)
+ * - Advanced options (deriveProjectDirectory)
+ * - Error handling and validation
+ * - Performance optimizations and caching
+ */
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import {
   Tree,
@@ -87,6 +110,10 @@ describe('move-file generator', () => {
     treeReadCache.clear();
   });
 
+  // ============================================================================
+  // End-to-End Move Scenarios
+  // ============================================================================
+
   describe('moving within the same project', () => {
     it('should update dynamic imports to new relative paths', async () => {
       tree.write(
@@ -141,6 +168,10 @@ describe('move-file generator', () => {
       );
     });
   });
+
+  // ============================================================================
+  // Performance Optimizations
+  // ============================================================================
 
   describe('lazy project graph resolution', () => {
     it('should not create project graph for same-project moves', async () => {
@@ -248,6 +279,10 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib1/src/lib/internal-util.ts')).toBe(false);
     });
   });
+
+  // ============================================================================
+  // Cross-Project Move Scenarios
+  // ============================================================================
 
   describe('moving a file that is not exported', () => {
     it('should move the file and update relative imports', async () => {
@@ -629,6 +664,10 @@ describe('move-file generator', () => {
     });
   });
 
+  // ============================================================================
+  // Error Handling and Validation
+  // ============================================================================
+
   describe('error handling', () => {
     it('should throw error if source file does not exist', async () => {
       const options: MoveFileGeneratorSchema = {
@@ -792,6 +831,10 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib1/src/lib/файл.ts')).toBe(false);
     });
   });
+
+  // ============================================================================
+  // Import Synchronization
+  // ============================================================================
 
   describe('syncing imports after cross-project move', () => {
     it('should update relative imports in the moved file to alias imports to source project', async () => {
@@ -1010,6 +1053,10 @@ describe('move-file generator', () => {
       warnSpy.mockRestore();
     });
   });
+
+  // ============================================================================
+  // Batch Operations
+  // ============================================================================
 
   describe('multiple file moves', () => {
     it('should move multiple files separated by commas', async () => {
@@ -1503,6 +1550,10 @@ describe('move-file generator', () => {
       expect(tree.exists('packages/lib2/src/lib/component.ts')).toBe(true);
     });
   });
+
+  // ============================================================================
+  // Project Lifecycle Management
+  // ============================================================================
 
   describe('removeEmptyProject option', () => {
     beforeEach(() => {
@@ -2183,6 +2234,10 @@ describe('move-file generator', () => {
     });
   });
 
+  // ============================================================================
+  // Advanced Options
+  // ============================================================================
+
   describe('deriveProjectDirectory option', () => {
     it('should derive project directory from source file path for single file', async () => {
       // Create a file in a nested directory structure
@@ -2594,6 +2649,10 @@ describe('move-file generator', () => {
       ).toBe(true);
     });
   });
+
+  // ============================================================================
+  // Caching and Performance
+  // ============================================================================
 
   describe('performance optimizations', () => {
     it('should skip traversal for non-existent project directories', async () => {
