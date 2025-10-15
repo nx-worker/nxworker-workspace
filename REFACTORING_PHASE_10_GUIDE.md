@@ -123,12 +123,14 @@ While the project has excellent end-to-end performance tests, it lacks **unit-le
 
 ```
 packages/workspace/src/generators/move-file/benchmarks/
-├── README.md                           # Benchmark documentation
-├── cache-operations.bench.ts           # Cache function benchmarks
-├── path-resolution.bench.ts            # Path utility benchmarks
-├── import-updates.bench.ts             # Import update benchmarks
-└── export-management.bench.ts          # Export management benchmarks
+├── README.md                              # Benchmark documentation
+├── cache-operations.bench.spec.ts         # Cache function benchmarks
+├── path-resolution.bench.spec.ts          # Path utility benchmarks
+├── import-updates.bench.spec.ts           # Import update benchmarks
+└── export-management.bench.spec.ts        # Export management benchmarks
 ```
+
+**Important**: Use `.bench.spec.ts` extension (not `.bench.ts`) so Jest will recognize these files. The `.bench.` infix clearly identifies them as benchmarks while the `.spec.ts` suffix ensures Jest picks them up with existing test configuration.
 
 **README.md content**:
 
@@ -146,15 +148,62 @@ This directory contains micro-benchmarks for the move-file generator's modular f
 
 ## Running Benchmarks
 
+### Run Locally
+
 ```bash
-# Run all benchmarks
+# Run all benchmarks (includes both benchmarks and regular tests)
 npx nx test workspace --testPathPattern=benchmarks
 
+# Run only benchmark files
+npx nx test workspace --testPathPattern='\.bench\.spec\.ts$'
+
 # Run specific benchmark suite
-npx nx test workspace --testPathPattern=cache-operations.bench
-npx nx test workspace --testPathPattern=path-resolution.bench
-npx nx test workspace --testPathPattern=import-updates.bench
-npx nx test workspace --testPathPattern=export-management.bench
+npx nx test workspace --testPathPattern=cache-operations.bench.spec
+npx nx test workspace --testPathPattern=path-resolution.bench.spec
+npx nx test workspace --testPathPattern=import-updates.bench.spec
+npx nx test workspace --testPathPattern=export-management.bench.spec
+
+# Run benchmarks with verbose output
+npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose
+```
+
+### CI Integration
+
+Benchmarks are **optional** and not required for CI to pass. They can be run:
+
+1. **Manually** - Run locally during development or when investigating performance
+2. **On-demand** - Trigger via workflow_dispatch on a dedicated benchmark workflow
+3. **Scheduled** - Run weekly/monthly to track performance trends over time
+
+**Not recommended** for every PR/commit as they:
+
+- Add ~5-10 seconds to test execution time
+- Results can vary based on runner load
+- Are informational rather than pass/fail checks
+
+### Example: Optional Benchmark Workflow
+
+You can create `.github/workflows/benchmarks.yml` for on-demand benchmark runs:
+
+```yaml
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-node-and-install
+      - name: Run benchmarks
+        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose
+      - name: Upload results
+        if: always()
+        run: echo "Store results in artifacts or comment on commit"
 ```
 ````
 
@@ -176,10 +225,10 @@ Each benchmark file follows this pattern:
 
 ## Benchmark Files
 
-- **cache-operations.bench.ts**: Benchmarks cache hit/miss performance, cache invalidation, and project source file caching
-- **path-resolution.bench.ts**: Benchmarks path manipulation, glob pattern building, and import specifier generation
-- **import-updates.bench.ts**: Benchmarks import detection, import path updates, and AST transformations
-- **export-management.bench.ts**: Benchmarks export detection, export statement addition/removal, and entrypoint management
+- **cache-operations.bench.spec.ts**: Benchmarks cache hit/miss performance, cache invalidation, and project source file caching
+- **path-resolution.bench.spec.ts**: Benchmarks path manipulation, glob pattern building, and import specifier generation
+- **import-updates.bench.spec.ts**: Benchmarks import detection, import path updates, and AST transformations
+- **export-management.bench.spec.ts**: Benchmarks export detection, export statement addition/removal, and entrypoint management
 
 ## Related Documentation
 
@@ -189,9 +238,9 @@ Each benchmark file follows this pattern:
 
 ````
 
-### Task 10.2: Create `cache-operations.bench.ts`
+### Task 10.2: Create `cache-operations.bench.spec.ts`
 
-**File**: `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.ts`
+**File**: `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.spec.ts`
 
 **Purpose**: Benchmark cache functions to ensure fast cache operations.
 
@@ -317,9 +366,9 @@ describe('cache-operations benchmarks', () => {
 });
 ````
 
-### Task 10.3: Create `path-resolution.bench.ts`
+### Task 10.3: Create `path-resolution.bench.spec.ts`
 
-**File**: `packages/workspace/src/generators/move-file/benchmarks/path-resolution.bench.ts`
+**File**: `packages/workspace/src/generators/move-file/benchmarks/path-resolution.bench.spec.ts`
 
 **Purpose**: Benchmark path utility functions for performance-critical path operations.
 
@@ -461,9 +510,9 @@ describe('path-resolution benchmarks', () => {
 });
 ```
 
-### Task 10.4: Create `import-updates.bench.ts`
+### Task 10.4: Create `import-updates.bench.spec.ts`
 
-**File**: `packages/workspace/src/generators/move-file/benchmarks/import-updates.bench.ts`
+**File**: `packages/workspace/src/generators/move-file/benchmarks/import-updates.bench.spec.ts`
 
 **Purpose**: Benchmark import update operations, which are critical for generator performance.
 
@@ -668,9 +717,9 @@ describe('import-updates benchmarks', () => {
 });
 ```
 
-### Task 10.5: Create `export-management.bench.ts`
+### Task 10.5: Create `export-management.bench.spec.ts`
 
-**File**: `packages/workspace/src/generators/move-file/benchmarks/export-management.bench.ts`
+**File**: `packages/workspace/src/generators/move-file/benchmarks/export-management.bench.spec.ts`
 
 **Purpose**: Benchmark export management operations.
 
@@ -963,14 +1012,17 @@ Based on benchmark results, potential optimizations:
 # Run all benchmarks
 npx nx test workspace --testPathPattern=benchmarks --output-style stream
 
+# Run only benchmark files (excludes other tests in benchmarks/ directory)
+npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style stream
+
 # Run specific benchmark
-npx nx test workspace --testPathPattern=cache-operations.bench --output-style stream
-npx nx test workspace --testPathPattern=path-resolution.bench --output-style stream
-npx nx test workspace --testPathPattern=import-updates.bench --output-style stream
-npx nx test workspace --testPathPattern=export-management.bench --output-style stream
+npx nx test workspace --testPathPattern=cache-operations.bench.spec --output-style stream
+npx nx test workspace --testPathPattern=path-resolution.bench.spec --output-style stream
+npx nx test workspace --testPathPattern=import-updates.bench.spec --output-style stream
+npx nx test workspace --testPathPattern=export-management.bench.spec --output-style stream
 
 # Run with verbose output
-npx nx test workspace --testPathPattern=benchmarks --verbose --output-style stream
+npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose --output-style stream
 ````
 
 ### Collecting Baseline Data
@@ -979,7 +1031,7 @@ npx nx test workspace --testPathPattern=benchmarks --verbose --output-style stre
 # Run benchmarks multiple times and collect results
 for i in {1..5}; do
   echo "Run $i"
-  npx nx test workspace --testPathPattern=benchmarks --output-style stream 2>&1 | tee benchmark-run-$i.log
+  npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style stream 2>&1 | tee benchmark-run-$i.log
 done
 
 # Analyze results for consistency
@@ -988,12 +1040,48 @@ grep "average:" benchmark-run-*.log
 
 ### Integration with CI
 
-Add benchmark step to `.github/workflows/ci.yml`:
+**Option 1: Optional Manual Runs** (Recommended)
+
+Create a separate workflow file `.github/workflows/benchmarks.yml` for on-demand runs:
+
+```yaml
+name: Performance Benchmarks
+
+on:
+  workflow_dispatch: # Manual trigger
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday (optional)
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Run benchmarks
+        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose --output-style stream
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: |
+            **/*.log
+          retention-days: 30
+```
+
+**Option 2: Include in CI** (Not Recommended)
+
+Add benchmark step to `.github/workflows/ci.yml` test job (adds ~5-10 seconds):
 
 ```yaml
 - name: Run Performance Benchmarks
-  run: npx nx test workspace --testPathPattern=benchmarks --output-style stream
+  run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style stream
 ```
+
+**Recommendation**: Use Option 1 (separate workflow) to avoid slowing down every PR. Run benchmarks manually when investigating performance or on a schedule to track trends.
 
 ## Verification Steps
 
@@ -1005,16 +1093,16 @@ Add benchmark step to `.github/workflows/ci.yml`:
 
 2. **Create benchmark files**:
    - Task 10.1: README.md
-   - Task 10.2: cache-operations.bench.ts
-   - Task 10.3: path-resolution.bench.ts
-   - Task 10.4: import-updates.bench.ts
-   - Task 10.5: export-management.bench.ts
+   - Task 10.2: cache-operations.bench.spec.ts
+   - Task 10.3: path-resolution.bench.spec.ts
+   - Task 10.4: import-updates.bench.spec.ts
+   - Task 10.5: export-management.bench.spec.ts
    - Task 10.6: PERFORMANCE_BASELINES.md
 
 3. **Run benchmarks**:
 
    ```bash
-   npx nx test workspace --testPathPattern=benchmarks --output-style stream
+   npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style stream
    ```
 
 4. **Verify no regressions**:
@@ -1060,10 +1148,10 @@ Add benchmark step to `.github/workflows/ci.yml`:
 **New files**:
 
 - `packages/workspace/src/generators/move-file/benchmarks/README.md`
-- `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.ts`
-- `packages/workspace/src/generators/move-file/benchmarks/path-resolution.bench.ts`
-- `packages/workspace/src/generators/move-file/benchmarks/import-updates.bench.ts`
-- `packages/workspace/src/generators/move-file/benchmarks/export-management.bench.ts`
+- `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.spec.ts`
+- `packages/workspace/src/generators/move-file/benchmarks/path-resolution.bench.spec.ts`
+- `packages/workspace/src/generators/move-file/benchmarks/import-updates.bench.spec.ts`
+- `packages/workspace/src/generators/move-file/benchmarks/export-management.bench.spec.ts`
 - `packages/workspace/src/generators/move-file/benchmarks/PERFORMANCE_BASELINES.md`
 
 **Modified files**:
@@ -1166,10 +1254,10 @@ Related: REFACTORING_PLAN.md, REFACTORING_PHASE_10_GUIDE.md
 ## Implementation Checklist
 
 - [ ] Task 10.1: Create benchmarks/ directory and README
-- [ ] Task 10.2: Create cache-operations.bench.ts
-- [ ] Task 10.3: Create path-resolution.bench.ts
-- [ ] Task 10.4: Create import-updates.bench.ts
-- [ ] Task 10.5: Create export-management.bench.ts
+- [ ] Task 10.2: Create cache-operations.bench.spec.ts
+- [ ] Task 10.3: Create path-resolution.bench.spec.ts
+- [ ] Task 10.4: Create import-updates.bench.spec.ts
+- [ ] Task 10.5: Create export-management.bench.spec.ts
 - [ ] Task 10.6: Create PERFORMANCE_BASELINES.md
 - [ ] Run benchmarks and collect results
 - [ ] Update baselines document with actual results
