@@ -15,29 +15,37 @@ This document provides a quick reference for the comprehensive refactoring plan 
 - **[Phase 7 Implementation Guide](./REFACTORING_PHASE_7_GUIDE.md)** ✅ Complete
 - **[Phase 8 Implementation Guide](./REFACTORING_PHASE_8_GUIDE.md)** ✅ Complete
 - **[Phase 9 Implementation Guide](./REFACTORING_PHASE_9_GUIDE.md)** ✅ Complete
-- **[Phase 10 Implementation Guide](./REFACTORING_PHASE_10_GUIDE.md)** 🔄 In Progress
+- **[Phase 10 Implementation Guide](./REFACTORING_PHASE_10_GUIDE.md)** ✅ Complete
 - **[ADR 001: Architecture Decision](./docs/adr/001-refactor-for-maintainability.md)** - Decision rationale and trade-offs
 
 ## Current State vs. Target State
 
-| Metric | Before | After (Phase 9) | Improvement |
+| Metric | Before | After (Phase 10) | Improvement |
 | --- | --- | --- | --- |
 | Lines in generator.ts | 1,967 | 307 | 85% reduction ✅ |
 | Functions in generator.ts | 54 | ~8 (orchestration) | Modularized ✅ |
 | Test file size (generator.spec.ts) | 2,740 lines | 2,799 lines | +59 lines (documentation) |
-| Total tests | 141 | 585 | 415% increase ✅ |
-| Test organization | 1 monolithic file | 48 test files + 1 integration | 48× better discoverability ✅ |
-| Domain directories | 1 (security-utils) | 10 directories | 10× better organization ✅ |
-| Implementation files | 4 | 61 | Modular structure ✅ |
+| Total tests | 141 | 601 | 426% increase ✅ |
+| Test organization | 1 monolithic file | 52 test files + 1 integration | 52× better discoverability ✅ |
+| Domain directories | 1 (security-utils) | 11 directories (incl. benchmarks/) | 11× better organization ✅ |
+| Implementation files | 4 | 66 | Modular structure ✅ |
 | Function discoverability | Low (scroll to find) | High (file name) | Fast lookup ✅ |
 | Test discoverability | Low (search in file) | High (file name) | Fast lookup ✅ |
+| Performance baseline | No benchmarks | 16 benchmark tests | Regression detection ✅ |
 
-## Achieved Directory Structure (After Phases 1-9)
+## Achieved Directory Structure (After Phases 1-10)
 
 ```
 packages/workspace/src/generators/move-file/
 ├── generator.ts                    # Main entry point (307 lines - 85% reduction ✅)
 ├── generator.spec.ts               # Integration tests (2,799 lines, 88 tests)
+├── benchmarks/                     # 5 files (4 benchmark suites + README + baselines)
+│   ├── README.md                   # Benchmark documentation
+│   ├── PERFORMANCE_BASELINES.md    # Baseline metrics
+│   ├── cache-operations.bench.spec.ts
+│   ├── path-resolution.bench.spec.ts
+│   ├── import-updates.bench.spec.ts
+│   └── export-management.bench.spec.ts
 ├── cache/                          # 6 functions, 6 test files (37 tests)
 ├── validation/                     # 2 functions, 1 test file (30 tests)
 ├── path-utils/                     # 9 functions, 9 test files (103 tests)
@@ -53,9 +61,9 @@ packages/workspace/src/generators/move-file/
 └── jscodeshift-utils.ts            # Keep as-is ✓
 ```
 
-**Total**: 61 implementation files, 48 test files, 10 domain directories  
-**Tests**: 585 total (88 integration + 497 unit tests)  
-**Status**: ✅ Phases 1-9 Complete
+**Total**: 66 implementation files, 52 test files, 11 domain directories  
+**Tests**: 601 total (88 integration + 497 unit + 16 benchmark tests)  
+**Status**: ✅ Phases 1-10 Complete
 
 ## Implementation Phases
 
@@ -70,12 +78,12 @@ packages/workspace/src/generators/move-file/
 | 7 | Validation | Low-Med | 2-3h | ~6 new files | ✅ Complete |
 | 8 | Core Operations | Med-High | 4-5h | ~16 new files | ✅ Complete |
 | 9 | Split Tests | Low | 3-4h | ~50+ test files | ✅ Complete |
-| 10 | Benchmarks | Low | 2-3h | ~4 benchmark files | 🔄 In Progress |
+| 10 | Benchmarks | Low | 2-3h | ~6 benchmark files | ✅ Complete |
 | 11 | Documentation | Low | 2-3h | README updates | ⏳ Planned |
 
 **Total Duration**: 35-42 hours (~1 week of focused work)  
-**Completed**: Phases 1-9 (✅)  
-**Next Up**: Phase 10 Performance Benchmarks (🔄 In Progress)
+**Completed**: Phases 1-10 (✅)  
+**Next Up**: Phase 11 Documentation Updates (⏳ Planned)
 
 ## Key Principles
 
@@ -106,13 +114,16 @@ packages/workspace/src/generators/move-file/
 - [x] ✅ Phase 9 complete: Test organization improved
 - [x] ✅ 88 integration tests organized with clear documentation
 - [x] ✅ All 585 tests pass (Phases 1-9 + existing tests)
-- [ ] 🔄 Phase 10 in progress: Performance benchmarks (guide created)
+- [x] ✅ Phase 10 complete: Performance benchmarks added
+- [x] ✅ 16 benchmark tests added (all passing)
+- [x] ✅ Performance baselines documented
+- [x] ✅ All 601 tests passing (88 integration + 497 unit + 16 benchmark)
 - [ ] Test coverage >95%
 - [ ] No performance regression
 - [x] ✅ `generator.ts` reduced to 307 lines (from 1,967 - achieved 85% reduction, target was 90%)
 - [ ] All functions documented with JSDoc
 - [x] ✅ All functions have unit tests (497 unit tests created in Phases 1-8)
-- [ ] Critical functions have benchmarks (Phase 10)
+- [x] ✅ Critical functions have benchmarks (Phase 10 complete)
 
 ## Benefits
 
