@@ -132,7 +132,7 @@ packages/workspace/src/generators/move-file/benchmarks/
 
 **README.md content**:
 
-```markdown
+````markdown
 # Performance Benchmarks
 
 This directory contains micro-benchmarks for the move-file generator's modular functions.
@@ -156,6 +156,7 @@ npx nx test workspace --testPathPattern=path-resolution.bench
 npx nx test workspace --testPathPattern=import-updates.bench
 npx nx test workspace --testPathPattern=export-management.bench
 ```
+````
 
 ## Benchmark Structure
 
@@ -185,7 +186,8 @@ Each benchmark file follows this pattern:
 - [BENCHMARK_RESULTS.md](../../../../../BENCHMARK_RESULTS.md)
 - [Performance Optimization Guide](../../../../../docs/performance-optimization.md)
 - [End-to-End Performance Tests](../../../../workspace-e2e/src/performance-benchmark.spec.ts)
-```
+
+````
 
 ### Task 10.2: Create `cache-operations.bench.ts`
 
@@ -251,7 +253,7 @@ describe('cache-operations benchmarks', () => {
     it('should have reasonable cache miss performance (< 5ms)', () => {
       // Setup
       const testFiles = Array.from({ length: 100 }, (_, i) => `file-${i}.ts`);
-      
+
       // Measure cache misses (no warmup)
       const iterations = 100;
       const start = performance.now();
@@ -271,7 +273,7 @@ describe('cache-operations benchmarks', () => {
     it('should efficiently retrieve cached source files (< 1ms)', () => {
       // Setup: Create a project with source files
       const projectRoot = 'libs/test-lib';
-      const sourceFiles = Array.from({ length: 50 }, (_, i) => 
+      const sourceFiles = Array.from({ length: 50 }, (_, i) =>
         `${projectRoot}/src/lib/file-${i}.ts`
       );
       sourceFiles.forEach(file => tree.write(file, 'content'));
@@ -296,7 +298,7 @@ describe('cache-operations benchmarks', () => {
   describe('cache update performance', () => {
     it('should quickly update project source files cache (< 1ms)', () => {
       const projectRoot = 'libs/test-lib';
-      
+
       // Measure cache update
       const iterations = 1000;
       const start = performance.now();
@@ -313,7 +315,7 @@ describe('cache-operations benchmarks', () => {
     });
   });
 });
-```
+````
 
 ### Task 10.3: Create `path-resolution.bench.ts`
 
@@ -349,7 +351,7 @@ describe('path-resolution benchmarks', () => {
   describe('buildFileNames performance', () => {
     it('should quickly generate file name variants (< 1ms)', () => {
       const basePath = 'libs/my-lib/src/lib/my-file';
-      
+
       // Warmup
       buildFileNames(basePath);
 
@@ -369,10 +371,11 @@ describe('path-resolution benchmarks', () => {
 
   describe('buildPatterns performance', () => {
     it('should efficiently build patterns for multiple files (< 10ms for 100 files)', () => {
-      const filePaths = Array.from({ length: 100 }, (_, i) => 
-        `libs/lib-${i}/src/lib/file-${i}.ts`
+      const filePaths = Array.from(
+        { length: 100 },
+        (_, i) => `libs/lib-${i}/src/lib/file-${i}.ts`,
       );
-      
+
       // Warmup
       buildPatterns(filePaths);
 
@@ -394,7 +397,7 @@ describe('path-resolution benchmarks', () => {
     it('should calculate import paths quickly (< 0.5ms)', () => {
       const fromPath = 'libs/lib-a/src/lib/component-a.ts';
       const toPath = 'libs/lib-b/src/lib/service-b.ts';
-      
+
       // Warmup
       getRelativeImportSpecifier(fromPath, toPath);
 
@@ -407,7 +410,9 @@ describe('path-resolution benchmarks', () => {
       const end = performance.now();
       const avgTime = (end - start) / iterations;
 
-      console.log(`getRelativeImportSpecifier average: ${avgTime.toFixed(4)}ms`);
+      console.log(
+        `getRelativeImportSpecifier average: ${avgTime.toFixed(4)}ms`,
+      );
       expect(avgTime).toBeLessThan(0.5);
     });
   });
@@ -415,7 +420,7 @@ describe('path-resolution benchmarks', () => {
   describe('path normalization performance', () => {
     it('should normalize paths efficiently (< 0.1ms)', () => {
       const relativePath = './libs/my-lib/src/lib/file.ts';
-      
+
       // Warmup
       toAbsoluteWorkspacePath(relativePath);
 
@@ -436,7 +441,7 @@ describe('path-resolution benchmarks', () => {
   describe('extension removal performance', () => {
     it('should strip extensions quickly (< 0.05ms)', () => {
       const filePath = 'libs/my-lib/src/lib/my-file.ts';
-      
+
       // Warmup
       removeSourceFileExtension(filePath);
 
@@ -490,7 +495,7 @@ describe('import-updates benchmarks', () => {
   beforeEach(() => {
     tree = createTreeWithEmptyWorkspace();
     projects = new Map();
-    
+
     // Setup test projects
     projects.set('lib-a', {
       name: 'lib-a',
@@ -524,7 +529,7 @@ describe('import-updates benchmarks', () => {
       tree.write(sourceFile, content);
 
       const targetFile = 'libs/lib-b/src/lib/target.ts';
-      
+
       // Warmup
       updateMovedFileImportsIfNeeded(
         tree,
@@ -532,7 +537,7 @@ describe('import-updates benchmarks', () => {
         targetFile,
         'lib-a',
         'lib-b',
-        projects
+        projects,
       );
 
       // Measure
@@ -546,7 +551,7 @@ describe('import-updates benchmarks', () => {
           targetFile,
           'lib-a',
           'lib-b',
-          projects
+          projects,
         );
       }
       const end = performance.now();
@@ -579,7 +584,7 @@ describe('import-updates benchmarks', () => {
           targetFile,
           'lib-a',
           'lib-b',
-          projects
+          projects,
         );
       });
 
@@ -595,14 +600,16 @@ describe('import-updates benchmarks', () => {
             targetFile,
             'lib-a',
             'lib-b',
-            projects
+            projects,
           );
         });
       }
       const end = performance.now();
       const avgTime = (end - start) / iterations;
 
-      console.log(`Batch import update (${fileCount} files) average: ${avgTime.toFixed(4)}ms`);
+      console.log(
+        `Batch import update (${fileCount} files) average: ${avgTime.toFixed(4)}ms`,
+      );
       expect(avgTime).toBeLessThan(50);
     });
   });
@@ -636,7 +643,7 @@ describe('import-updates benchmarks', () => {
       tree.write(filePath, content);
 
       const targetFile = 'libs/lib-b/src/lib/complex-file.ts';
-      
+
       // Measure
       const iterations = 100;
       const start = performance.now();
@@ -648,7 +655,7 @@ describe('import-updates benchmarks', () => {
           targetFile,
           'lib-a',
           'lib-b',
-          projects
+          projects,
         );
       }
       const end = performance.now();
@@ -709,7 +716,7 @@ describe('export-management benchmarks', () => {
       tree.write(entryPoint, content);
 
       const fileToCheck = 'libs/my-lib/src/lib/file3.ts';
-      
+
       // Warmup
       isFileExported(tree, entryPoint, fileToCheck);
 
@@ -734,9 +741,9 @@ describe('export-management benchmarks', () => {
         export * from './lib/file1';
         export * from './lib/file2';
       `;
-      
+
       const fileToExport = 'libs/my-lib/src/lib/new-file.ts';
-      
+
       // Warmup
       tree.write(entryPoint, initialContent);
       ensureFileExported(tree, entryPoint, fileToExport);
@@ -746,7 +753,11 @@ describe('export-management benchmarks', () => {
       const start = performance.now();
       for (let i = 0; i < iterations; i++) {
         tree.write(entryPoint, initialContent); // Reset
-        ensureFileExported(tree, entryPoint, `libs/my-lib/src/lib/file-${i}.ts`);
+        ensureFileExported(
+          tree,
+          entryPoint,
+          `libs/my-lib/src/lib/file-${i}.ts`,
+        );
       }
       const end = performance.now();
       const avgTime = (end - start) / iterations;
@@ -765,7 +776,7 @@ describe('export-management benchmarks', () => {
         export * from './lib/file-to-remove';
         export * from './lib/file2';
       `;
-      
+
       // Warmup
       tree.write(entryPoint, initialContent);
       removeFileExport(tree, entryPoint, fileToRemove);
@@ -789,26 +800,33 @@ describe('export-management benchmarks', () => {
     it('should handle multiple export operations efficiently (< 100ms for 20 operations)', () => {
       const entryPoint = 'libs/my-lib/src/index.ts';
       const initialContent = `export * from './lib/existing';`;
-      
-      const filesToExport = Array.from({ length: 20 }, (_, i) => 
-        `libs/my-lib/src/lib/file-${i}.ts`
+
+      const filesToExport = Array.from(
+        { length: 20 },
+        (_, i) => `libs/my-lib/src/lib/file-${i}.ts`,
       );
-      
+
       // Warmup
       tree.write(entryPoint, initialContent);
-      filesToExport.forEach(file => ensureFileExported(tree, entryPoint, file));
+      filesToExport.forEach((file) =>
+        ensureFileExported(tree, entryPoint, file),
+      );
 
       // Measure bulk operations
       const iterations = 10;
       const start = performance.now();
       for (let i = 0; i < iterations; i++) {
         tree.write(entryPoint, initialContent); // Reset
-        filesToExport.forEach(file => ensureFileExported(tree, entryPoint, file));
+        filesToExport.forEach((file) =>
+          ensureFileExported(tree, entryPoint, file),
+        );
       }
       const end = performance.now();
       const avgTime = (end - start) / iterations;
 
-      console.log(`Bulk export operations (20 files) average: ${avgTime.toFixed(4)}ms`);
+      console.log(
+        `Bulk export operations (20 files) average: ${avgTime.toFixed(4)}ms`,
+      );
       expect(avgTime).toBeLessThan(100);
     });
   });
@@ -823,7 +841,7 @@ describe('export-management benchmarks', () => {
 
 **Content structure**:
 
-```markdown
+````markdown
 # Performance Baselines
 
 Last updated: 2025-10-15
@@ -837,7 +855,7 @@ This document establishes baseline performance metrics for the move-file generat
 ### Cache Operations
 
 | Operation | Average Time | P95 | P99 | Notes |
-|-----------|-------------|-----|-----|-------|
+| --- | --- | --- | --- | --- |
 | Cache hit | < 0.1ms | TBD | TBD | File existence check with warm cache |
 | Cache miss | < 5ms | TBD | TBD | First-time file existence check |
 | Get source files (cached) | < 1ms | TBD | TBD | Retrieve cached project source files |
@@ -848,7 +866,7 @@ This document establishes baseline performance metrics for the move-file generat
 ### Path Resolution
 
 | Operation | Average Time | P95 | P99 | Notes |
-|-----------|-------------|-----|-----|-------|
+| --- | --- | --- | --- | --- |
 | buildFileNames | < 1ms | TBD | TBD | Generate file name variants |
 | buildPatterns (100 files) | < 10ms | TBD | TBD | Build glob patterns for batch |
 | getRelativeImportSpecifier | < 0.5ms | TBD | TBD | Calculate relative import path |
@@ -858,7 +876,7 @@ This document establishes baseline performance metrics for the move-file generat
 ### Import Updates
 
 | Operation | Average Time | P95 | P99 | Notes |
-|-----------|-------------|-----|-----|-------|
+| --- | --- | --- | --- | --- |
 | Update imports (single file) | < 10ms | TBD | TBD | AST parse + transform |
 | Update imports (10 files) | < 50ms | TBD | TBD | Batch import updates |
 | AST transformation | < 15ms | TBD | TBD | Complex file with multiple imports |
@@ -866,7 +884,7 @@ This document establishes baseline performance metrics for the move-file generat
 ### Export Management
 
 | Operation | Average Time | P95 | P99 | Notes |
-|-----------|-------------|-----|-----|-------|
+| --- | --- | --- | --- | --- |
 | Export detection | < 5ms | TBD | TBD | Check if file is exported |
 | Export addition | < 10ms | TBD | TBD | Add export statement |
 | Export removal | < 10ms | TBD | TBD | Remove export statement |
@@ -899,6 +917,7 @@ Benchmark tests can be run in CI to detect regressions:
 ```bash
 npx nx test workspace --testPathPattern=benchmarks
 ```
+````
 
 ### Regression Thresholds
 
@@ -933,7 +952,8 @@ Based on benchmark results, potential optimizations:
 - [Glob Performance Benchmark](../../../../../tools/benchmark-glob-performance.js)
 - [Performance Results](../../../../../BENCHMARK_RESULTS.md)
 - [Lazy Project Graph Results](../../../../../LAZY_PROJECT_GRAPH_PERFORMANCE_RESULTS.md)
-```
+
+````
 
 ## Testing Strategy
 
@@ -951,7 +971,7 @@ npx nx test workspace --testPathPattern=export-management.bench --output-style s
 
 # Run with verbose output
 npx nx test workspace --testPathPattern=benchmarks --verbose --output-style stream
-```
+````
 
 ### Collecting Baseline Data
 
