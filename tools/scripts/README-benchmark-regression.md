@@ -237,6 +237,27 @@ npx tsx tools/scripts/capture-benchmark-baselines.ts
 - Use dedicated CI runner for consistency
 - Update baselines on same platform as CI
 
+## Testing
+
+### Automated Test
+
+A test script is provided to demonstrate the regression detection system:
+
+```bash
+npx tsx tools/scripts/test-regression-detection.ts
+```
+
+This script:
+1. Runs comparison with current baseline (should pass)
+2. Temporarily modifies baseline to simulate regression
+3. Verifies that regression is detected (should fail appropriately)
+4. Restores original baseline
+
+**Expected output:**
+- Test 1: ✅ No regressions detected
+- Test 2: ❌ Regression correctly detected
+- Final: 🎉 All tests completed successfully
+
 ## Related Documentation
 
 - [Benchmark README](../../packages/workspace/src/generators/move-file/benchmarks/README.md) - How to run benchmarks
