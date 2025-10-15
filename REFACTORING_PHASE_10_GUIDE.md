@@ -1253,21 +1253,21 @@ Related: REFACTORING_PLAN.md, REFACTORING_PHASE_10_GUIDE.md
 
 ## Implementation Checklist
 
-- [ ] Task 10.1: Create benchmarks/ directory and README
-- [ ] Task 10.2: Create cache-operations.bench.spec.ts
-- [ ] Task 10.3: Create path-resolution.bench.spec.ts
-- [ ] Task 10.4: Create import-updates.bench.spec.ts
-- [ ] Task 10.5: Create export-management.bench.spec.ts
-- [ ] Task 10.6: Create PERFORMANCE_BASELINES.md
-- [ ] Run benchmarks and collect results
-- [ ] Update baselines document with actual results
-- [ ] Verify all existing tests still pass
-- [ ] Verify build succeeds
-- [ ] Verify linting passes
-- [ ] Update REFACTORING_INDEX.md
-- [ ] Update REFACTORING_SUMMARY.md
-- [ ] Update AGENTS.md
-- [ ] Commit changes
+- [x] Task 10.1: Create benchmarks/ directory and README
+- [x] Task 10.2: Create cache-operations.bench.spec.ts
+- [x] Task 10.3: Create path-resolution.bench.spec.ts
+- [x] Task 10.4: Create import-updates.bench.spec.ts
+- [x] Task 10.5: Create export-management.bench.spec.ts
+- [x] Task 10.6: Create PERFORMANCE_BASELINES.md
+- [x] Run benchmarks and collect results
+- [x] Update baselines document with actual results
+- [x] Verify all existing tests still pass
+- [x] Verify build succeeds
+- [x] Verify linting passes
+- [x] Update REFACTORING_INDEX.md
+- [x] Update REFACTORING_SUMMARY.md
+- [x] Update AGENTS.md
+- [x] Commit changes
 
 ## Notes
 

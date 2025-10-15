@@ -430,26 +430,26 @@ import { updateImportPathsInDependentProjects } from './import-updates/update-im
 
 ## Implementation Checklist
 
-- [ ] Task 5.1: Create update-moved-file-imports-if-needed.ts
-- [ ] Task 5.2: Create update-moved-file-imports-if-needed.spec.ts
-- [ ] Task 5.3: Create update-relative-imports-in-moved-file.ts
-- [ ] Task 5.4: Create update-relative-imports-in-moved-file.spec.ts
-- [ ] Task 5.5: Create update-relative-imports-to-alias-in-moved-file.ts
-- [ ] Task 5.6: Create update-relative-imports-to-alias-in-moved-file.spec.ts
-- [ ] Task 5.7: Create update-target-project-imports-if-needed.ts
-- [ ] Task 5.8: Create update-target-project-imports-if-needed.spec.ts
-- [ ] Task 5.9: Create update-import-paths-in-dependent-projects.ts
-- [ ] Task 5.10: Create update-import-paths-in-dependent-projects.spec.ts
-- [ ] Task 5.11: Create update-import-paths-to-package-alias.ts
-- [ ] Task 5.12: Create update-import-paths-to-package-alias.spec.ts
-- [ ] Task 5.13: Create update-import-paths-in-project.ts
-- [ ] Task 5.14: Create update-import-paths-in-project.spec.ts
-- [ ] Task 5.15: Create update-imports-to-relative.ts
-- [ ] Task 5.16: Create update-imports-to-relative.spec.ts
-- [ ] Task 5.17: Create update-imports-by-alias-in-project.ts
-- [ ] Task 5.18: Create update-imports-by-alias-in-project.spec.ts
-- [ ] Task 5.19: Update generator.ts imports and remove functions
-- [ ] Task 5.20: Run verification steps and confirm all tests pass
+- [x] Task 5.1: Create update-moved-file-imports-if-needed.ts
+- [x] Task 5.2: Create update-moved-file-imports-if-needed.spec.ts
+- [x] Task 5.3: Create update-relative-imports-in-moved-file.ts
+- [x] Task 5.4: Create update-relative-imports-in-moved-file.spec.ts
+- [x] Task 5.5: Create update-relative-imports-to-alias-in-moved-file.ts
+- [x] Task 5.6: Create update-relative-imports-to-alias-in-moved-file.spec.ts
+- [x] Task 5.7: Create update-target-project-imports-if-needed.ts
+- [x] Task 5.8: Create update-target-project-imports-if-needed.spec.ts
+- [x] Task 5.9: Create update-import-paths-in-dependent-projects.ts
+- [x] Task 5.10: Create update-import-paths-in-dependent-projects.spec.ts
+- [x] Task 5.11: Create update-import-paths-to-package-alias.ts
+- [x] Task 5.12: Create update-import-paths-to-package-alias.spec.ts
+- [x] Task 5.13: Create update-import-paths-in-project.ts
+- [x] Task 5.14: Create update-import-paths-in-project.spec.ts
+- [x] Task 5.15: Create update-imports-to-relative.ts
+- [x] Task 5.16: Create update-imports-to-relative.spec.ts
+- [x] Task 5.17: Create update-imports-by-alias-in-project.ts
+- [x] Task 5.18: Create update-imports-by-alias-in-project.spec.ts
+- [x] Task 5.19: Update generator.ts imports and remove functions
+- [x] Task 5.20: Run verification steps and confirm all tests pass
 
 ## Success Criteria
 
