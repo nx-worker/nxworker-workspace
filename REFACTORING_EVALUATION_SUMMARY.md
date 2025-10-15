@@ -111,17 +111,20 @@ After Refactoring (Phase 11):
    - ✅ Improved IDE experience significantly
 
 3. ✅ **Add benchmark regression detection to CI** (3-4 hours) - **COMPLETE (2025-10-15)**
-   - ✅ Implemented using **benchmark.js** library with **github-action-benchmark**
-   - ✅ Statistical analysis with ops/sec reporting
+   - ✅ Implemented using **jest-bench** (powered by benchmark.js) with **github-action-benchmark**
+   - ✅ Jest integration via benchmarkSuite API for consistent test environment
+   - ✅ Statistical analysis from benchmark.js engine with ops/sec reporting
    - ✅ Automatic regression detection on PRs (150% threshold)
    - ✅ GitHub Pages charts for performance trend visualization
    - ✅ PR comments and job summaries on regressions
+   - ✅ Nx task with proper caching configuration
+   - ✅ Benchmarks use `.bench.ts` extension, excluded from unit tests
    - ✅ Removed ~1,064 lines of custom scripts in favor of industry-standard tooling
 
 4. **Expand benchmark coverage** (4-6 hours)
-   - validation/validation.bench.spec.ts
-   - core-operations/core-operations.bench.spec.ts
-   - project-analysis/project-analysis.bench.spec.ts
+   - validation/validation.bench.ts
+   - core-operations/core-operations.bench.ts
+   - project-analysis/project-analysis.bench.ts
 
 5. **Create architecture diagrams** (4-6 hours)
    - Module dependency graph

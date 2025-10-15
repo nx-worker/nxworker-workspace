@@ -84,12 +84,12 @@ The Phase 1-9 refactoring focused on maintainability and testability, with perfo
 
 ### Automated CI Checks ✅ IMPLEMENTED
 
-**Status**: Benchmark regression detection using github-action-benchmark is now active on all pull requests!
+**Status**: Benchmark regression detection using github-action-benchmark with jest-bench is now active on all pull requests!
 
 The CI system automatically:
 
-1. Runs all micro-benchmark tests using benchmark.js
-2. Parses benchmark results (ops/sec from benchmark.js output)
+1. Runs all micro-benchmark tests using jest-bench (powered by benchmark.js)
+2. Parses benchmark results (ops/sec from jest-bench output)
 3. Compares against historical data stored in GitHub Pages
 4. Fails PRs if regressions exceed 150% threshold
 5. Posts comments and job summaries showing regressions
@@ -135,11 +135,9 @@ If regression detected:
    - **Unintentional regression**: Fix the code causing the slowdown
    - **Intentional trade-off**: Update baseline if accepting performance cost for other benefits
 4. **Update baseline if needed**:
-   ```bash
-   npx tsx tools/scripts/capture-benchmark-baselines.ts
-   git add packages/workspace/src/generators/move-file/benchmarks/baselines.json
-   git commit -m "perf(workspace): update baselines after [reason]"
-   ```
+   - The baseline updates automatically when merged to main
+   - No manual baseline management needed with github-action-benchmark
+   - Historical data stored in GitHub Pages branch
 
 **Automated Alerts**: CI will fail the PR and show:
 

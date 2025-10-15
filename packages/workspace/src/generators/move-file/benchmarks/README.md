@@ -14,20 +14,17 @@ This directory contains micro-benchmarks for the move-file generator's modular f
 ### Run Locally
 
 ```bash
-# Run all benchmarks (includes both benchmarks and regular tests)
-npx nx test workspace --testPathPattern=benchmarks
+# Run all benchmarks using Nx task
+npx nx benchmark workspace
 
-# Run only benchmark files
-npx nx test workspace --testPathPattern='\.bench\.spec\.ts$'
+# Run benchmarks with Jest directly
+npx jest --projects jest-bench.config.ts
 
 # Run specific benchmark suite
-npx nx test workspace --testPathPattern=cache-operations.bench.spec
-npx nx test workspace --testPathPattern=path-resolution.bench.spec
-npx nx test workspace --testPathPattern=import-updates.bench.spec
-npx nx test workspace --testPathPattern=export-management.bench.spec
-
-# Run benchmarks with verbose output
-npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --verbose
+npx jest --projects jest-bench.config.ts --testPathPattern=cache-operations
+npx jest --projects jest-bench.config.ts --testPathPattern=path-resolution
+npx jest --projects jest-bench.config.ts --testPathPattern=import-updates
+npx jest --projects jest-bench.config.ts --testPathPattern=export-management
 ```
 
 ### CI Integration
@@ -40,7 +37,7 @@ The benchmarks use [github-action-benchmark](https://github.com/benchmark-action
 
 The CI system:
 
-1. Runs all benchmark tests using benchmark.js
+1. Runs all benchmark tests using jest-bench (powered by benchmark.js)
 2. Parses benchmark results (ops/sec)
 3. Compares against historical baseline data
 4. Fails the PR if regressions exceed 150% threshold
@@ -74,24 +71,28 @@ To accept an intentional regression (e.g., trading performance for maintainabili
 
 ## Benchmark Implementation
 
-Benchmarks use the [benchmark.js](https://benchmarkjs.com/) library, which provides:
+Benchmarks use the [jest-bench](https://www.npmjs.com/package/jest-bench) library, which provides:
 
-- Statistical analysis with multiple iterations
-- Automatic calibration of test duration
+- Jest integration with `benchmarkSuite` API
+- Powered by benchmark.js for statistical rigor
+- Multiple iterations with automatic calibration
 - Detection of performance outliers
 - Standard deviation and margin of error calculation
+- Standard ops/sec reporting compatible with github-action-benchmark
 
-Each benchmark file exports a Jest test suite that runs benchmark.js suites.
+Each benchmark file uses `benchmarkSuite` from jest-bench for clean, Jest-compatible syntax.
 
 ## Interpreting Results
 
-Benchmark.js reports results in operations per second (ops/sec):
+jest-bench (powered by benchmark.js) reports results in operations per second (ops/sec):
 
 ```
-Cache hit x 132,000,000 ops/sec ±4.44% (81 runs sampled)
+Cache hit                    623 ops/sec   1.60 ms ±  0.42 %  (90 runs sampled)
+Cache miss                 4,595 ops/sec  0.218 ms ±  0.28 %  (93 runs sampled)
 ```
 
 - **ops/sec**: Higher is better (more operations per second = faster)
+- **ms**: Time per operation (lower is better)
 - **±%**: Margin of error (lower is better = more consistent)
 - **runs sampled**: Number of test iterations completed
 
@@ -104,10 +105,10 @@ Cache hit x 132,000,000 ops/sec ±4.44% (81 runs sampled)
 
 ## Benchmark Files
 
-- **cache-operations.bench.spec.ts**: Benchmarks cache hit/miss performance, cache invalidation, and project source file caching
-- **path-resolution.bench.spec.ts**: Benchmarks path manipulation, glob pattern building, and import specifier generation
-- **import-updates.bench.spec.ts**: Benchmarks import detection, import path updates, and AST transformations
-- **export-management.bench.spec.ts**: Benchmarks export detection, export statement addition/removal, and entrypoint management
+- **cache-operations.bench.ts**: Benchmarks cache hit/miss performance, cache invalidation, and project source file caching
+- **path-resolution.bench.ts**: Benchmarks path manipulation, glob pattern building, and import specifier generation
+- **import-updates.bench.ts**: Benchmarks import detection, import path updates, and AST transformations
+- **export-management.bench.ts**: Benchmarks export detection, export statement addition/removal, and entrypoint management
 
 ## Related Documentation
 
