@@ -105,6 +105,11 @@ jobs:
       # Exclude benchmark tests (*.bench.spec.ts and performance-benchmark.spec.ts) from regular test runs
       - run: npx nx affected -t test --configuration=ci --output-style=static -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
 
+      # Run coverage check on ubuntu-24.04-arm with Node 22 to enforce coverage thresholds
+      - name: Check code coverage
+        if: matrix.os == 'ubuntu-24.04-arm' && matrix.node-version == 22
+        run: npx nx test workspace --coverage --output-style=static -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+
   # Summary check that aggregates all test matrix results for branch protection
   check-test:
     needs: test
