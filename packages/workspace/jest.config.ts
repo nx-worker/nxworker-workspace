@@ -27,4 +27,12 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'html'],
   testEnvironment: '',
   coverageDirectory: '../../coverage/packages/workspace',
+  coverageThreshold: {
+    global: {
+      statements: 90,
+      branches: 80,
+      functions: 95,
+      lines: 90,
+    },
+  },
 };
