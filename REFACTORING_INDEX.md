@@ -138,6 +138,20 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 
 **Best for**: Reference for the completed seventh phase of the refactoring (validation functions).
 
+### 🔧 [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md)
+
+**Implementation guide** - Step-by-step for Phase 8
+
+- Detailed tasks for Phase 8 (Core Operations)
+- Complete code examples for 8 core operation functions
+- Test examples with 32+ tests
+- Verification steps
+- Expected outcomes
+- Commit message template
+- **Status**: ✅ Complete
+
+**Best for**: Reference for the completed eighth phase of the refactoring (core operations).
+
 ### 📝 [docs/adr/001-refactor-for-maintainability.md](./docs/adr/001-refactor-for-maintainability.md)
 
 **Architecture Decision Record** - Why and how
@@ -170,7 +184,8 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 7. ✅ [REFACTORING_PHASE_5_GUIDE.md](./REFACTORING_PHASE_5_GUIDE.md) - Completed
 8. ✅ [REFACTORING_PHASE_6_GUIDE.md](./REFACTORING_PHASE_6_GUIDE.md) - Completed
 9. ✅ [REFACTORING_PHASE_7_GUIDE.md](./REFACTORING_PHASE_7_GUIDE.md) - Completed
-10. Follow each remaining phase in sequence
+10. ✅ [REFACTORING_PHASE_8_GUIDE.md](./REFACTORING_PHASE_8_GUIDE.md) - Completed
+11. Follow each remaining phase in sequence
 
 ### For Stakeholders
 
@@ -218,7 +233,7 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 
 ## Status
 
-**Current Status**: ✅ Phase 7 Complete, Phase 8 Ready
+**Current Status**: ✅ Phase 8 Complete
 
 ### Completed Phases
 
@@ -229,12 +244,11 @@ This directory contains comprehensive documentation for refactoring the `@nxwork
 - ✅ **Phase 5: Import Update Functions** - All 9 import update functions extracted with existing test coverage
 - ✅ **Phase 6: Export Management Functions** - All 5 export management functions extracted with 52 unit tests
 - ✅ **Phase 7: Validation Functions** - All 2 validation functions extracted with 30 unit tests
+- ✅ **Phase 8: Core Operations** - All 8 core operation functions extracted with 32 unit tests
 
-### In Progress
+### Remaining Phases
 
-- 📋 **Phase 8: Core Operations** - Ready for implementation
-
-This PR contains the refactoring implementation. Phases 1-7 have been completed successfully. All 553 tests passing.
+This PR contains the refactoring implementation. Phases 1-8 have been completed successfully. All 585 tests passing.
 
 ### Next Steps
 
@@ -245,7 +259,7 @@ This PR contains the refactoring implementation. Phases 1-7 have been completed 
 - ✅ Phase 5 completed (Import Update Functions) - All tests passing
 - ✅ Phase 6 completed (Export Management Functions) - All tests passing
 - ✅ Phase 7 completed (Validation Functions) - All tests passing
-- [ ] Implement Phase 8 (Core Operations)
+- ✅ Phase 8 completed (Core Operations) - All tests passing, generator.ts reduced to 309 lines
 - [ ] Implement Phases 9-11 incrementally
 - [ ] Final review and merge
 
