@@ -66,6 +66,16 @@
         }
       }
     },
+    "benchmark": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/jest-bench.config.ts",
+        "{workspaceRoot}/jest.preset.js",
+        "osPlatform"
+      ],
+      "outputs": ["{workspaceRoot}/benchmarks/result.txt"]
+    },
     "e2e-ci--**/*": {
       "dependsOn": ["^build"]
     },

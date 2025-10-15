@@ -26,6 +26,7 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   testEnvironment: '',
+  testPathIgnorePatterns: ['/node_modules/', '\\.bench\\.ts$'],
   coverageDirectory: '../../coverage/packages/workspace',
   coverageThreshold: {
     global: {

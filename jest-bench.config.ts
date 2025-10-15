@@ -13,7 +13,7 @@ export default {
       },
     ],
   ],
-  testMatch: ['<rootDir>/packages/**/benchmarks/**/*.bench.spec.ts'],
+  testMatch: ['<rootDir>/packages/**/benchmarks/**/*.bench.ts'],
   transform: {
     '^.+\\.[tj]s$': [
       '@swc/jest',
