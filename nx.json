@@ -69,6 +69,7 @@
     "benchmark": {
       "cache": true,
       "inputs": [
+        "production",
         "{projectRoot}/**/*.bench.ts",
         "{workspaceRoot}/jest-bench.config.ts",
         "{workspaceRoot}/jest.preset.js",
