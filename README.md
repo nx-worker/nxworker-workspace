@@ -95,6 +95,23 @@ The workflow processes each commit individually, applying formatting fixes and a
 
 ### Performance Testing
 
+The repository includes comprehensive performance testing at multiple levels:
+
+#### Unit Benchmarks (jest-bench)
+
+Micro-benchmarks for individual functions in the move-file generator:
+
+```shell
+# Run micro-benchmarks
+npx nx benchmark workspace
+```
+
+See `packages/workspace/src/generators/move-file/benchmarks/README.md` for details.
+
+**Continuous Monitoring**: Unit benchmarks run on every PR and push to main, with automated regression detection (150% threshold).
+
+#### E2E Performance Tests
+
 The e2e suite includes two types of performance tests:
 
 - **Performance Benchmarks** (`performance-benchmark.spec.ts`): Quick baseline tests (~1-2 minutes)
@@ -112,6 +129,8 @@ npx nx e2e workspace-e2e --testPathPattern=performance-stress-test
 # Run all performance tests
 npx nx e2e workspace-e2e --testPathPattern=performance
 ```
+
+**Continuous Monitoring**: E2E benchmarks run on every PR and push to main across three platforms (macOS, Windows, Ubuntu ARM), with automated regression detection (105% threshold, fails if performance degrades >5%).
 
 See `packages/workspace-e2e/QUICK_START_STRESS_TESTS.md` for a quick start guide and `packages/workspace-e2e/STRESS_TEST_GUIDE.md` for comprehensive documentation.
 
