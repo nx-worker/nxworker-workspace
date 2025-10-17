@@ -40,4 +40,7 @@ export default {
   coverageDirectory: './coverage/e2e-benchmarks',
   // E2E benchmarks need longer timeout for workspace setup
   testTimeout: 600000, // 10 minutes
+  // Start and stop local Verdaccio registry for e2e benchmarks
+  globalSetup: './tools/scripts/start-local-registry.ts',
+  globalTeardown: './tools/scripts/stop-local-registry.ts',
 };
