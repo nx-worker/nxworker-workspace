@@ -63,7 +63,13 @@ benchmarkSuite('Move file across 10 projects', {
     const lib0Alias = getProjectImportAlias(stressProjectDirectory, libs[0]);
     for (let i = 1; i < projectCount; i++) {
       writeFileSync(
-        join(stressProjectDirectory, libs[i], 'src', 'lib', `consumer-from-lib0.ts`),
+        join(
+          stressProjectDirectory,
+          libs[i],
+          'src',
+          'lib',
+          `consumer-from-lib0.ts`,
+        ),
         `import { sharedUtil } from '${lib0Alias}';\nexport const value = sharedUtil();\n`,
       );
     }
@@ -110,7 +116,10 @@ benchmarkSuite('Process 100 large files', {
       `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
     );
 
-    const sourceLibAlias = getProjectImportAlias(stressProjectDirectory, sourceLib);
+    const sourceLibAlias = getProjectImportAlias(
+      stressProjectDirectory,
+      sourceLib,
+    );
 
     // Create many large files (most won't import the target)
     const filesWithImports = Math.floor(fileCount * 0.1); // 10% import the target
@@ -177,7 +186,13 @@ benchmarkSuite('Update 50 relative imports', {
     }
 
     // Create target directory
-    const newUtilsDir = join(stressProjectDirectory, lib, 'src', 'lib', 'helpers');
+    const newUtilsDir = join(
+      stressProjectDirectory,
+      lib,
+      'src',
+      'lib',
+      'helpers',
+    );
     mkdirSync(newUtilsDir, { recursive: true });
 
     // Benchmark the move

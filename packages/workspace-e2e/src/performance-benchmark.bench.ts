@@ -53,7 +53,13 @@ beforeAll(async () => {
 benchmarkSuite('Move small file (< 1KB)', {
   ['Small file move']() {
     const fileName = `small-${uniqueId()}.ts`;
-    const filePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName);
+    const filePath = join(
+      projectDirectory,
+      benchmarkLib1,
+      'src',
+      'lib',
+      fileName,
+    );
     writeFileSync(
       filePath,
       'export function smallFunction() { return "small"; }\n',
@@ -72,7 +78,13 @@ benchmarkSuite('Move small file (< 1KB)', {
 benchmarkSuite('Move medium file (~10KB)', {
   ['Medium file move']() {
     const fileName = `medium-${uniqueId()}.ts`;
-    const filePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName);
+    const filePath = join(
+      projectDirectory,
+      benchmarkLib1,
+      'src',
+      'lib',
+      fileName,
+    );
     const content = generateLargeTypeScriptFile(200); // ~200 functions
     writeFileSync(filePath, content);
 
@@ -89,7 +101,13 @@ benchmarkSuite('Move medium file (~10KB)', {
 benchmarkSuite('Move large file (~50KB)', {
   ['Large file move']() {
     const fileName = `large-${uniqueId()}.ts`;
-    const filePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName);
+    const filePath = join(
+      projectDirectory,
+      benchmarkLib1,
+      'src',
+      'lib',
+      fileName,
+    );
     const content = generateLargeTypeScriptFile(1000); // ~1000 functions
     writeFileSync(filePath, content);
 
@@ -184,7 +202,8 @@ benchmarkSuite('Move file with 20 importing files', {
     const existingIndex = readFileSync(indexPath, 'utf-8');
     writeFileSync(
       indexPath,
-      existingIndex + `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
+      existingIndex +
+        `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
     );
 
     // Create consumer files
@@ -232,7 +251,8 @@ benchmarkSuite('Update imports with early exit optimization', {
     const existingIndex = readFileSync(indexPath, 'utf-8');
     writeFileSync(
       indexPath,
-      existingIndex + `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
+      existingIndex +
+        `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
     );
 
     // Create one consumer
