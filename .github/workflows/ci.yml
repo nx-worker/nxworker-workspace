@@ -241,155 +241,6 @@ jobs:
             exit 1
           fi
 
-  # E2E performance benchmark regression testing
-  # Runs performance-benchmark.spec.ts and performance-stress-test.spec.ts on multiple platforms
-  # Fails if performance degrades by more than 5%
-  e2e-benchmark:
-    needs: build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            name: macOS
-          - os: windows-latest
-            name: Windows
-          - os: ubuntu-24.04-arm
-            name: Ubuntu ARM64
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-      deployments: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          filter: tree:0
-
-      - uses: ./.github/actions/set-nx-shas
-
-      - uses: ./.github/actions/setup-node-and-install
-
-      - name: Download build artifacts
-        id: download-artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: build-artifacts
-          path: dist/
-
-      # Download previous benchmark result from cache (if exists)
-      - name: Download previous benchmark data
-        uses: actions/cache@v4
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-e2e-benchmark-${{ matrix.name }}
-
-      # Run performance benchmark tests
-      - name: Run performance benchmarks
-        shell: bash
-        run: |
-          # Run performance-benchmark.spec.ts and capture output
-          npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static 2>&1 | tee perf-output.txt || true
-
-          # Extract timing data from console output
-          # Format: "Test description took: 123.45ms" -> "Test description x 8.14 ops/sec ±0% (1 runs sampled)"
-          # Convert milliseconds to ops/sec: ops/sec = 1000 / ms
-          grep -E "took: [0-9]+\.[0-9]+ *ms" perf-output.txt | \
-            sed -E 's/^(.+) took: ([0-9]+\.[0-9]+) *ms.*$/\1|\2/' | \
-            awk -F'|' '{
-              name = $1;
-              ms = $2;
-              if (ms > 0) {
-                ops_per_sec = 1000 / ms;
-                printf "%s x %.2f ops/sec ±0%% (1 runs sampled)\n", name, ops_per_sec;
-              }
-            }' > perf-results.txt
-
-          if [ ! -s perf-results.txt ]; then
-            echo "WARNING: No performance results extracted, creating placeholder"
-            echo "No results x 0 ops/sec ±0% (0 runs sampled)" > perf-results.txt
-          fi
-
-          echo "Successfully extracted $(wc -l < perf-results.txt) performance results"
-          cat perf-results.txt
-
-      # Run stress tests
-      - name: Run stress tests
-        shell: bash
-        run: |
-          # Run performance-stress-test.spec.ts and capture output
-          npx nx e2e workspace-e2e --testPathPattern='performance-stress-test\.spec\.ts$' --output-style=static 2>&1 | tee stress-output.txt || true
-
-          # Extract timing data from console output
-          grep -E "took: [0-9]+\.[0-9]+ *ms|in [0-9]+\.[0-9]+ *ms" stress-output.txt | \
-            sed -E 's/^(.+) (took|in): ([0-9]+\.[0-9]+) *ms.*$/\1|\3/; s/^(.+) in ([0-9]+\.[0-9]+) *ms.*$/\1|\2/' | \
-            awk -F'|' '{
-              name = $1;
-              ms = $2;
-              if (ms > 0) {
-                ops_per_sec = 1000 / ms;
-                printf "%s x %.2f ops/sec ±0%% (1 runs sampled)\n", name, ops_per_sec;
-              }
-            }' > stress-results.txt
-
-          if [ ! -s stress-results.txt ]; then
-            echo "WARNING: No stress test results extracted, creating placeholder"
-            echo "No results x 0 ops/sec ±0% (0 runs sampled)" > stress-results.txt
-          fi
-
-          echo "Successfully extracted $(wc -l < stress-results.txt) stress test results"
-          cat stress-results.txt
-
-      # Combine results
-      - name: Combine benchmark results
-        shell: bash
-        run: |
-          cat perf-results.txt stress-results.txt > e2e-benchmark-results.txt
-          echo "Combined results:"
-          cat e2e-benchmark-results.txt
-
-      # Store and compare benchmark results with 5% threshold
-      - name: Continuous Benchmark - Performance Tests (${{ matrix.name }})
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: E2E Performance Benchmarks - ${{ matrix.name }}
-          tool: 'benchmarkjs'
-          output-file-path: e2e-benchmark-results.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          external-data-json-path: ./cache/e2e-benchmark-data-${{ matrix.name }}.json
-          save-data-file: true
-          skip-fetch-gh-pages: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: true
-          alert-comment-cc-users: '@LayZeeDK'
-          summary-always: true
-
-  # Summary check that aggregates all e2e-benchmark matrix results for branch protection
-  check-e2e-benchmark:
-    needs: e2e-benchmark
-    if: always()
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Check e2e-benchmark matrix results
-        run: |
-          # Check the overall result of the e2e-benchmark job (which includes all matrix jobs)
-          result="${{ needs.e2e-benchmark.result }}"
-          echo "E2E Benchmark job result: $result"
-          if [ "$result" == "success" ]; then
-            echo "All e2e-benchmark matrix jobs succeeded"
-            exit 0
-          elif [ "$result" == "skipped" ]; then
-            echo "E2E Benchmark job was skipped (workflow_dispatch on non-target branch)"
-            exit 0
-          else
-            echo "One or more e2e-benchmark matrix jobs failed or were cancelled"
-            exit 1
-          fi
-
   # Benchmark job runs on PRs and pushes to main
   benchmark:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
@@ -451,3 +302,105 @@ jobs:
           fail-on-alert: true
           alert-comment-cc-users: '@LayZeeDK'
           summary-always: true
+
+  # E2E benchmark job runs on PRs and pushes to main across multiple platforms
+  e2e-benchmark:
+    needs: build
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+          - os: windows-latest
+            name: Windows
+          - os: ubuntu-24.04-arm
+            name: Ubuntu ARM64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-artifacts
+          path: dist/
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v4
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-e2e-benchmark-${{ matrix.name }}
+
+      # Run all E2E benchmark tests using Nx task
+      - name: Run E2E benchmarks
+        run: |
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx benchmark workspace-e2e --skip-nx-cache 2>&1 | tee e2e-benchmark-output.txt
+          # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
+          # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
+          # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
+          sed 's/\x1B\[[0-9;]*m//g' e2e-benchmark-output.txt | \
+            grep -E "ops/sec" | \
+            sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
+            > e2e-benchmark-results.txt
+          # Verify the file has content
+          if [ ! -s e2e-benchmark-results.txt ]; then
+            echo "ERROR: e2e-benchmark-results.txt is empty or doesn't exist!"
+            exit 1
+          fi
+          echo "Successfully extracted $(wc -l < e2e-benchmark-results.txt) E2E benchmark results"
+
+      # Store and compare benchmark results with 5% threshold
+      - name: Continuous Benchmark - E2E Performance (${{ matrix.name }})
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: E2E Performance Benchmarks - ${{ matrix.name }}
+          tool: 'benchmarkjs'
+          output-file-path: e2e-benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          external-data-json-path: ./cache/e2e-benchmark-data-${{ matrix.name }}.json
+          save-data-file: true
+          skip-fetch-gh-pages: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true
+
+  # Summary check that aggregates all e2e-benchmark matrix results for branch protection
+  check-e2e-benchmark:
+    needs: e2e-benchmark
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check e2e-benchmark matrix results
+        run: |
+          # Check the overall result of the e2e-benchmark job (which includes all matrix jobs)
+          result="${{ needs.e2e-benchmark.result }}"
+          echo "E2E Benchmark job result: $result"
+          if [ "$result" == "success" ]; then
+            echo "All e2e-benchmark matrix jobs succeeded"
+            exit 0
+          elif [ "$result" == "skipped" ]; then
+            echo "E2E Benchmark job was skipped"
+            exit 0
+          else
+            echo "One or more e2e-benchmark matrix jobs failed or were cancelled"
+            exit 1
+          fi
