@@ -264,11 +264,6 @@ jobs:
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
           npx nx benchmark workspace --skip-nx-cache 2>&1 | tee benchmark-output.txt
-          echo "=== Debug: Checking benchmark-output.txt ==="
-          ls -la benchmark-output.txt
-          echo "=== Debug: Lines with 'ops/sec' before processing ==="
-          grep -E "ops/sec" benchmark-output.txt || echo "No lines with ops/sec found"
-          echo "=== Debug: Converting to benchmark.js format ==="
           # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
           # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
           # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
@@ -276,17 +271,12 @@ jobs:
             grep -E "ops/sec" | \
             sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
             > benchmark-results.txt
-          echo "=== Debug: Checking benchmark-results.txt ==="
-          ls -la benchmark-results.txt || echo "File doesn't exist"
-          echo "=== Debug: Content of benchmark-results.txt ==="
-          cat benchmark-results.txt || echo "File is empty or can't be read"
-          echo "=== Debug: Number of lines in benchmark-results.txt ==="
-          wc -l benchmark-results.txt || echo "Can't count lines"
-          # Fail if the file is empty
+          # Verify the file has content
           if [ ! -s benchmark-results.txt ]; then
             echo "ERROR: benchmark-results.txt is empty or doesn't exist!"
             exit 1
           fi
+          echo "Successfully extracted $(wc -l < benchmark-results.txt) benchmark results"
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
@@ -295,8 +285,10 @@ jobs:
           tool: 'benchmarkjs'
           output-file-path: benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Push and save data for main branch, compare only for PRs
-          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          # Disable GitHub Pages integration
+          auto-push: false
+          save-data-file: false
+          skip-fetch-gh-pages: true
           alert-threshold: '150%'
           comment-on-alert: true
           fail-on-alert: true
