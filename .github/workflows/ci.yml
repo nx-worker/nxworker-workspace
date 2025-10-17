@@ -263,9 +263,13 @@ jobs:
       - name: Run micro-benchmarks
         run: |
           npx nx benchmark workspace | tee benchmark-output.txt
-          # Strip ANSI escape codes and extract benchmark result lines
-          # Lines have exactly 4 spaces of indentation and contain "ops/sec"
-          sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | grep -E "^\s{4}\S.*ops/sec" > benchmark-results.txt || true
+          # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
+          # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
+          # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
+          sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | \
+            grep -E "ops/sec" | \
+            sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
+            > benchmark-results.txt || true
           echo "Extracted benchmark results:"
           cat benchmark-results.txt
 
