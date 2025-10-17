@@ -108,7 +108,7 @@ npx nx benchmark workspace
 
 See `packages/workspace/src/generators/move-file/benchmarks/README.md` for details.
 
-**Continuous Monitoring**: Unit benchmarks run on every PR and push to main, with automated regression detection (150% threshold).
+**Continuous Monitoring**: Unit benchmarks run on every PR and push to main, with automated regression detection (110% threshold).
 
 #### E2E Performance Benchmarks (jest-bench)
 
@@ -119,10 +119,10 @@ End-to-end benchmarks using jest-bench for the move-file generator:
 
 ```shell
 # Run E2E benchmarks
-npx nx benchmark workspace-e2e
+npx nx e2e-benchmark workspace-e2e
 ```
 
-**Continuous Monitoring**: E2E benchmarks run on every PR and push to main across three platforms (macOS, Windows, Ubuntu ARM), with automated regression detection (105% threshold, fails if performance degrades >5%).
+**Continuous Monitoring**: E2E benchmarks run on every PR and push to main across three platforms (macOS, Windows, Ubuntu ARM), with automated regression detection (110% threshold, fails if performance degrades >10%).
 
 The benchmarks validate that jscodeshift optimizations (parser reuse, early exit, single-pass traversal) provide significant performance benefits in realistic scenarios with many projects and files.
 

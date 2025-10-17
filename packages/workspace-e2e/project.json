@@ -14,7 +14,7 @@
       },
       "dependsOn": ["^build"]
     },
-    "benchmark": {
+    "e2e-benchmark": {
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/benchmarks/e2e-result.txt"],
       "options": {

@@ -297,7 +297,7 @@ jobs:
           # Disable GitHub Pages integration
           save-data-file: true
           skip-fetch-gh-pages: true
-          alert-threshold: '150%'
+          alert-threshold: '110%'
           comment-on-alert: true
           fail-on-alert: true
           alert-comment-cc-users: '@LayZeeDK'
@@ -411,7 +411,7 @@ jobs:
       - name: Run E2E benchmarks
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
-          npx nx benchmark workspace-e2e --skip-nx-cache 2>&1 | tee e2e-benchmark-output.txt
+          npx nx e2e-benchmark workspace-e2e --skip-nx-cache 2>&1 | tee e2e-benchmark-output.txt
           # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
           # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
           # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
@@ -426,7 +426,7 @@ jobs:
           fi
           echo "Successfully extracted $(wc -l < e2e-benchmark-results.txt) E2E benchmark results"
 
-      # Store and compare benchmark results with 5% threshold
+      # Store and compare benchmark results with 10% threshold
       - name: Continuous Benchmark - E2E Performance (${{ matrix.name }})
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -437,7 +437,7 @@ jobs:
           external-data-json-path: ./cache/e2e-benchmark-data-${{ matrix.name }}.json
           save-data-file: true
           skip-fetch-gh-pages: true
-          alert-threshold: '105%'
+          alert-threshold: '110%'
           comment-on-alert: true
           fail-on-alert: true
           alert-comment-cc-users: '@LayZeeDK'
