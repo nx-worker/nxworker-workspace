@@ -43,3 +43,6 @@ Thumbs.db
 
 # Jest-bench results
 benchmarks/result.txt
+benchmark-output.txt
+benchmark-results.txt
+cache/
