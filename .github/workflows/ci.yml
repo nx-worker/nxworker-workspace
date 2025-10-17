@@ -262,11 +262,10 @@ jobs:
       # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
         run: |
-          npx nx benchmark workspace | tee benchmark-output.txt
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx benchmark workspace --skip-nx-cache 2>&1 | tee benchmark-output.txt
           echo "=== Debug: Checking benchmark-output.txt ==="
           ls -la benchmark-output.txt
-          echo "=== Debug: First 20 lines of benchmark-output.txt ==="
-          head -20 benchmark-output.txt
           echo "=== Debug: Lines with 'ops/sec' before processing ==="
           grep -E "ops/sec" benchmark-output.txt || echo "No lines with ops/sec found"
           echo "=== Debug: Converting to benchmark.js format ==="
@@ -276,13 +275,18 @@ jobs:
           sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | \
             grep -E "ops/sec" | \
             sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
-            > benchmark-results.txt || true
+            > benchmark-results.txt
           echo "=== Debug: Checking benchmark-results.txt ==="
           ls -la benchmark-results.txt || echo "File doesn't exist"
           echo "=== Debug: Content of benchmark-results.txt ==="
           cat benchmark-results.txt || echo "File is empty or can't be read"
           echo "=== Debug: Number of lines in benchmark-results.txt ==="
           wc -l benchmark-results.txt || echo "Can't count lines"
+          # Fail if the file is empty
+          if [ ! -s benchmark-results.txt ]; then
+            echo "ERROR: benchmark-results.txt is empty or doesn't exist!"
+            exit 1
+          fi
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
