@@ -261,7 +261,12 @@ jobs:
 
       # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
-        run: npx nx benchmark workspace | tee benchmark-results.txt
+        run: |
+          npx nx benchmark workspace | tee benchmark-output.txt
+          # Extract only benchmark result lines for github-action-benchmark
+          grep -E "^\s+\S.*\d+ ops/sec" benchmark-output.txt > benchmark-results.txt || true
+          echo "Extracted benchmark results:"
+          cat benchmark-results.txt
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
