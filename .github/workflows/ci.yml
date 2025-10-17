@@ -329,6 +329,7 @@ jobs:
   # PRs use only Ubuntu ARM for faster feedback
   # Push to main and workflow_dispatch use all 3 platforms for comprehensive testing
   set-e2e-benchmark-matrix:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
