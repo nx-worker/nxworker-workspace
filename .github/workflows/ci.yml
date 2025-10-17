@@ -263,10 +263,12 @@ jobs:
       - name: Run micro-benchmarks
         run: |
           npx nx benchmark workspace | tee benchmark-output.txt
-          # Strip ANSI escape codes and extract benchmark result lines
-          # Lines have exactly 4 spaces of indentation and contain "ops/sec"
-          sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | grep -E "^\s{4}\S.*ops/sec" > benchmark-results.txt || true
-          echo "Extracted benchmark results:"
+          # Extract benchmark results: strip ANSI codes, find lines with ops/sec, trim whitespace
+          sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | \
+            grep "ops/sec" | \
+            grep -E '^[[:space:]]+[A-Za-z]' | \
+            sed 's/^[[:space:]]*//' > benchmark-results.txt
+          echo "Extracted $(wc -l < benchmark-results.txt) benchmark results:"
           cat benchmark-results.txt
 
       - name: Continuous Benchmark
