@@ -68,7 +68,7 @@
       }
     },
     "benchmark": {
-      "cache": true,
+      "cache": false,
       "inputs": [
         "production",
         "{projectRoot}/**/*.bench.ts",
