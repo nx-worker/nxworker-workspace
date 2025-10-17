@@ -82,31 +82,69 @@ The Phase 1-9 refactoring focused on maintainability and testability, with perfo
 
 ## Performance Regression Detection
 
-### Automated Checks
+### Automated CI Checks ✅ IMPLEMENTED
 
-Benchmark tests can be run in CI to detect regressions:
+**Status**: Benchmark regression detection using github-action-benchmark with jest-bench is now active on all pull requests!
 
-```bash
-npx nx test workspace --testPathPattern=benchmarks
+The CI system automatically:
+
+1. Runs all micro-benchmark tests using jest-bench (powered by benchmark.js)
+2. Parses benchmark results (ops/sec from jest-bench output)
+3. Compares against historical data stored in GitHub Pages
+4. Fails PRs if regressions exceed 150% threshold
+5. Posts comments and job summaries showing regressions
+
+**See:** [Benchmark README](./README.md)
+
+### Regression Threshold
+
+A regression is flagged if performance degrades by more than **150%** (i.e., becomes 2.5x slower).
+
+This threshold is configured in `.github/workflows/ci.yml`:
+
+```yaml
+alert-threshold: '150%'
 ```
 
-### Regression Thresholds
+### Managing Regressions
 
-A regression is flagged if:
+**Automated workflow:**
 
-- Cache operations slow by > 50% (e.g., 0.1ms → 0.15ms)
-- Path operations slow by > 25% (e.g., 1ms → 1.25ms)
-- Import updates slow by > 20% (e.g., 10ms → 12ms)
-- Export operations slow by > 20% (e.g., 10ms → 12ms)
+- PR benchmarks compare against main branch baseline
+- github-action-benchmark posts comments on regressions
+- Historical data updates automatically on merge to main
+- Performance charts available on GitHub Pages
+
+**Accepting intentional regressions:**
+
+- Document the trade-off in PR description
+- Reviewers approve despite regression
+- Baseline updates automatically when merged
 
 ### Investigation Process
 
+**Automated in CI**: The regression detection system now runs automatically on all pull requests.
+
 If regression detected:
 
-1. Identify which benchmark(s) are slower
-2. Review recent commits for changes to affected modules
-3. Profile the slow function to identify bottleneck
-4. Consider optimization or accept trade-off (e.g., for better maintainability)
+1. **Review the CI output** - See which benchmark(s) are slower and by how much
+2. **Identify the cause**:
+   - Review commits in the PR for performance-impacting changes
+   - Look at changes to affected modules (cache, path-utils, import-updates, etc.)
+3. **Decide on action**:
+   - **Unintentional regression**: Fix the code causing the slowdown
+   - **Intentional trade-off**: Update baseline if accepting performance cost for other benefits
+4. **Update baseline if needed**:
+   - The baseline updates automatically when merged to main
+   - No manual baseline management needed with github-action-benchmark
+   - Historical data stored in GitHub Pages branch
+
+**Automated Alerts**: CI will fail the PR and show:
+
+- Which benchmarks regressed
+- Baseline vs current performance
+- Percentage change and threshold
+- Instructions for updating baselines
 
 ## Future Optimization Opportunities
 

@@ -241,10 +241,14 @@ jobs:
             exit 1
           fi
 
-  # Benchmark job runs only on push to main or manual workflow_dispatch
+  # Benchmark job runs on PRs and pushes to main
   benchmark:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -255,9 +259,50 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      # Run all benchmark tests (unit benchmarks and e2e performance benchmarks)
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v4
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
+      # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
-        run: npx nx test workspace --testPathPattern='\.bench\.spec\.ts$' --output-style=static
+        run: |
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx benchmark workspace --skip-nx-cache 2>&1 | tee benchmark-output.txt
+          # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
+          # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
+          # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
+          sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | \
+            grep -E "ops/sec" | \
+            sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
+            > benchmark-results.txt
+          # Verify the file has content
+          if [ ! -s benchmark-results.txt ]; then
+            echo "ERROR: benchmark-results.txt is empty or doesn't exist!"
+            exit 1
+          fi
+          echo "Successfully extracted $(wc -l < benchmark-results.txt) benchmark results"
+
+      - name: Continuous Benchmark
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Move-File Generator Benchmarks
+          tool: 'benchmarkjs'
+          output-file-path: benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Store benchmark data in external JSON file
+          external-data-json-path: ./cache/benchmark-data.json
+          # Disable GitHub Pages integration
+          save-data-file: true
+          skip-fetch-gh-pages: true
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true
 
       - name: Run e2e performance benchmarks
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static

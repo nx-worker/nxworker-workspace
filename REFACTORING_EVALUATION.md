@@ -241,10 +241,10 @@ Module READMEs (10 total):
 
 **Benchmark coverage**:
 
-- ✅ cache-operations.bench.spec.ts (4 tests)
-- ✅ path-resolution.bench.spec.ts (5 tests)
-- ✅ import-updates.bench.spec.ts (3 tests)
-- ✅ export-management.bench.spec.ts (4 tests)
+- ✅ cache-operations.bench.ts (4 tests)
+- ✅ path-resolution.bench.ts (5 tests)
+- ✅ import-updates.bench.ts (3 tests)
+- ✅ export-management.bench.ts (4 tests)
 - ⚠️ No benchmarks for: validation/, core-operations/, project-analysis/
 
 ---
@@ -430,25 +430,44 @@ Total:             601 tests
 4. **Add benchmarks for validation module**
    - Estimated effort: 1-2 hours
    - Impact: Medium (completes benchmark coverage)
-   - Files: `validation/validation.bench.spec.ts`
+   - Files: `validation/validation.bench.ts`
 
 5. **Add benchmarks for core-operations module**
    - Estimated effort: 2-3 hours
    - Impact: Medium (benchmark critical paths)
-   - Files: `core-operations/core-operations.bench.spec.ts`
+   - Files: `core-operations/core-operations.bench.ts`
 
 6. **Add benchmarks for project-analysis module**
    - Estimated effort: 2-3 hours
    - Impact: Medium-High (these are called frequently)
-   - Files: `project-analysis/project-analysis.bench.spec.ts`
+   - Files: `project-analysis/project-analysis.bench.ts`
 
 #### Priority 3: CI/CD Integration
 
-7. **Add benchmark regression detection to CI**
-   - Estimated effort: 3-4 hours
-   - Impact: High (prevents performance regressions)
-   - Approach: Store baseline metrics, compare on PR
-   - Tool: Consider `benchmark.js` or custom comparison
+7. ✅ **Add benchmark regression detection to CI** - **COMPLETE (2025-10-15)**
+   - ~~Estimated effort: 3-4 hours~~
+   - ~~Impact: High (prevents performance regressions)~~
+   - ~~Approach: Store baseline metrics, compare on PR~~
+   - ~~Tool: Consider `benchmark.js` or custom comparison~~
+   - **Implementation**: Using **jest-bench** (powered by benchmark.js) with **github-action-benchmark**
+   - **Features**:
+     - Jest integration via jest-bench with benchmarkSuite API
+     - Statistical analysis from benchmark.js engine (ops/sec reporting)
+     - Automatic baseline comparison on all PRs via github-action-benchmark
+     - GitHub Pages charts for performance trend tracking
+     - 150% regression threshold (configurable)
+     - PR comments and job summaries on regressions
+     - No manual baseline management required
+     - Nx task with proper caching configuration
+   - **Benefits over custom scripts**:
+     - Industry-standard benchmarking library (benchmark.js used by Node.js core)
+     - Jest integration for consistent test environment
+     - Statistical rigor: outlier detection, margin of error, confidence intervals
+     - Visual tracking via GitHub Pages
+     - Reduced maintenance (~1,064 lines of custom code removed)
+     - Consistent ops/sec format across ecosystem
+     - Nx caching for efficient re-runs
+   - **CI integration**: Single unified `benchmark` job for PRs and main branch using `nx benchmark workspace`
 
 8. **Add code coverage reporting to CI**
    - Estimated effort: 2 hours
@@ -567,11 +586,11 @@ Total:             601 tests
 
 1. ✅ **Code Coverage**: ~~Measure and document (1 hour)~~ **COMPLETE: 94.75% statements, 97.15% functions**
 2. ✅ **JSDoc Coverage**: ~~Add to all public functions (3-4 hours)~~ **COMPLETE: All 62 exported functions have JSDoc**
-3. **CI Integration**: Add benchmark regression detection (3-4 hours)
+3. ✅ **CI Integration**: ~~Add benchmark regression detection (3-4 hours)~~ **COMPLETE: Automated checks on all PRs (2025-10-15)**
 4. **Benchmark Expansion**: Cover validation and core-operations (4-6 hours)
 
-**Total Effort**: ~7-10 hours (1-2 days) - Updated after code coverage measurement  
-**Impact**: Completes the quality foundation
+**Total Effort**: ~4-6 hours (completed 3 of 4 items, ~10-12 hours completed)  
+**Impact**: Quality foundation nearly complete, only benchmark expansion remains
 
 ### 7.3 Strategic Direction
 
@@ -687,10 +706,10 @@ The codebase is now in excellent shape for long-term maintenance and evolution.
 ### Implementation Modules (57 functions across 11 directories)
 
 1. **benchmarks/** (0 implementations, 4 benchmark suites)
-   - cache-operations.bench.spec.ts (4 tests)
-   - path-resolution.bench.spec.ts (5 tests)
-   - import-updates.bench.spec.ts (3 tests)
-   - export-management.bench.spec.ts (4 tests)
+   - cache-operations.bench.ts (4 tests)
+   - path-resolution.bench.ts (5 tests)
+   - import-updates.bench.ts (3 tests)
+   - export-management.bench.ts (4 tests)
    - README.md, PERFORMANCE_BASELINES.md
 
 2. **cache/** (6 functions, 37 tests)
