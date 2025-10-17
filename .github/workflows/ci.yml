@@ -259,6 +259,13 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v4
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
       # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
         run: |
@@ -285,9 +292,10 @@ jobs:
           tool: 'benchmarkjs'
           output-file-path: benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Store benchmark data in external JSON file
+          external-data-json-path: ./cache/benchmark-data.json
           # Disable GitHub Pages integration
-          auto-push: false
-          save-data-file: false
+          save-data-file: true
           skip-fetch-gh-pages: true
           alert-threshold: '150%'
           comment-on-alert: true
