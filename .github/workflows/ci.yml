@@ -268,6 +268,7 @@ jobs:
 
       # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
+        shell: bash
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
           npx nx benchmark workspace --skip-nx-cache 2>&1 | tee benchmark-output.txt
@@ -297,12 +298,172 @@ jobs:
           # Disable GitHub Pages integration
           save-data-file: true
           skip-fetch-gh-pages: true
-          alert-threshold: '150%'
+          alert-threshold: '110%'
           comment-on-alert: true
           fail-on-alert: true
           alert-comment-cc-users: '@LayZeeDK'
           summary-always: true
 
-      - name: Run e2e performance benchmarks
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static
+  # Summary check for benchmark job for branch protection
+  check-benchmark:
+    needs: benchmark
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check benchmark results
+        run: |
+          # Check the overall result of the benchmark job
+          result="${{ needs.benchmark.result }}"
+          echo "Benchmark job result: $result"
+          if [ "$result" == "success" ]; then
+            echo "Benchmark job succeeded"
+            exit 0
+          elif [ "$result" == "skipped" ]; then
+            echo "Benchmark job was skipped"
+            exit 0
+          else
+            echo "Benchmark job failed or was cancelled"
+            exit 1
+          fi
+
+  # Determine the GitHub runner image matrix for the e2e-benchmark job based on event type
+  # PRs use only Ubuntu ARM for faster feedback
+  # Push to main and workflow_dispatch use all 3 platforms for comprehensive testing
+  set-e2e-benchmark-matrix:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      # `include` as in `matrix.strategy.include`
+      MATRIX_FAST: |
+        include:
+          - os: ubuntu-24.04-arm
+            name: Ubuntu ARM64
+      MATRIX_FULL: |
+        include:
+          - os: macos-latest
+            name: macOS
+          - os: windows-latest
+            name: Windows
+          - os: ubuntu-24.04-arm
+            name: Ubuntu ARM64
+    steps:
+      - id: set-matrix
+        name: Set matrix output property
+        shell: bash
+        run: |
+          # Set the matrix output property
+
+          # Fail the step on the first error and propagate pipeline failures
+          set -eo pipefail
+
+          # Select the matrix YAML based on event type
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          else
+            printf '%s\n' "$MATRIX_FULL" > matrix.yml
+          fi
+
+          # Convert the chosen YAML matrix to JSON using js-yaml so the e2e-benchmark job can consume it
+          MATRIX_JSON=$(npx --yes js-yaml matrix.yml | tr -d '\n')
+          # Publish the JSON matrix via step outputs for downstream jobs
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
+  # E2E benchmark job runs on PRs and pushes to main across multiple platforms
+  e2e-benchmark:
+    needs:
+      - build
+      - set-e2e-benchmark-matrix
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.set-e2e-benchmark-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-artifacts
+          path: dist/
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v4
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-e2e-benchmark-${{ matrix.name }}
+
+      # Run all E2E benchmark tests using Nx task
+      - name: Run E2E benchmarks
+        shell: bash
+        run: |
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx e2e-benchmark workspace-e2e --skip-nx-cache 2>&1 | tee e2e-benchmark-output.txt
+          # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
+          # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
+          # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
+          sed 's/\x1B\[[0-9;]*m//g' e2e-benchmark-output.txt | \
+            grep -E "ops/sec" | \
+            sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
+            > e2e-benchmark-results.txt
+          # Verify the file has content
+          if [ ! -s e2e-benchmark-results.txt ]; then
+            echo "ERROR: e2e-benchmark-results.txt is empty or doesn't exist!"
+            exit 1
+          fi
+          echo "Successfully extracted $(wc -l < e2e-benchmark-results.txt) E2E benchmark results"
+
+      # Store and compare benchmark results with 10% threshold
+      - name: Continuous Benchmark - E2E Performance (${{ matrix.name }})
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: E2E Performance Benchmarks - ${{ matrix.name }}
+          tool: 'benchmarkjs'
+          output-file-path: e2e-benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          external-data-json-path: ./cache/e2e-benchmark-data-${{ matrix.name }}.json
+          save-data-file: true
+          skip-fetch-gh-pages: true
+          alert-threshold: '110%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true
+
+  # Summary check that aggregates all e2e-benchmark matrix results for branch protection
+  check-e2e-benchmark:
+    needs: e2e-benchmark
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check e2e-benchmark matrix results
+        run: |
+          # Check the overall result of the e2e-benchmark job (which includes all matrix jobs)
+          result="${{ needs.e2e-benchmark.result }}"
+          echo "E2E Benchmark job result: $result"
+          if [ "$result" == "success" ]; then
+            echo "All e2e-benchmark matrix jobs succeeded"
+            exit 0
+          elif [ "$result" == "skipped" ]; then
+            echo "E2E Benchmark job was skipped"
+            exit 0
+          else
+            echo "One or more e2e-benchmark matrix jobs failed or were cancelled"
+            exit 1
+          fi

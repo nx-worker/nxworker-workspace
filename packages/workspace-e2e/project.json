@@ -13,6 +13,15 @@
         "runInBand": true
       },
       "dependsOn": ["^build"]
+    },
+    "e2e-benchmark": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/benchmarks/e2e-result.txt"],
+      "options": {
+        "command": "jest --projects jest-bench-e2e.config.ts",
+        "cwd": "{workspaceRoot}"
+      },
+      "dependsOn": ["^build"]
     }
   }
 }
