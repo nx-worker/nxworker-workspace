@@ -273,15 +273,16 @@ async function setupLargeWorkspaceScenario() {
 }
 
 // Benchmarks: Only generator execution is measured (setup done in beforeAll)
+// Note: Without setup/teardown, outer scope variables remain accessible.
 benchmarkSuite(
   'Move file across 10 projects',
   {
-    setup() {
-      // Reset file to original location before each benchmark iteration
+    ['Cross-project move with 10 projects']() {
       const scenario = testScenarios.crossProject;
-      if (!scenario) return;
+      if (!scenario) throw new Error('Cross-project scenario not initialized');
       const { sourceLib, targetLib, sourceFile } = scenario;
 
+      // Reset file to original location before each benchmark iteration
       const sourceFilePath = join(
         stressProjectDirectory,
         sourceLib,
@@ -311,12 +312,6 @@ benchmarkSuite(
       } catch {
         // Ignore errors - file might already be in original location
       }
-    },
-
-    ['Cross-project move with 10 projects']() {
-      const scenario = testScenarios.crossProject;
-      if (!scenario) throw new Error('Cross-project scenario not initialized');
-      const { sourceLib, targetLib, sourceFile } = scenario;
 
       // Only the generator execution is benchmarked
       execSync(
@@ -334,12 +329,12 @@ benchmarkSuite(
 benchmarkSuite(
   'Process 100 large files',
   {
-    setup() {
-      // Reset file to original location before each benchmark iteration
+    ['Move file with 100 large files in workspace']() {
       const scenario = testScenarios.largeFiles;
-      if (!scenario) return;
+      if (!scenario) throw new Error('Large files scenario not initialized');
       const { sourceLib, targetLib, sourceFile } = scenario;
 
+      // Reset file to original location before each benchmark iteration
       const sourceFilePath = join(
         stressProjectDirectory,
         sourceLib,
@@ -369,12 +364,6 @@ benchmarkSuite(
       } catch {
         // Ignore errors - file might already be in original location
       }
-    },
-
-    ['Move file with 100 large files in workspace']() {
-      const scenario = testScenarios.largeFiles;
-      if (!scenario) throw new Error('Large files scenario not initialized');
-      const { sourceLib, targetLib, sourceFile } = scenario;
 
       // Only the generator execution is benchmarked
       execSync(
@@ -392,12 +381,13 @@ benchmarkSuite(
 benchmarkSuite(
   'Update 50 relative imports',
   {
-    setup() {
-      // Reset file to original location before each benchmark iteration
+    ['Move file with 50 relative imports in same project']() {
       const scenario = testScenarios.relativeImports;
-      if (!scenario) return;
+      if (!scenario)
+        throw new Error('Relative imports scenario not initialized');
       const { lib, utilFile } = scenario;
 
+      // Reset file to original location before each benchmark iteration
       const utilsDir = join(stressProjectDirectory, lib, 'src', 'lib', 'utils');
       const helpersDir = join(
         stressProjectDirectory,
@@ -423,13 +413,6 @@ benchmarkSuite(
       } catch {
         // Ignore errors - file might already be in original location
       }
-    },
-
-    ['Move file with 50 relative imports in same project']() {
-      const scenario = testScenarios.relativeImports;
-      if (!scenario)
-        throw new Error('Relative imports scenario not initialized');
-      const { lib, utilFile } = scenario;
 
       // Only the generator execution is benchmarked
       execSync(
@@ -447,12 +430,13 @@ benchmarkSuite(
 benchmarkSuite(
   'Large workspace scenario',
   {
-    setup() {
-      // Reset file to original location before each benchmark iteration
+    ['Move file in workspace with 15 projects and 30 files each']() {
       const scenario = testScenarios.largeWorkspace;
-      if (!scenario) return;
+      if (!scenario)
+        throw new Error('Large workspace scenario not initialized');
       const { sourceLib, targetLib, sourceFile } = scenario;
 
+      // Reset file to original location before each benchmark iteration
       const sourceFilePath = join(
         stressProjectDirectory,
         sourceLib,
@@ -482,13 +466,6 @@ benchmarkSuite(
       } catch {
         // Ignore errors - file might already be in original location
       }
-    },
-
-    ['Move file in workspace with 15 projects and 30 files each']() {
-      const scenario = testScenarios.largeWorkspace;
-      if (!scenario)
-        throw new Error('Large workspace scenario not initialized');
-      const { sourceLib, targetLib, sourceFile } = scenario;
 
       // Only the generator execution is benchmarked
       execSync(

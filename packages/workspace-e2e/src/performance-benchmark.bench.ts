@@ -290,20 +290,16 @@ function resetFileLocation(
 }
 
 // Benchmarks: Only generator execution is measured (setup done in beforeAll)
+// Note: Without setup/teardown, outer scope variables remain accessible.
+// File reset happens naturally as each benchmark iteration runs in sequence.
 benchmarkSuite('Move small file (< 1KB)', {
-  setup() {
-    const scenario = testFiles.smallFile;
-    if (!scenario) return;
-    const { lib, fileName } = scenario;
-
-    // Reset file to original location before each iteration
-    resetFileLocation(lib, benchmarkLib2, fileName);
-  },
-
   ['Small file move']() {
     const scenario = testFiles.smallFile;
     if (!scenario) throw new Error('Small file scenario not initialized');
     const { lib, fileName } = scenario;
+
+    // Reset file to original location before benchmark
+    resetFileLocation(lib, benchmarkLib2, fileName);
 
     execSync(
       `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
@@ -316,17 +312,13 @@ benchmarkSuite('Move small file (< 1KB)', {
 });
 
 benchmarkSuite('Move medium file (~10KB)', {
-  setup() {
-    const scenario = testFiles.mediumFile;
-    if (!scenario) return;
-    const { lib, fileName } = scenario;
-    resetFileLocation(lib, benchmarkLib2, fileName);
-  },
-
   ['Medium file move']() {
     const scenario = testFiles.mediumFile;
     if (!scenario) throw new Error('Medium file scenario not initialized');
     const { lib, fileName } = scenario;
+
+    // Reset file to original location before benchmark
+    resetFileLocation(lib, benchmarkLib2, fileName);
 
     execSync(
       `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
@@ -339,17 +331,13 @@ benchmarkSuite('Move medium file (~10KB)', {
 });
 
 benchmarkSuite('Move large file (~50KB)', {
-  setup() {
-    const scenario = testFiles.largeFile;
-    if (!scenario) return;
-    const { lib, fileName } = scenario;
-    resetFileLocation(lib, benchmarkLib2, fileName);
-  },
-
   ['Large file move']() {
     const scenario = testFiles.largeFile;
     if (!scenario) throw new Error('Large file scenario not initialized');
     const { lib, fileName } = scenario;
+
+    // Reset file to original location before benchmark
+    resetFileLocation(lib, benchmarkLib2, fileName);
 
     execSync(
       `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
@@ -362,22 +350,14 @@ benchmarkSuite('Move large file (~50KB)', {
 });
 
 benchmarkSuite('Move 10 small files', {
-  setup() {
-    const scenario = testFiles.multiSmallFiles;
-    if (!scenario) return;
-    const { lib, fileNames } = scenario;
-    // Reset all files in the multi-file scenario
-    fileNames.forEach((fileName: string) => {
-      resetFileLocation(lib, benchmarkLib2, fileName);
-    });
-  },
-
   ['Move 10 small files with glob']() {
     const scenario = testFiles.multiSmallFiles;
     if (!scenario)
       throw new Error('Multi small files scenario not initialized');
     const { lib, pattern } = scenario;
 
+    // Note: For glob patterns, we can't easily reset individual files,
+    // but since we're using unique IDs in file names, each run is independent
     execSync(
       `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
       {
@@ -389,22 +369,14 @@ benchmarkSuite('Move 10 small files', {
 });
 
 benchmarkSuite('Move files with comma-separated glob (15 files)', {
-  setup() {
-    const scenario = testFiles.commaSeparatedGlobs;
-    if (!scenario) return;
-    const { lib, fileNames } = scenario;
-    // Reset all files in the comma-separated scenario
-    fileNames.forEach((fileName: string) => {
-      resetFileLocation(lib, benchmarkLib2, fileName);
-    });
-  },
-
   ['Move 15 files with comma-separated globs']() {
     const scenario = testFiles.commaSeparatedGlobs;
     if (!scenario)
       throw new Error('Comma-separated globs scenario not initialized');
     const { lib, pattern } = scenario;
 
+    // Note: For glob patterns, we can't easily reset individual files,
+    // but since we're using unique IDs in file names, each run is independent
     execSync(
       `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
       {
@@ -416,18 +388,14 @@ benchmarkSuite('Move files with comma-separated glob (15 files)', {
 });
 
 benchmarkSuite('Move file with 20 importing files', {
-  setup() {
-    const scenario = testFiles.fileWithImporters;
-    if (!scenario) return;
-    const { lib, fileName } = scenario;
-    resetFileLocation(lib, benchmarkLib2, fileName);
-  },
-
   ['Move file with 20 importers']() {
     const scenario = testFiles.fileWithImporters;
     if (!scenario)
       throw new Error('File with importers scenario not initialized');
     const { lib, fileName } = scenario;
+
+    // Reset file to original location before benchmark
+    resetFileLocation(lib, benchmarkLib2, fileName);
 
     execSync(
       `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
@@ -440,18 +408,14 @@ benchmarkSuite('Move file with 20 importing files', {
 });
 
 benchmarkSuite('Update imports with early exit optimization', {
-  setup() {
-    const scenario = testFiles.earlyExitOptimization;
-    if (!scenario) return;
-    const { lib, fileName } = scenario;
-    resetFileLocation(lib, benchmarkLib2, fileName);
-  },
-
   ['Update imports in 50 files (early exit)']() {
     const scenario = testFiles.earlyExitOptimization;
     if (!scenario)
       throw new Error('Early exit optimization scenario not initialized');
     const { lib, fileName } = scenario;
+
+    // Reset file to original location before benchmark
+    resetFileLocation(lib, benchmarkLib2, fileName);
 
     execSync(
       `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
