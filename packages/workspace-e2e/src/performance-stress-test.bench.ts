@@ -578,6 +578,16 @@ async function createStressTestProject(): Promise<string> {
     throw new Error('Could not determine workspace Nx version');
   }
 
+  // Clear npx cache to prevent ENOTEMPTY errors
+  try {
+    execSync('npm cache clean --force', {
+      stdio: 'pipe',
+      env: process.env,
+    });
+  } catch {
+    // Ignore errors - cache clean is best-effort
+  }
+
   execSync(
     `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
