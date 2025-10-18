@@ -169,9 +169,10 @@ function setupCommaSeparatedGlobsScenario() {
     );
   }
 
+  // Store full patterns with lib path for each group
   testFiles.commaSeparatedGlobs = {
     lib: benchmarkLib1,
-    pattern: `api-${uniqueSuffix}-*.ts,service-${uniqueSuffix}-*.ts,util-${uniqueSuffix}-*.ts`,
+    pattern: `${benchmarkLib1}/src/lib/api-${uniqueSuffix}-*.ts,${benchmarkLib1}/src/lib/service-${uniqueSuffix}-*.ts,${benchmarkLib1}/src/lib/util-${uniqueSuffix}-*.ts`,
   };
 }
 
@@ -373,12 +374,13 @@ benchmarkSuite('Move files with comma-separated glob (15 files)', {
     const scenario = testFiles.commaSeparatedGlobs;
     if (!scenario)
       throw new Error('Comma-separated globs scenario not initialized');
-    const { lib, pattern } = scenario;
+    const { pattern } = scenario;
 
     // Note: For glob patterns, we can't easily reset individual files,
     // but since we're using unique IDs in file names, each run is independent
+    // Pattern already contains full paths for each glob
     execSync(
-      `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file "${pattern}" --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
