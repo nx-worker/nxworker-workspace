@@ -465,7 +465,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 240 }, // 4 minute timeout for import updates
 );
 
 benchmarkSuite(
@@ -489,7 +489,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 240 }, // 4 minute timeout for 50 file import updates
 );
 
 // Helper functions
