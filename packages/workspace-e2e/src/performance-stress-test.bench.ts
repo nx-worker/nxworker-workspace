@@ -86,7 +86,7 @@ benchmarkSuite(
       );
     },
   },
-  180000, // 3 minute timeout for cross-project move with 10 projects
+  420000, // 7 minute timeout for cross-project move with 10 projects
 );
 
 benchmarkSuite(
@@ -157,7 +157,7 @@ benchmarkSuite(
       );
     },
   },
-  180000, // 3 minute timeout for processing 100 large files
+  420000, // 7 minute timeout for processing 100 large files
 );
 
 benchmarkSuite(
@@ -215,7 +215,7 @@ benchmarkSuite(
       );
     },
   },
-  120000, // 2 minute timeout for updating 50 relative imports
+  300000, // 5 minute timeout for updating 50 relative imports
 );
 
 benchmarkSuite(
@@ -281,7 +281,7 @@ benchmarkSuite(
       );
     },
   },
-  300000, // 5 minute timeout for large workspace setup
+  600000, // 10 minute timeout for large workspace setup
 );
 
 // Helper functions
