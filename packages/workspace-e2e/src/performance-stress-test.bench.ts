@@ -2,7 +2,13 @@ import { benchmarkSuite } from 'jest-bench';
 import { uniqueId } from 'lodash';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+} from 'node:fs';
 
 /**
  * E2E stress test benchmarks for the move-file generator using jest-bench.
@@ -270,6 +276,43 @@ async function setupLargeWorkspaceScenario() {
 benchmarkSuite(
   'Move file across 10 projects',
   {
+    setup() {
+      // Reset file to original location before each benchmark iteration
+      const scenario = testScenarios.crossProject;
+      if (!scenario) return;
+      const { sourceLib, targetLib, sourceFile } = scenario;
+
+      const sourceFilePath = join(
+        stressProjectDirectory,
+        sourceLib,
+        'src',
+        'lib',
+        sourceFile,
+      );
+      const targetFilePath = join(
+        stressProjectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        sourceFile,
+      );
+
+      // Move file back to source if it was moved to target
+      try {
+        if (existsSync(targetFilePath) && !existsSync(sourceFilePath)) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${targetLib}/src/lib/${sourceFile} --project ${sourceLib} --no-interactive`,
+            {
+              cwd: stressProjectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        }
+      } catch {
+        // Ignore errors - file might already be in original location
+      }
+    },
+
     ['Cross-project move with 10 projects']() {
       const scenario = testScenarios.crossProject;
       if (!scenario) throw new Error('Cross-project scenario not initialized');
@@ -285,12 +328,49 @@ benchmarkSuite(
       );
     },
   },
-  60000, // 1 minute timeout (only measures generator execution)
+  120000, // 2 minute timeout to account for setup + execution
 );
 
 benchmarkSuite(
   'Process 100 large files',
   {
+    setup() {
+      // Reset file to original location before each benchmark iteration
+      const scenario = testScenarios.largeFiles;
+      if (!scenario) return;
+      const { sourceLib, targetLib, sourceFile } = scenario;
+
+      const sourceFilePath = join(
+        stressProjectDirectory,
+        sourceLib,
+        'src',
+        'lib',
+        sourceFile,
+      );
+      const targetFilePath = join(
+        stressProjectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        sourceFile,
+      );
+
+      // Move file back to source if it was moved to target
+      try {
+        if (existsSync(targetFilePath) && !existsSync(sourceFilePath)) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${targetLib}/src/lib/${sourceFile} --project ${sourceLib} --no-interactive`,
+            {
+              cwd: stressProjectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        }
+      } catch {
+        // Ignore errors - file might already be in original location
+      }
+    },
+
     ['Move file with 100 large files in workspace']() {
       const scenario = testScenarios.largeFiles;
       if (!scenario) throw new Error('Large files scenario not initialized');
@@ -306,12 +386,45 @@ benchmarkSuite(
       );
     },
   },
-  60000, // 1 minute timeout (only measures generator execution)
+  120000, // 2 minute timeout to account for setup + execution
 );
 
 benchmarkSuite(
   'Update 50 relative imports',
   {
+    setup() {
+      // Reset file to original location before each benchmark iteration
+      const scenario = testScenarios.relativeImports;
+      if (!scenario) return;
+      const { lib, utilFile } = scenario;
+
+      const utilsDir = join(stressProjectDirectory, lib, 'src', 'lib', 'utils');
+      const helpersDir = join(
+        stressProjectDirectory,
+        lib,
+        'src',
+        'lib',
+        'helpers',
+      );
+      const sourceFilePath = join(utilsDir, utilFile);
+      const targetFilePath = join(helpersDir, utilFile);
+
+      // Move file back to utils if it was moved to helpers
+      try {
+        if (existsSync(targetFilePath) && !existsSync(sourceFilePath)) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/helpers/${utilFile} --project ${lib} --projectDirectory=utils --no-interactive`,
+            {
+              cwd: stressProjectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        }
+      } catch {
+        // Ignore errors - file might already be in original location
+      }
+    },
+
     ['Move file with 50 relative imports in same project']() {
       const scenario = testScenarios.relativeImports;
       if (!scenario)
@@ -320,7 +433,7 @@ benchmarkSuite(
 
       // Only the generator execution is benchmarked
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/utils/${utilFile} --project ${lib} --project-directory=helpers --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/utils/${utilFile} --project ${lib} --projectDirectory=helpers --no-interactive`,
         {
           cwd: stressProjectDirectory,
           stdio: 'pipe',
@@ -328,12 +441,49 @@ benchmarkSuite(
       );
     },
   },
-  60000, // 1 minute timeout (only measures generator execution)
+  120000, // 2 minute timeout to account for setup + execution
 );
 
 benchmarkSuite(
   'Large workspace scenario',
   {
+    setup() {
+      // Reset file to original location before each benchmark iteration
+      const scenario = testScenarios.largeWorkspace;
+      if (!scenario) return;
+      const { sourceLib, targetLib, sourceFile } = scenario;
+
+      const sourceFilePath = join(
+        stressProjectDirectory,
+        sourceLib,
+        'src',
+        'lib',
+        sourceFile,
+      );
+      const targetFilePath = join(
+        stressProjectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        sourceFile,
+      );
+
+      // Move file back to source if it was moved to target
+      try {
+        if (existsSync(targetFilePath) && !existsSync(sourceFilePath)) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${targetLib}/src/lib/${sourceFile} --project ${sourceLib} --no-interactive`,
+            {
+              cwd: stressProjectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        }
+      } catch {
+        // Ignore errors - file might already be in original location
+      }
+    },
+
     ['Move file in workspace with 15 projects and 30 files each']() {
       const scenario = testScenarios.largeWorkspace;
       if (!scenario)
@@ -350,7 +500,7 @@ benchmarkSuite(
       );
     },
   },
-  60000, // 1 minute timeout (only measures generator execution)
+  120000, // 2 minute timeout to account for setup + execution
 );
 
 // Helper functions

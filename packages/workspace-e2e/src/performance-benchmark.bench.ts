@@ -2,7 +2,13 @@ import { benchmarkSuite } from 'jest-bench';
 import { uniqueId } from 'lodash';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+} from 'node:fs';
 
 /**
  * E2E performance benchmarks for the move-file generator using jest-bench.
@@ -246,8 +252,54 @@ function setupEarlyExitOptimizationScenario() {
   };
 }
 
+// Helper function to reset file location between benchmark iterations
+function resetFileLocation(
+  sourceLib: string,
+  targetLib: string,
+  fileName: string,
+) {
+  const sourceFilePath = join(
+    projectDirectory,
+    sourceLib,
+    'src',
+    'lib',
+    fileName,
+  );
+  const targetFilePath = join(
+    projectDirectory,
+    targetLib,
+    'src',
+    'lib',
+    fileName,
+  );
+
+  try {
+    // If file exists in target but not in source, move it back
+    if (existsSync(targetFilePath) && !existsSync(sourceFilePath)) {
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${targetLib}/src/lib/${fileName} --project ${sourceLib} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    }
+  } catch {
+    // Ignore errors - file might already be in correct location
+  }
+}
+
 // Benchmarks: Only generator execution is measured (setup done in beforeAll)
 benchmarkSuite('Move small file (< 1KB)', {
+  setup() {
+    const scenario = testFiles.smallFile;
+    if (!scenario) return;
+    const { lib, fileName } = scenario;
+
+    // Reset file to original location before each iteration
+    resetFileLocation(lib, benchmarkLib2, fileName);
+  },
+
   ['Small file move']() {
     const scenario = testFiles.smallFile;
     if (!scenario) throw new Error('Small file scenario not initialized');
@@ -264,6 +316,13 @@ benchmarkSuite('Move small file (< 1KB)', {
 });
 
 benchmarkSuite('Move medium file (~10KB)', {
+  setup() {
+    const scenario = testFiles.mediumFile;
+    if (!scenario) return;
+    const { lib, fileName } = scenario;
+    resetFileLocation(lib, benchmarkLib2, fileName);
+  },
+
   ['Medium file move']() {
     const scenario = testFiles.mediumFile;
     if (!scenario) throw new Error('Medium file scenario not initialized');
@@ -280,6 +339,13 @@ benchmarkSuite('Move medium file (~10KB)', {
 });
 
 benchmarkSuite('Move large file (~50KB)', {
+  setup() {
+    const scenario = testFiles.largeFile;
+    if (!scenario) return;
+    const { lib, fileName } = scenario;
+    resetFileLocation(lib, benchmarkLib2, fileName);
+  },
+
   ['Large file move']() {
     const scenario = testFiles.largeFile;
     if (!scenario) throw new Error('Large file scenario not initialized');
@@ -296,6 +362,16 @@ benchmarkSuite('Move large file (~50KB)', {
 });
 
 benchmarkSuite('Move 10 small files', {
+  setup() {
+    const scenario = testFiles.multiSmallFiles;
+    if (!scenario) return;
+    const { lib, fileNames } = scenario;
+    // Reset all files in the multi-file scenario
+    fileNames.forEach((fileName: string) => {
+      resetFileLocation(lib, benchmarkLib2, fileName);
+    });
+  },
+
   ['Move 10 small files with glob']() {
     const scenario = testFiles.multiSmallFiles;
     if (!scenario)
@@ -313,6 +389,16 @@ benchmarkSuite('Move 10 small files', {
 });
 
 benchmarkSuite('Move files with comma-separated glob (15 files)', {
+  setup() {
+    const scenario = testFiles.commaSeparatedGlobs;
+    if (!scenario) return;
+    const { lib, fileNames } = scenario;
+    // Reset all files in the comma-separated scenario
+    fileNames.forEach((fileName: string) => {
+      resetFileLocation(lib, benchmarkLib2, fileName);
+    });
+  },
+
   ['Move 15 files with comma-separated globs']() {
     const scenario = testFiles.commaSeparatedGlobs;
     if (!scenario)
@@ -330,6 +416,13 @@ benchmarkSuite('Move files with comma-separated glob (15 files)', {
 });
 
 benchmarkSuite('Move file with 20 importing files', {
+  setup() {
+    const scenario = testFiles.fileWithImporters;
+    if (!scenario) return;
+    const { lib, fileName } = scenario;
+    resetFileLocation(lib, benchmarkLib2, fileName);
+  },
+
   ['Move file with 20 importers']() {
     const scenario = testFiles.fileWithImporters;
     if (!scenario)
@@ -347,6 +440,13 @@ benchmarkSuite('Move file with 20 importing files', {
 });
 
 benchmarkSuite('Update imports with early exit optimization', {
+  setup() {
+    const scenario = testFiles.earlyExitOptimization;
+    if (!scenario) return;
+    const { lib, fileName } = scenario;
+    resetFileLocation(lib, benchmarkLib2, fileName);
+  },
+
   ['Update imports in 50 files (early exit)']() {
     const scenario = testFiles.earlyExitOptimization;
     if (!scenario)
