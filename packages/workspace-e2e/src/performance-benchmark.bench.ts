@@ -26,15 +26,23 @@ let benchmarkLib1: string;
 let benchmarkLib2: string;
 
 // Pre-created test scenarios (setup done in beforeAll, not measured in benchmarks)
+// For Option 1: Pre-create many unique files to avoid reset overhead in benchmarks
+const ITERATIONS_PER_BENCHMARK = 100; // Pre-create 100 files for each benchmark
+
 const testFiles: {
-  smallFile?: { lib: string; fileName: string };
-  mediumFile?: { lib: string; fileName: string };
-  largeFile?: { lib: string; fileName: string };
+  smallFiles?: { lib: string; fileNames: string[] };
+  mediumFiles?: { lib: string; fileNames: string[] };
+  largeFiles?: { lib: string; fileNames: string[] };
   multiSmallFiles?: { lib: string; pattern: string };
   commaSeparatedGlobs?: { lib: string; pattern: string };
   fileWithImporters?: { lib: string; fileName: string };
   earlyExitOptimization?: { lib: string; fileName: string };
 } = {};
+
+// Iteration counters to cycle through pre-created files
+let smallFileIteration = 0;
+let mediumFileIteration = 0;
+let largeFileIteration = 0;
 
 // Ensure the workspace is set up before running benchmarks
 beforeAll(async () => {
@@ -77,48 +85,73 @@ beforeAll(async () => {
 }, 600000); // 10 minute timeout for all setup
 
 // Setup functions that run BEFORE benchmarking (not measured)
+// Pre-create multiple files for each benchmark to avoid reset overhead
 function setupSmallFileScenario() {
-  const fileName = `small-${uniqueId()}.ts`;
-  const filePath = join(
-    projectDirectory,
-    benchmarkLib1,
-    'src',
-    'lib',
-    fileName,
-  );
-  writeFileSync(
-    filePath,
-    'export function smallFunction() { return "small"; }\n',
-  );
-  testFiles.smallFile = { lib: benchmarkLib1, fileName };
+  const fileNames: string[] = [];
+  const uniqueSuffix = uniqueId();
+
+  // Create 100 unique small files
+  for (let i = 0; i < ITERATIONS_PER_BENCHMARK; i++) {
+    const fileName = `small-${uniqueSuffix}-${i}.ts`;
+    const filePath = join(
+      projectDirectory,
+      benchmarkLib1,
+      'src',
+      'lib',
+      fileName,
+    );
+    writeFileSync(
+      filePath,
+      'export function smallFunction() { return "small"; }\n',
+    );
+    fileNames.push(fileName);
+  }
+
+  testFiles.smallFiles = { lib: benchmarkLib1, fileNames };
 }
 
 function setupMediumFileScenario() {
-  const fileName = `medium-${uniqueId()}.ts`;
-  const filePath = join(
-    projectDirectory,
-    benchmarkLib1,
-    'src',
-    'lib',
-    fileName,
-  );
-  const content = generateLargeTypeScriptFile(200); // ~200 functions
-  writeFileSync(filePath, content);
-  testFiles.mediumFile = { lib: benchmarkLib1, fileName };
+  const fileNames: string[] = [];
+  const uniqueSuffix = uniqueId();
+
+  // Create 100 unique medium files
+  for (let i = 0; i < ITERATIONS_PER_BENCHMARK; i++) {
+    const fileName = `medium-${uniqueSuffix}-${i}.ts`;
+    const filePath = join(
+      projectDirectory,
+      benchmarkLib1,
+      'src',
+      'lib',
+      fileName,
+    );
+    const content = generateLargeTypeScriptFile(200); // ~200 functions
+    writeFileSync(filePath, content);
+    fileNames.push(fileName);
+  }
+
+  testFiles.mediumFiles = { lib: benchmarkLib1, fileNames };
 }
 
 function setupLargeFileScenario() {
-  const fileName = `large-${uniqueId()}.ts`;
-  const filePath = join(
-    projectDirectory,
-    benchmarkLib1,
-    'src',
-    'lib',
-    fileName,
-  );
-  const content = generateLargeTypeScriptFile(1000); // ~1000 functions
-  writeFileSync(filePath, content);
-  testFiles.largeFile = { lib: benchmarkLib1, fileName };
+  const fileNames: string[] = [];
+  const uniqueSuffix = uniqueId();
+
+  // Create 100 unique large files
+  for (let i = 0; i < ITERATIONS_PER_BENCHMARK; i++) {
+    const fileName = `large-${uniqueSuffix}-${i}.ts`;
+    const filePath = join(
+      projectDirectory,
+      benchmarkLib1,
+      'src',
+      'lib',
+      fileName,
+    );
+    const content = generateLargeTypeScriptFile(1000); // ~1000 functions
+    writeFileSync(filePath, content);
+    fileNames.push(fileName);
+  }
+
+  testFiles.largeFiles = { lib: benchmarkLib1, fileNames };
 }
 
 function setupMultiSmallFilesScenario() {
@@ -291,143 +324,173 @@ function resetFileLocation(
 }
 
 // Benchmarks: Only generator execution is measured (setup done in beforeAll)
-// Note: Without setup/teardown, outer scope variables remain accessible.
-// File reset happens naturally as each benchmark iteration runs in sequence.
-benchmarkSuite('Move small file (< 1KB)', {
-  ['Small file move']() {
-    const scenario = testFiles.smallFile;
-    if (!scenario) throw new Error('Small file scenario not initialized');
-    const { lib, fileName } = scenario;
+// Option 1: Pre-created files eliminate reset overhead from timing
+benchmarkSuite(
+  'Move small file (< 1KB)',
+  {
+    ['Small file move']() {
+      const scenario = testFiles.smallFiles;
+      if (!scenario) throw new Error('Small file scenario not initialized');
 
-    // Reset file to original location before benchmark
-    resetFileLocation(lib, benchmarkLib2, fileName);
+      // Use next pre-created file (no reset needed!)
+      const fileName =
+        scenario.fileNames[smallFileIteration % ITERATIONS_PER_BENCHMARK];
+      smallFileIteration++;
 
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${scenario.lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
-benchmarkSuite('Move medium file (~10KB)', {
-  ['Medium file move']() {
-    const scenario = testFiles.mediumFile;
-    if (!scenario) throw new Error('Medium file scenario not initialized');
-    const { lib, fileName } = scenario;
+benchmarkSuite(
+  'Move medium file (~10KB)',
+  {
+    ['Medium file move']() {
+      const scenario = testFiles.mediumFiles;
+      if (!scenario) throw new Error('Medium file scenario not initialized');
 
-    // Reset file to original location before benchmark
-    resetFileLocation(lib, benchmarkLib2, fileName);
+      // Use next pre-created file (no reset needed!)
+      const fileName =
+        scenario.fileNames[mediumFileIteration % ITERATIONS_PER_BENCHMARK];
+      mediumFileIteration++;
 
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${scenario.lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
-benchmarkSuite('Move large file (~50KB)', {
-  ['Large file move']() {
-    const scenario = testFiles.largeFile;
-    if (!scenario) throw new Error('Large file scenario not initialized');
-    const { lib, fileName } = scenario;
+benchmarkSuite(
+  'Move large file (~50KB)',
+  {
+    ['Large file move']() {
+      const scenario = testFiles.largeFiles;
+      if (!scenario) throw new Error('Large file scenario not initialized');
 
-    // Reset file to original location before benchmark
-    resetFileLocation(lib, benchmarkLib2, fileName);
+      // Use next pre-created file (no reset needed!)
+      const fileName =
+        scenario.fileNames[largeFileIteration % ITERATIONS_PER_BENCHMARK];
+      largeFileIteration++;
 
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${scenario.lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
-benchmarkSuite('Move 10 small files', {
-  ['Move 10 small files with glob']() {
-    const scenario = testFiles.multiSmallFiles;
-    if (!scenario)
-      throw new Error('Multi small files scenario not initialized');
-    const { lib, pattern } = scenario;
+benchmarkSuite(
+  'Move 10 small files',
+  {
+    ['Move 10 small files with glob']() {
+      const scenario = testFiles.multiSmallFiles;
+      if (!scenario)
+        throw new Error('Multi small files scenario not initialized');
+      const { lib, pattern } = scenario;
 
-    // Note: For glob patterns, we can't easily reset individual files,
-    // but since we're using unique IDs in file names, each run is independent
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      // Note: For glob patterns, we can't easily reset individual files,
+      // but since we're using unique IDs in file names, each run is independent
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
-benchmarkSuite('Move files with comma-separated glob (15 files)', {
-  ['Move 15 files with comma-separated globs']() {
-    const scenario = testFiles.commaSeparatedGlobs;
-    if (!scenario)
-      throw new Error('Comma-separated globs scenario not initialized');
-    const { pattern } = scenario;
+benchmarkSuite(
+  'Move files with comma-separated glob (15 files)',
+  {
+    ['Move 15 files with comma-separated globs']() {
+      const scenario = testFiles.commaSeparatedGlobs;
+      if (!scenario)
+        throw new Error('Comma-separated globs scenario not initialized');
+      const { pattern } = scenario;
 
-    // Note: For glob patterns, we can't easily reset individual files,
-    // but since we're using unique IDs in file names, each run is independent
-    // Pattern already contains full paths for each glob
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file "${pattern}" --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      // Note: For glob patterns, we can't easily reset individual files,
+      // but since we're using unique IDs in file names, each run is independent
+      // Pattern already contains full paths for each glob
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file "${pattern}" --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
-benchmarkSuite('Move file with 20 importing files', {
-  ['Move file with 20 importers']() {
-    const scenario = testFiles.fileWithImporters;
-    if (!scenario)
-      throw new Error('File with importers scenario not initialized');
-    const { lib, fileName } = scenario;
+benchmarkSuite(
+  'Move file with 20 importing files',
+  {
+    ['Move file with 20 importers']() {
+      const scenario = testFiles.fileWithImporters;
+      if (!scenario)
+        throw new Error('File with importers scenario not initialized');
+      const { lib, fileName } = scenario;
 
-    // Reset file to original location before benchmark
-    resetFileLocation(lib, benchmarkLib2, fileName);
+      // Reset file to original location before benchmark
+      resetFileLocation(lib, benchmarkLib2, fileName);
 
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
-benchmarkSuite('Update imports with early exit optimization', {
-  ['Update imports in 50 files (early exit)']() {
-    const scenario = testFiles.earlyExitOptimization;
-    if (!scenario)
-      throw new Error('Early exit optimization scenario not initialized');
-    const { lib, fileName } = scenario;
+benchmarkSuite(
+  'Update imports with early exit optimization',
+  {
+    ['Update imports in 50 files (early exit)']() {
+      const scenario = testFiles.earlyExitOptimization;
+      if (!scenario)
+        throw new Error('Early exit optimization scenario not initialized');
+      const { lib, fileName } = scenario;
 
-    // Reset file to original location before benchmark
-    resetFileLocation(lib, benchmarkLib2, fileName);
+      // Reset file to original location before benchmark
+      resetFileLocation(lib, benchmarkLib2, fileName);
 
-    execSync(
-      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-      {
-        cwd: projectDirectory,
-        stdio: 'pipe',
-      },
-    );
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+    },
   },
-});
+  { timeoutSeconds: 120 }, // 2 minute timeout
+);
 
 // Helper functions
 function getProjectImportAlias(
