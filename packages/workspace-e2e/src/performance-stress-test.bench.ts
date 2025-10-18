@@ -9,16 +9,37 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
  * These benchmarks validate performance with large workspaces, many projects,
  * and complex dependency graphs.
  *
- * Note: Since jest-bench benchmarks must be synchronous, we pre-create
- * the necessary project structures in beforeAll and reuse them across benchmarks.
+ * IMPORTANT: To ensure accurate benchmarking, all test scenarios are pre-created
+ * in beforeAll() so that only the generator execution time is measured, not the
+ * project/file setup time.
  */
 
 // Global test project for stress tests
 let stressProjectDirectory: string;
 
+// Pre-created test scenarios (setup done in beforeAll, not measured in benchmarks)
+interface TestScenario {
+  sourceLib: string;
+  targetLib: string;
+  sourceFile: string;
+}
+
+const testScenarios: {
+  crossProject?: TestScenario;
+  largeFiles?: TestScenario;
+  relativeImports?: { lib: string; utilFile: string };
+  largeWorkspace?: TestScenario;
+} = {};
+
 beforeAll(async () => {
   stressProjectDirectory = await createStressTestProject();
-}, 300000); // 5 minute timeout
+
+  // Pre-create all test scenarios for benchmarking
+  await setupCrossProjectScenario();
+  await setupLargeFilesScenario();
+  await setupRelativeImportsScenario();
+  await setupLargeWorkspaceScenario();
+}, 600000); // 10 minute timeout for all setup
 
 afterAll(async () => {
   if (stressProjectDirectory) {
@@ -26,59 +47,237 @@ afterAll(async () => {
   }
 }, 60000);
 
+// Setup functions that run BEFORE benchmarking (not measured)
+async function setupCrossProjectScenario() {
+  const projectCount = 10;
+  const libs: string[] = [];
+  const uniqueSuffix = uniqueId();
+
+  // Create multiple projects
+  for (let i = 0; i < projectCount; i++) {
+    const libName = `stress-lib${i}-${uniqueSuffix}`;
+    libs.push(libName);
+
+    execSync(
+      `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+      {
+        cwd: stressProjectDirectory,
+        stdio: 'pipe',
+      },
+    );
+  }
+
+  // Create a utility file in the first project
+  const utilityFile = 'shared-utility.ts';
+  writeFileSync(
+    join(stressProjectDirectory, libs[0], 'src', 'lib', utilityFile),
+    generateUtilityModule('sharedUtil', 50),
+  );
+
+  // Export from first project's index
+  writeFileSync(
+    join(stressProjectDirectory, libs[0], 'src', 'index.ts'),
+    `export * from './lib/${utilityFile.replace('.ts', '')}';\n`,
+  );
+
+  // Create dependencies: each project imports from the first project
+  const lib0Alias = getProjectImportAlias(stressProjectDirectory, libs[0]);
+  for (let i = 1; i < projectCount; i++) {
+    writeFileSync(
+      join(
+        stressProjectDirectory,
+        libs[i],
+        'src',
+        'lib',
+        `consumer-from-lib0.ts`,
+      ),
+      `import { sharedUtil } from '${lib0Alias}';\nexport const value = sharedUtil();\n`,
+    );
+  }
+
+  testScenarios.crossProject = {
+    sourceLib: libs[0],
+    targetLib: libs[libs.length - 1],
+    sourceFile: utilityFile,
+  };
+}
+
+async function setupLargeFilesScenario() {
+  const fileCount = 100;
+  const uniqueSuffix = uniqueId();
+  const sourceLib = `stress-source-${uniqueSuffix}`;
+  const targetLib = `stress-target-${uniqueSuffix}`;
+
+  // Create source and target libraries
+  for (const lib of [sourceLib, targetLib]) {
+    execSync(
+      `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
+      {
+        cwd: stressProjectDirectory,
+        stdio: 'pipe',
+      },
+    );
+  }
+
+  // Create file to be moved
+  const targetFile = 'large-module.ts';
+  writeFileSync(
+    join(stressProjectDirectory, sourceLib, 'src', 'lib', targetFile),
+    generateLargeTypeScriptFile(500),
+  );
+
+  // Export from index
+  writeFileSync(
+    join(stressProjectDirectory, sourceLib, 'src', 'index.ts'),
+    `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
+  );
+
+  const sourceLibAlias = getProjectImportAlias(
+    stressProjectDirectory,
+    sourceLib,
+  );
+
+  // Create many large files (most won't import the target)
+  const filesWithImports = Math.floor(fileCount * 0.1); // 10% import the target
+  for (let i = 0; i < fileCount; i++) {
+    const fileName = `large-file-${i}.ts`;
+    let content = generateLargeTypeScriptFile(200); // ~10KB each
+
+    // Add import to some files
+    if (i < filesWithImports) {
+      content =
+        `import { func0 } from '${sourceLibAlias}';\n` +
+        `export const imported = func0();\n` +
+        content;
+    }
+
+    writeFileSync(
+      join(stressProjectDirectory, sourceLib, 'src', 'lib', fileName),
+      content,
+    );
+  }
+
+  testScenarios.largeFiles = {
+    sourceLib,
+    targetLib,
+    sourceFile: targetFile,
+  };
+}
+
+async function setupRelativeImportsScenario() {
+  const uniqueSuffix = uniqueId();
+  const lib = `stress-relative-${uniqueSuffix}`;
+  const importerCount = 50;
+
+  execSync(
+    `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
+    {
+      cwd: stressProjectDirectory,
+      stdio: 'pipe',
+    },
+  );
+
+  // Create a deeply nested utility file
+  const utilsDir = join(stressProjectDirectory, lib, 'src', 'lib', 'utils');
+  mkdirSync(utilsDir, { recursive: true });
+
+  const utilFile = 'deep-util.ts';
+  writeFileSync(
+    join(utilsDir, utilFile),
+    'export function deepUtil() { return "deep"; }\n',
+  );
+
+  // Create many files that import using relative paths
+  for (let i = 0; i < importerCount; i++) {
+    const importerFile = `importer-${i}.ts`;
+    writeFileSync(
+      join(stressProjectDirectory, lib, 'src', 'lib', importerFile),
+      `import { deepUtil } from './utils/${utilFile.replace('.ts', '')}';\nexport const value${i} = deepUtil();\n`,
+    );
+  }
+
+  // Create target directory
+  const newUtilsDir = join(
+    stressProjectDirectory,
+    lib,
+    'src',
+    'lib',
+    'helpers',
+  );
+  mkdirSync(newUtilsDir, { recursive: true });
+
+  testScenarios.relativeImports = { lib, utilFile };
+}
+
+async function setupLargeWorkspaceScenario() {
+  const projectCount = 15;
+  const filesPerProject = 30;
+  const uniqueSuffix = uniqueId();
+  const libs: string[] = [];
+
+  // Create projects
+  for (let i = 0; i < projectCount; i++) {
+    const libName = `mega-lib${i}-${uniqueSuffix}`;
+    libs.push(libName);
+
+    execSync(
+      `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+      {
+        cwd: stressProjectDirectory,
+        stdio: 'pipe',
+      },
+    );
+
+    // Create multiple files per project
+    for (let j = 0; j < filesPerProject; j++) {
+      const fileName = `module-${j}.ts`;
+      writeFileSync(
+        join(stressProjectDirectory, libName, 'src', 'lib', fileName),
+        generateLargeTypeScriptFile(50), // ~2.5KB each
+      );
+    }
+  }
+
+  // Create a shared core library
+  const coreFile = 'core-api.ts';
+  writeFileSync(
+    join(stressProjectDirectory, libs[0], 'src', 'lib', coreFile),
+    generateUtilityModule('coreApi', 100),
+  );
+
+  writeFileSync(
+    join(stressProjectDirectory, libs[0], 'src', 'index.ts'),
+    `export * from './lib/${coreFile.replace('.ts', '')}';\n`,
+  );
+
+  // Create cross-project dependencies
+  const coreAlias = getProjectImportAlias(stressProjectDirectory, libs[0]);
+  for (let i = 1; i < projectCount; i++) {
+    writeFileSync(
+      join(stressProjectDirectory, libs[i], 'src', 'lib', 'uses-core.ts'),
+      `import { coreApi } from '${coreAlias}';\nexport const api = coreApi();\n`,
+    );
+  }
+
+  testScenarios.largeWorkspace = {
+    sourceLib: libs[0],
+    targetLib: libs[libs.length - 1],
+    sourceFile: coreFile,
+  };
+}
+
+// Benchmarks: Only generator execution is measured (setup done in beforeAll)
 benchmarkSuite(
   'Move file across 10 projects',
   {
     ['Cross-project move with 10 projects']() {
-      const projectCount = 10;
-      const libs: string[] = [];
-      const uniqueSuffix = uniqueId();
+      const scenario = testScenarios.crossProject;
+      if (!scenario) throw new Error('Cross-project scenario not initialized');
+      const { sourceLib, targetLib, sourceFile } = scenario;
 
-      // Create multiple projects
-      for (let i = 0; i < projectCount; i++) {
-        const libName = `stress-lib${i}-${uniqueSuffix}`;
-        libs.push(libName);
-
-        execSync(
-          `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
-          {
-            cwd: stressProjectDirectory,
-            stdio: 'pipe',
-          },
-        );
-      }
-
-      // Create a utility file in the first project
-      const utilityFile = 'shared-utility.ts';
-      writeFileSync(
-        join(stressProjectDirectory, libs[0], 'src', 'lib', utilityFile),
-        generateUtilityModule('sharedUtil', 50),
-      );
-
-      // Export from first project's index
-      writeFileSync(
-        join(stressProjectDirectory, libs[0], 'src', 'index.ts'),
-        `export * from './lib/${utilityFile.replace('.ts', '')}';\n`,
-      );
-
-      // Create dependencies: each project imports from the first project
-      const lib0Alias = getProjectImportAlias(stressProjectDirectory, libs[0]);
-      for (let i = 1; i < projectCount; i++) {
-        writeFileSync(
-          join(
-            stressProjectDirectory,
-            libs[i],
-            'src',
-            'lib',
-            `consumer-from-lib0.ts`,
-          ),
-          `import { sharedUtil } from '${lib0Alias}';\nexport const value = sharedUtil();\n`,
-        );
-      }
-
-      // Benchmark the move operation
+      // Only the generator execution is benchmarked
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${libs[0]}/src/lib/${utilityFile} --project ${libs[libs.length - 1]} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${sourceLib}/src/lib/${sourceFile} --project ${targetLib} --no-interactive`,
         {
           cwd: stressProjectDirectory,
           stdio: 'pipe',
@@ -86,70 +285,20 @@ benchmarkSuite(
       );
     },
   },
-  420000, // 7 minute timeout for cross-project move with 10 projects
+  60000, // 1 minute timeout (only measures generator execution)
 );
 
 benchmarkSuite(
   'Process 100 large files',
   {
     ['Move file with 100 large files in workspace']() {
-      const fileCount = 100;
-      const uniqueSuffix = uniqueId();
-      const sourceLib = `stress-source-${uniqueSuffix}`;
-      const targetLib = `stress-target-${uniqueSuffix}`;
+      const scenario = testScenarios.largeFiles;
+      if (!scenario) throw new Error('Large files scenario not initialized');
+      const { sourceLib, targetLib, sourceFile } = scenario;
 
-      // Create source and target libraries
-      for (const lib of [sourceLib, targetLib]) {
-        execSync(
-          `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
-          {
-            cwd: stressProjectDirectory,
-            stdio: 'pipe',
-          },
-        );
-      }
-
-      // Create file to be moved
-      const targetFile = 'large-module.ts';
-      writeFileSync(
-        join(stressProjectDirectory, sourceLib, 'src', 'lib', targetFile),
-        generateLargeTypeScriptFile(500),
-      );
-
-      // Export from index
-      writeFileSync(
-        join(stressProjectDirectory, sourceLib, 'src', 'index.ts'),
-        `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
-      );
-
-      const sourceLibAlias = getProjectImportAlias(
-        stressProjectDirectory,
-        sourceLib,
-      );
-
-      // Create many large files (most won't import the target)
-      const filesWithImports = Math.floor(fileCount * 0.1); // 10% import the target
-      for (let i = 0; i < fileCount; i++) {
-        const fileName = `large-file-${i}.ts`;
-        let content = generateLargeTypeScriptFile(200); // ~10KB each
-
-        // Add import to some files
-        if (i < filesWithImports) {
-          content =
-            `import { func0 } from '${sourceLibAlias}';\n` +
-            `export const imported = func0();\n` +
-            content;
-        }
-
-        writeFileSync(
-          join(stressProjectDirectory, sourceLib, 'src', 'lib', fileName),
-          content,
-        );
-      }
-
-      // Benchmark the move
+      // Only the generator execution is benchmarked
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${sourceLib}/src/lib/${targetFile} --project ${targetLib} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${sourceLib}/src/lib/${sourceFile} --project ${targetLib} --no-interactive`,
         {
           cwd: stressProjectDirectory,
           stdio: 'pipe',
@@ -157,55 +306,19 @@ benchmarkSuite(
       );
     },
   },
-  420000, // 7 minute timeout for processing 100 large files
+  60000, // 1 minute timeout (only measures generator execution)
 );
 
 benchmarkSuite(
   'Update 50 relative imports',
   {
     ['Move file with 50 relative imports in same project']() {
-      const uniqueSuffix = uniqueId();
-      const lib = `stress-relative-${uniqueSuffix}`;
-      const importerCount = 50;
+      const scenario = testScenarios.relativeImports;
+      if (!scenario)
+        throw new Error('Relative imports scenario not initialized');
+      const { lib, utilFile } = scenario;
 
-      execSync(
-        `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
-        {
-          cwd: stressProjectDirectory,
-          stdio: 'pipe',
-        },
-      );
-
-      // Create a deeply nested utility file
-      const utilsDir = join(stressProjectDirectory, lib, 'src', 'lib', 'utils');
-      mkdirSync(utilsDir, { recursive: true });
-
-      const utilFile = 'deep-util.ts';
-      writeFileSync(
-        join(utilsDir, utilFile),
-        'export function deepUtil() { return "deep"; }\n',
-      );
-
-      // Create many files that import using relative paths
-      for (let i = 0; i < importerCount; i++) {
-        const importerFile = `importer-${i}.ts`;
-        writeFileSync(
-          join(stressProjectDirectory, lib, 'src', 'lib', importerFile),
-          `import { deepUtil } from './utils/${utilFile.replace('.ts', '')}';\nexport const value${i} = deepUtil();\n`,
-        );
-      }
-
-      // Create target directory
-      const newUtilsDir = join(
-        stressProjectDirectory,
-        lib,
-        'src',
-        'lib',
-        'helpers',
-      );
-      mkdirSync(newUtilsDir, { recursive: true });
-
-      // Benchmark the move
+      // Only the generator execution is benchmarked
       execSync(
         `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/utils/${utilFile} --project ${lib} --project-directory=helpers --no-interactive`,
         {
@@ -215,65 +328,21 @@ benchmarkSuite(
       );
     },
   },
-  300000, // 5 minute timeout for updating 50 relative imports
+  60000, // 1 minute timeout (only measures generator execution)
 );
 
 benchmarkSuite(
   'Large workspace scenario',
   {
     ['Move file in workspace with 15 projects and 30 files each']() {
-      const projectCount = 15;
-      const filesPerProject = 30;
-      const uniqueSuffix = uniqueId();
-      const libs: string[] = [];
+      const scenario = testScenarios.largeWorkspace;
+      if (!scenario)
+        throw new Error('Large workspace scenario not initialized');
+      const { sourceLib, targetLib, sourceFile } = scenario;
 
-      // Create projects
-      for (let i = 0; i < projectCount; i++) {
-        const libName = `mega-lib${i}-${uniqueSuffix}`;
-        libs.push(libName);
-
-        execSync(
-          `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
-          {
-            cwd: stressProjectDirectory,
-            stdio: 'pipe',
-          },
-        );
-
-        // Create multiple files per project
-        for (let j = 0; j < filesPerProject; j++) {
-          const fileName = `module-${j}.ts`;
-          writeFileSync(
-            join(stressProjectDirectory, libName, 'src', 'lib', fileName),
-            generateLargeTypeScriptFile(50), // ~2.5KB each
-          );
-        }
-      }
-
-      // Create a shared core library
-      const coreFile = 'core-api.ts';
-      writeFileSync(
-        join(stressProjectDirectory, libs[0], 'src', 'lib', coreFile),
-        generateUtilityModule('coreApi', 100),
-      );
-
-      writeFileSync(
-        join(stressProjectDirectory, libs[0], 'src', 'index.ts'),
-        `export * from './lib/${coreFile.replace('.ts', '')}';\n`,
-      );
-
-      // Create cross-project dependencies
-      const coreAlias = getProjectImportAlias(stressProjectDirectory, libs[0]);
-      for (let i = 1; i < projectCount; i++) {
-        writeFileSync(
-          join(stressProjectDirectory, libs[i], 'src', 'lib', 'uses-core.ts'),
-          `import { coreApi } from '${coreAlias}';\nexport const api = coreApi();\n`,
-        );
-      }
-
-      // Benchmark the move
+      // Only the generator execution is benchmarked
       execSync(
-        `npx nx generate @nxworker/workspace:move-file ${libs[0]}/src/lib/${coreFile} --project ${libs[libs.length - 1]} --no-interactive`,
+        `npx nx generate @nxworker/workspace:move-file ${sourceLib}/src/lib/${sourceFile} --project ${targetLib} --no-interactive`,
         {
           cwd: stressProjectDirectory,
           stdio: 'pipe',
@@ -281,7 +350,7 @@ benchmarkSuite(
       );
     },
   },
-  600000, // 10 minute timeout for large workspace setup
+  60000, // 1 minute timeout (only measures generator execution)
 );
 
 // Helper functions

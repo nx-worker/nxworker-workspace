@@ -9,14 +9,26 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
  * These benchmarks measure the end-to-end execution time of the generator
  * with various file sizes and counts to validate performance optimizations.
  *
- * Note: Each benchmark creates its own test files to ensure isolation.
- * The test project and libraries are created once and reused for all benchmarks.
+ * IMPORTANT: To ensure accurate benchmarking, all test scenarios are pre-created
+ * in beforeAll() so that only the generator execution time is measured, not the
+ * project/file setup time.
  */
 
-// Global setup: create test project and libraries once for all benchmarks
+// Global setup: test project and libraries created once for all benchmarks
 let projectDirectory: string;
 let benchmarkLib1: string;
 let benchmarkLib2: string;
+
+// Pre-created test scenarios (setup done in beforeAll, not measured in benchmarks)
+const testFiles: {
+  smallFile?: { lib: string; fileName: string };
+  mediumFile?: { lib: string; fileName: string };
+  largeFile?: { lib: string; fileName: string };
+  multiSmallFiles?: { lib: string; pattern: string };
+  commaSeparatedGlobs?: { lib: string; pattern: string };
+  fileWithImporters?: { lib: string; fileName: string };
+  earlyExitOptimization?: { lib: string; fileName: string };
+} = {};
 
 // Ensure the workspace is set up before running benchmarks
 beforeAll(async () => {
@@ -47,26 +59,202 @@ beforeAll(async () => {
       stdio: 'pipe',
     },
   );
-}, 300000); // 5 minute timeout for setup
 
-// Single file operations benchmarks
+  // Pre-create all test scenarios
+  setupSmallFileScenario();
+  setupMediumFileScenario();
+  setupLargeFileScenario();
+  setupMultiSmallFilesScenario();
+  setupCommaSeparatedGlobsScenario();
+  setupFileWithImportersScenario();
+  setupEarlyExitOptimizationScenario();
+}, 600000); // 10 minute timeout for all setup
+
+// Setup functions that run BEFORE benchmarking (not measured)
+function setupSmallFileScenario() {
+  const fileName = `small-${uniqueId()}.ts`;
+  const filePath = join(
+    projectDirectory,
+    benchmarkLib1,
+    'src',
+    'lib',
+    fileName,
+  );
+  writeFileSync(
+    filePath,
+    'export function smallFunction() { return "small"; }\n',
+  );
+  testFiles.smallFile = { lib: benchmarkLib1, fileName };
+}
+
+function setupMediumFileScenario() {
+  const fileName = `medium-${uniqueId()}.ts`;
+  const filePath = join(
+    projectDirectory,
+    benchmarkLib1,
+    'src',
+    'lib',
+    fileName,
+  );
+  const content = generateLargeTypeScriptFile(200); // ~200 functions
+  writeFileSync(filePath, content);
+  testFiles.mediumFile = { lib: benchmarkLib1, fileName };
+}
+
+function setupLargeFileScenario() {
+  const fileName = `large-${uniqueId()}.ts`;
+  const filePath = join(
+    projectDirectory,
+    benchmarkLib1,
+    'src',
+    'lib',
+    fileName,
+  );
+  const content = generateLargeTypeScriptFile(1000); // ~1000 functions
+  writeFileSync(filePath, content);
+  testFiles.largeFile = { lib: benchmarkLib1, fileName };
+}
+
+function setupMultiSmallFilesScenario() {
+  const fileCount = 10;
+  const uniqueSuffix = uniqueId();
+
+  for (let i = 0; i < fileCount; i++) {
+    const fileName = `multi-small-${uniqueSuffix}-${i}.ts`;
+    writeFileSync(
+      join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+      `export function func${i}() { return ${i}; }\n`,
+    );
+  }
+
+  testFiles.multiSmallFiles = {
+    lib: benchmarkLib1,
+    pattern: `multi-small-${uniqueSuffix}-*.ts`,
+  };
+}
+
+function setupCommaSeparatedGlobsScenario() {
+  const uniqueSuffix = uniqueId();
+
+  // Group 1: api-*.ts
+  for (let i = 0; i < 5; i++) {
+    const fileName = `api-${uniqueSuffix}-${i}.ts`;
+    writeFileSync(
+      join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+      `export function api${i}() { return 'api${i}'; }\n`,
+    );
+  }
+
+  // Group 2: service-*.ts
+  for (let i = 0; i < 5; i++) {
+    const fileName = `service-${uniqueSuffix}-${i}.ts`;
+    writeFileSync(
+      join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+      `export function service${i}() { return 'service${i}'; }\n`,
+    );
+  }
+
+  // Group 3: util-*.ts
+  for (let i = 0; i < 5; i++) {
+    const fileName = `util-${uniqueSuffix}-${i}.ts`;
+    writeFileSync(
+      join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+      `export function util${i}() { return 'util${i}'; }\n`,
+    );
+  }
+
+  testFiles.commaSeparatedGlobs = {
+    lib: benchmarkLib1,
+    pattern: `api-${uniqueSuffix}-*.ts,service-${uniqueSuffix}-*.ts,util-${uniqueSuffix}-*.ts`,
+  };
+}
+
+function setupFileWithImportersScenario() {
+  const sourceFile = `source-with-imports-${uniqueId()}.ts`;
+  const consumerCount = 20;
+
+  // Create source file
+  writeFileSync(
+    join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile),
+    'export function source() { return "source"; }\n',
+  );
+
+  // Export from index
+  const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
+  const existingIndex = readFileSync(indexPath, 'utf-8');
+  writeFileSync(
+    indexPath,
+    existingIndex + `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
+  );
+
+  // Create consumer files
+  const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
+  for (let i = 0; i < consumerCount; i++) {
+    const consumerFile = `consumer-${uniqueId()}-${i}.ts`;
+    writeFileSync(
+      join(projectDirectory, benchmarkLib1, 'src', 'lib', consumerFile),
+      `import { source } from '${lib1Alias}';\nexport const value${i} = source();\n`,
+    );
+  }
+
+  testFiles.fileWithImporters = { lib: benchmarkLib1, fileName: sourceFile };
+}
+
+function setupEarlyExitOptimizationScenario() {
+  const sourceFile = `source-for-update-${uniqueId()}.ts`;
+
+  // Create source file
+  writeFileSync(
+    join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile),
+    'export function sourceForUpdate() { return "update"; }\n',
+  );
+
+  // Create many files that DON'T import the source (tests early exit)
+  for (let i = 0; i < 50; i++) {
+    const fileName = `irrelevant-${uniqueId()}-${i}.ts`;
+    writeFileSync(
+      join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+      `// This file doesn't import the source\nexport function irrelevant${i}() { return ${i}; }\n`,
+    );
+  }
+
+  // Export from index
+  const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
+  const existingIndex = readFileSync(indexPath, 'utf-8');
+  writeFileSync(
+    indexPath,
+    existingIndex + `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
+  );
+
+  // Create one consumer
+  const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
+  const consumerPath = join(
+    projectDirectory,
+    benchmarkLib1,
+    'src',
+    'lib',
+    `actual-consumer-${uniqueId()}.ts`,
+  );
+  writeFileSync(
+    consumerPath,
+    `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
+  );
+
+  testFiles.earlyExitOptimization = {
+    lib: benchmarkLib1,
+    fileName: sourceFile,
+  };
+}
+
+// Benchmarks: Only generator execution is measured (setup done in beforeAll)
 benchmarkSuite('Move small file (< 1KB)', {
   ['Small file move']() {
-    const fileName = `small-${uniqueId()}.ts`;
-    const filePath = join(
-      projectDirectory,
-      benchmarkLib1,
-      'src',
-      'lib',
-      fileName,
-    );
-    writeFileSync(
-      filePath,
-      'export function smallFunction() { return "small"; }\n',
-    );
+    const scenario = testFiles.smallFile;
+    if (!scenario) throw new Error('Small file scenario not initialized');
+    const { lib, fileName } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
@@ -77,19 +265,12 @@ benchmarkSuite('Move small file (< 1KB)', {
 
 benchmarkSuite('Move medium file (~10KB)', {
   ['Medium file move']() {
-    const fileName = `medium-${uniqueId()}.ts`;
-    const filePath = join(
-      projectDirectory,
-      benchmarkLib1,
-      'src',
-      'lib',
-      fileName,
-    );
-    const content = generateLargeTypeScriptFile(200); // ~200 functions
-    writeFileSync(filePath, content);
+    const scenario = testFiles.mediumFile;
+    if (!scenario) throw new Error('Medium file scenario not initialized');
+    const { lib, fileName } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
@@ -100,19 +281,12 @@ benchmarkSuite('Move medium file (~10KB)', {
 
 benchmarkSuite('Move large file (~50KB)', {
   ['Large file move']() {
-    const fileName = `large-${uniqueId()}.ts`;
-    const filePath = join(
-      projectDirectory,
-      benchmarkLib1,
-      'src',
-      'lib',
-      fileName,
-    );
-    const content = generateLargeTypeScriptFile(1000); // ~1000 functions
-    writeFileSync(filePath, content);
+    const scenario = testFiles.largeFile;
+    if (!scenario) throw new Error('Large file scenario not initialized');
+    const { lib, fileName } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
@@ -121,22 +295,15 @@ benchmarkSuite('Move large file (~50KB)', {
   },
 });
 
-// Multiple file operations benchmarks
 benchmarkSuite('Move 10 small files', {
   ['Move 10 small files with glob']() {
-    const fileCount = 10;
-    const uniqueSuffix = uniqueId();
-
-    for (let i = 0; i < fileCount; i++) {
-      const fileName = `multi-small-${uniqueSuffix}-${i}.ts`;
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-        `export function func${i}() { return ${i}; }\n`,
-      );
-    }
+    const scenario = testFiles.multiSmallFiles;
+    if (!scenario)
+      throw new Error('Multi small files scenario not initialized');
+    const { lib, pattern } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/multi-small-${uniqueSuffix}-*.ts" --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
@@ -147,37 +314,13 @@ benchmarkSuite('Move 10 small files', {
 
 benchmarkSuite('Move files with comma-separated glob (15 files)', {
   ['Move 15 files with comma-separated globs']() {
-    const uniqueSuffix = uniqueId();
-
-    // Group 1: api-*.ts
-    for (let i = 0; i < 5; i++) {
-      const fileName = `api-${uniqueSuffix}-${i}.ts`;
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-        `export function api${i}() { return 'api${i}'; }\n`,
-      );
-    }
-
-    // Group 2: service-*.ts
-    for (let i = 0; i < 5; i++) {
-      const fileName = `service-${uniqueSuffix}-${i}.ts`;
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-        `export function service${i}() { return 'service${i}'; }\n`,
-      );
-    }
-
-    // Group 3: util-*.ts
-    for (let i = 0; i < 5; i++) {
-      const fileName = `util-${uniqueSuffix}-${i}.ts`;
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-        `export function util${i}() { return 'util${i}'; }\n`,
-      );
-    }
+    const scenario = testFiles.commaSeparatedGlobs;
+    if (!scenario)
+      throw new Error('Comma-separated globs scenario not initialized');
+    const { lib, pattern } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/api-${uniqueSuffix}-*.ts,${benchmarkLib1}/src/lib/service-${uniqueSuffix}-*.ts,${benchmarkLib1}/src/lib/util-${uniqueSuffix}-*.ts" --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${pattern}" --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
@@ -188,36 +331,13 @@ benchmarkSuite('Move files with comma-separated glob (15 files)', {
 
 benchmarkSuite('Move file with 20 importing files', {
   ['Move file with 20 importers']() {
-    const sourceFile = `source-with-imports-${uniqueId()}.ts`;
-    const consumerCount = 20;
-
-    // Create source file
-    writeFileSync(
-      join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile),
-      'export function source() { return "source"; }\n',
-    );
-
-    // Export from index
-    const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
-    const existingIndex = readFileSync(indexPath, 'utf-8');
-    writeFileSync(
-      indexPath,
-      existingIndex +
-        `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
-    );
-
-    // Create consumer files
-    const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
-    for (let i = 0; i < consumerCount; i++) {
-      const consumerFile = `consumer-${uniqueId()}-${i}.ts`;
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', consumerFile),
-        `import { source } from '${lib1Alias}';\nexport const value${i} = source();\n`,
-      );
-    }
+    const scenario = testFiles.fileWithImporters;
+    if (!scenario)
+      throw new Error('File with importers scenario not initialized');
+    const { lib, fileName } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${sourceFile} --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
@@ -226,51 +346,15 @@ benchmarkSuite('Move file with 20 importing files', {
   },
 });
 
-// Import update optimization benchmark
 benchmarkSuite('Update imports with early exit optimization', {
   ['Update imports in 50 files (early exit)']() {
-    const sourceFile = `source-for-update-${uniqueId()}.ts`;
-
-    // Create source file
-    writeFileSync(
-      join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile),
-      'export function sourceForUpdate() { return "update"; }\n',
-    );
-
-    // Create many files that DON'T import the source (tests early exit)
-    for (let i = 0; i < 50; i++) {
-      const fileName = `irrelevant-${uniqueId()}-${i}.ts`;
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-        `// This file doesn't import the source\nexport function irrelevant${i}() { return ${i}; }\n`,
-      );
-    }
-
-    // Export from index
-    const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
-    const existingIndex = readFileSync(indexPath, 'utf-8');
-    writeFileSync(
-      indexPath,
-      existingIndex +
-        `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
-    );
-
-    // Create one consumer
-    const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
-    const consumerPath = join(
-      projectDirectory,
-      benchmarkLib1,
-      'src',
-      'lib',
-      `actual-consumer-${uniqueId()}.ts`,
-    );
-    writeFileSync(
-      consumerPath,
-      `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
-    );
+    const scenario = testFiles.earlyExitOptimization;
+    if (!scenario)
+      throw new Error('Early exit optimization scenario not initialized');
+    const { lib, fileName } = scenario;
 
     execSync(
-      `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${sourceFile} --project ${benchmarkLib2} --no-interactive`,
+      `npx nx generate @nxworker/workspace:move-file ${lib}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
       {
         cwd: projectDirectory,
         stdio: 'pipe',
