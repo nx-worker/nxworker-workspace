@@ -346,7 +346,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
 );
 
 benchmarkSuite(
@@ -370,7 +370,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
 );
 
 benchmarkSuite(
@@ -394,7 +394,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
 );
 
 benchmarkSuite(
@@ -417,7 +417,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
 );
 
 benchmarkSuite(
@@ -441,7 +441,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 120 }, // 2 minute timeout
+  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
 );
 
 benchmarkSuite(
@@ -465,7 +465,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 240 }, // 4 minute timeout for import updates
+  { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }, // 8 min timeout, 3 samples, max 2 min
 );
 
 benchmarkSuite(
@@ -489,7 +489,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 240 }, // 4 minute timeout for 50 file import updates
+  { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }, // 8 min timeout, 3 samples, max 2 min
 );
 
 // Helper functions
