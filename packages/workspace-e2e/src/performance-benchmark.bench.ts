@@ -325,6 +325,12 @@ function resetFileLocation(
 
 // Benchmarks: Only generator execution is measured (setup done in beforeAll)
 // Option 1: Pre-created files eliminate reset overhead from timing
+// CI environments need much more aggressive limits due to slower machines
+const isCI = process.env.CI === 'true';
+const simpleBenchmarkOptions = isCI
+  ? { timeoutSeconds: 600, minSamples: 1, maxTime: 30 } // CI: 10 min timeout, 1 sample, max 30s
+  : { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
+
 benchmarkSuite(
   'Move small file (< 1KB)',
   {
@@ -346,7 +352,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
+  simpleBenchmarkOptions,
 );
 
 benchmarkSuite(
@@ -370,7 +376,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
+  simpleBenchmarkOptions,
 );
 
 benchmarkSuite(
@@ -394,7 +400,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
+  simpleBenchmarkOptions,
 );
 
 benchmarkSuite(
@@ -417,7 +423,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
+  simpleBenchmarkOptions,
 );
 
 benchmarkSuite(
@@ -441,8 +447,12 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }, // 5 min timeout, 3 samples, max 60s
+  simpleBenchmarkOptions,
 );
+
+const complexBenchmarkOptions = isCI
+  ? { timeoutSeconds: 600, minSamples: 1, maxTime: 60 } // CI: 10 min timeout, 1 sample, max 60s
+  : { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 benchmarkSuite(
   'Move file with 20 importing files',
@@ -465,7 +475,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }, // 8 min timeout, 3 samples, max 2 min
+  complexBenchmarkOptions,
 );
 
 benchmarkSuite(
@@ -489,7 +499,7 @@ benchmarkSuite(
       );
     },
   },
-  { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }, // 8 min timeout, 3 samples, max 2 min
+  complexBenchmarkOptions,
 );
 
 // Helper functions
