@@ -9,6 +9,7 @@ import {
   writeFileSync,
   existsSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 
 /**
  * E2E stress test benchmarks for the move-file generator using jest-bench.
@@ -555,12 +556,22 @@ async function createStressTestProject(): Promise<string> {
     throw new Error('Could not determine workspace Nx version');
   }
 
-  // Clear npx cache to prevent ENOTEMPTY errors
+  // Clear npm and npx cache to prevent corruption errors
   try {
     execSync('npm cache clean --force', {
       stdio: 'pipe',
       env: process.env,
     });
+  } catch {
+    // Ignore errors - cache clean is best-effort
+  }
+
+  // Clear npx cache directory to prevent yargs corruption
+  try {
+    const npxCachePath = join(homedir(), '.npm/_npx');
+    if (existsSync(npxCachePath)) {
+      rmSync(npxCachePath, { recursive: true, force: true });
+    }
   } catch {
     // Ignore errors - cache clean is best-effort
   }
