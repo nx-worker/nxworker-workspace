@@ -325,10 +325,10 @@ function resetFileLocation(
 
 // Benchmarks: Only generator execution is measured (setup done in beforeAll)
 // Option 1: Pre-created files eliminate reset overhead from timing
-// CI environments need much more aggressive limits due to slower machines
+// CI environments need more time due to slower machines but still need 3 samples for accuracy
 const isCI = process.env.CI === 'true';
 const simpleBenchmarkOptions = isCI
-  ? { timeoutSeconds: 600, minSamples: 1, maxTime: 30 } // CI: 10 min timeout, 1 sample, max 30s
+  ? { timeoutSeconds: 900, minSamples: 3, maxTime: 180 } // CI: 15 min timeout, 3 samples, max 3 min
   : { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
 
 benchmarkSuite(
@@ -451,7 +451,7 @@ benchmarkSuite(
 );
 
 const complexBenchmarkOptions = isCI
-  ? { timeoutSeconds: 600, minSamples: 1, maxTime: 60 } // CI: 10 min timeout, 1 sample, max 60s
+  ? { timeoutSeconds: 1200, minSamples: 3, maxTime: 240 } // CI: 20 min timeout, 3 samples, max 4 min
   : { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 benchmarkSuite(
