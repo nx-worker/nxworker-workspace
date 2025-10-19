@@ -335,9 +335,10 @@ const simpleBenchmarkOptions = isCI
   ? {
       timeoutSeconds: 600,
       minSamples: ciSamples,
+      maxSamples: ciSamples,
       maxTime: ciSamples === 1 ? 60 : 180,
     } // CI: 10 min timeout, 1 sample for PRs / 3 samples for main, max 1-3 min
-  : { timeoutSeconds: 300, minSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
+  : { timeoutSeconds: 300, minSamples: 3, maxSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
 
 benchmarkSuite(
   'Move small file (< 1KB)',
@@ -462,9 +463,10 @@ const complexBenchmarkOptions = isCI
   ? {
       timeoutSeconds: 800,
       minSamples: ciSamples,
+      maxSamples: ciSamples,
       maxTime: ciSamples === 1 ? 120 : 240,
     } // CI: 13 min timeout, 1 sample for PRs / 3 samples for main, max 2-4 min
-  : { timeoutSeconds: 480, minSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
+  : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 benchmarkSuite(
   'Move file with 20 importing files',
