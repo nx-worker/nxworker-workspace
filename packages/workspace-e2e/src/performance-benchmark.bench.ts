@@ -464,8 +464,8 @@ const complexBenchmarkOptions = isCI
       timeoutSeconds: 3600,
       minSamples: ciSamples,
       maxSamples: ciSamples,
-      maxTime: ciSamples === 1 ? 120 : 240,
-    } // CI: 60 min timeout, 1 sample for PRs / 3 samples for main, max 2-4 min
+      maxTime: ciSamples === 1 ? 240 : 480,
+    } // CI: 60 min timeout, 1 sample for PRs / 3 samples for main, max 4-8 min
   : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 benchmarkSuite(

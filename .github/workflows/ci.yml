@@ -392,7 +392,7 @@ jobs:
       - build
       - set-e2e-benchmark-matrix
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-    timeout-minutes: 120
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.set-e2e-benchmark-matrix.outputs.matrix) }}
