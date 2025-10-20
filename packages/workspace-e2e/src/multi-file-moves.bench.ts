@@ -8,7 +8,6 @@ import {
   benchmarkLib2,
   testFiles,
   simpleBenchmarkOptions,
-  resetFileLocation,
 } from './benchmark-setup';
 
 /**

@@ -1,56 +1,42 @@
 import { execSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
 import { benchmarkSuite } from 'jest-bench';
 import {
+  initializeBenchmarkProject,
+  setupFileWithImportersScenario,
+  setupEarlyExitOptimizationScenario,
   projectDirectory,
-  lib,
+  benchmarkLib1,
   benchmarkLib2,
   testFiles,
-  iterationCounters,
+  complexBenchmarkOptions,
   resetFileLocation,
-  isCI,
-  isPullRequest,
-  ciSimpleTimeout,
-  ciComplexTimeout,
-  ciSimpleMaxTime,
-  ciComplexMaxTime,
-  ciSamples,
 } from './benchmark-setup';
 
+/**
+ * Benchmarks for cross-project move operations.
+ * Tests generator performance when moving files between projects.
+ */
+
 describe('Cross-project move benchmarks', () => {
-  const simpleOptions = isCI
-    ? { minSamples: ciSamples, maxSamples: ciSamples, maxTime: ciSimpleMaxTime }
-    : { minSamples: 3, maxSamples: 3, maxTime: 60 };
-
-  const complexOptions = isCI
-    ? {
-        minSamples: ciSamples,
-        maxSamples: ciSamples,
-        maxTime: ciComplexMaxTime,
-      }
-    : { minSamples: 3, maxSamples: 3, maxTime: 120 };
-
-  const simpleTimeout = isCI ? ciSimpleTimeout : 300;
-  const complexTimeout = isCI ? ciComplexTimeout : 480;
+  beforeAll(async () => {
+    await initializeBenchmarkProject();
+    setupFileWithImportersScenario();
+    setupEarlyExitOptimizationScenario();
+  }, 600000); // 10 minutes for setup
 
   benchmarkSuite(
-    'Move file with importing files',
+    'Move file with 20 importing files',
     {
       ['Move file with 20 importing files']() {
-        const scenario = testFiles.withImportingFiles;
+        const scenario = testFiles.fileWithImporters;
         if (!scenario)
-          throw new Error('withImportingFiles scenario not initialized');
+          throw new Error('File with importers scenario not set up');
 
-        // Reset file location before each run
-        resetFileLocation(
-          lib,
-          benchmarkLib2,
-          scenario.fileName,
-          scenario.originalContent,
-        );
+        // Reset file location before each benchmark iteration
+        resetFileLocation(benchmarkLib1, benchmarkLib2, scenario.fileName);
 
         execSync(
-          `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${scenario.fileName}" --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${scenario.lib}/src/lib/${scenario.fileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -58,7 +44,7 @@ describe('Cross-project move benchmarks', () => {
         );
       },
     },
-    { timeoutSeconds: complexTimeout, ...complexOptions },
+    complexBenchmarkOptions,
   );
 
   benchmarkSuite(
@@ -67,18 +53,13 @@ describe('Cross-project move benchmarks', () => {
       ['Update imports in 50 files (early exit)']() {
         const scenario = testFiles.earlyExitOptimization;
         if (!scenario)
-          throw new Error('earlyExitOptimization scenario not initialized');
+          throw new Error('Early exit optimization scenario not set up');
 
-        // Reset file location before each run
-        resetFileLocation(
-          lib,
-          benchmarkLib2,
-          scenario.fileName,
-          scenario.originalContent,
-        );
+        // Reset file location before each benchmark iteration
+        resetFileLocation(benchmarkLib1, benchmarkLib2, scenario.fileName);
 
         execSync(
-          `npx nx generate @nxworker/workspace:move-file "${lib}/src/lib/${scenario.fileName}" --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${scenario.lib}/src/lib/${scenario.fileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -86,6 +67,6 @@ describe('Cross-project move benchmarks', () => {
         );
       },
     },
-    { timeoutSeconds: complexTimeout, ...complexOptions },
+    complexBenchmarkOptions,
   );
 });
