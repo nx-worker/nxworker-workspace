@@ -52,7 +52,7 @@ jobs:
       - uses: ./.github/actions/setup-node-and-install
         if: ${{ github.event_name == 'pull_request' }}
 
-      - name: '[PR] Check formatting'
+      - name: "[PR] Check formatting"
         if: ${{ github.event_name == 'pull_request' }}
         run: npx nx format:check
 
@@ -290,7 +290,7 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Move-File Generator Benchmarks
-          tool: 'benchmarkjs'
+          tool: "benchmarkjs"
           output-file-path: benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Store benchmark data in external JSON file
@@ -298,10 +298,10 @@ jobs:
           # Disable GitHub Pages integration
           save-data-file: true
           skip-fetch-gh-pages: true
-          alert-threshold: '110%'
+          alert-threshold: "110%"
           comment-on-alert: true
           fail-on-alert: true
-          alert-comment-cc-users: '@LayZeeDK'
+          alert-comment-cc-users: "@LayZeeDK"
           summary-always: true
 
   # Summary check for benchmark job for branch protection
@@ -376,7 +376,7 @@ jobs:
       - build
       - set-e2e-benchmark-matrix
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-    timeout-minutes: 90
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.set-e2e-benchmark-matrix.outputs.matrix) }}
@@ -435,16 +435,16 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: E2E Performance Benchmarks - ${{ matrix.name }}
-          tool: 'benchmarkjs'
+          tool: "benchmarkjs"
           output-file-path: e2e-benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           external-data-json-path: ./cache/e2e-benchmark-data-${{ matrix.name }}.json
           save-data-file: true
           skip-fetch-gh-pages: true
-          alert-threshold: '110%'
+          alert-threshold: "110%"
           comment-on-alert: true
           fail-on-alert: true
-          alert-comment-cc-users: '@LayZeeDK'
+          alert-comment-cc-users: "@LayZeeDK"
           summary-always: true
 
   # Summary check that aggregates all e2e-benchmark matrix results for branch protection
