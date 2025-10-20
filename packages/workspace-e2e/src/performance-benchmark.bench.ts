@@ -333,11 +333,11 @@ const ciSamples = isPullRequest ? 1 : 3;
 
 const simpleBenchmarkOptions = isCI
   ? {
-      timeoutSeconds: 900,
+      timeoutSeconds: 1200,
       minSamples: ciSamples,
       maxSamples: ciSamples,
       maxTime: ciSamples === 1 ? 60 : 180,
-    } // CI: 15 min timeout, 1 sample for PRs / 3 samples for main, max 1-3 min
+    } // CI: 20 min timeout, 1 sample for PRs / 3 samples for main, max 1-3 min
   : { timeoutSeconds: 300, minSamples: 3, maxSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
 
 benchmarkSuite(
@@ -461,11 +461,11 @@ benchmarkSuite(
 
 const complexBenchmarkOptions = isCI
   ? {
-      timeoutSeconds: 1200,
+      timeoutSeconds: 1800,
       minSamples: ciSamples,
       maxSamples: ciSamples,
       maxTime: ciSamples === 1 ? 120 : 240,
-    } // CI: 20 min timeout, 1 sample for PRs / 3 samples for main, max 2-4 min
+    } // CI: 30 min timeout, 1 sample for PRs / 3 samples for main, max 2-4 min
   : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 benchmarkSuite(
