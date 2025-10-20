@@ -43,24 +43,24 @@ export const iterationCounters = {
 // Benchmark options
 export const isCI = process.env.CI === 'true';
 export const isPullRequest = process.env.GITHUB_EVENT_NAME === 'pull_request';
-export const ciSamples = isPullRequest ? 1 : 3;
+export const ciSamples = isPullRequest ? 1 : 1; // Always 1 sample in CI for faster execution
 
 export const simpleBenchmarkOptions = isCI
   ? {
       timeoutSeconds: 2400,
-      minSamples: ciSamples,
-      maxSamples: ciSamples,
-      maxTime: ciSamples === 1 ? 60 : 180,
-    } // CI: 40 min timeout, 1 sample for PRs / 3 samples for main, max 1-3 min
+      minSamples: 1,
+      maxSamples: 1,
+      maxTime: 60,
+    } // CI: 40 min timeout, 1 sample, max 1 min per benchmark
   : { timeoutSeconds: 300, minSamples: 3, maxSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
 
 export const complexBenchmarkOptions = isCI
   ? {
       timeoutSeconds: 3600,
-      minSamples: ciSamples,
-      maxSamples: ciSamples,
-      maxTime: ciSamples === 1 ? 240 : 480,
-    } // CI: 60 min timeout, 1 sample for PRs / 3 samples for main, max 4-8 min
+      minSamples: 1,
+      maxSamples: 1,
+      maxTime: 240,
+    } // CI: 60 min timeout, 1 sample, max 4 min per benchmark
   : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 // Setup functions
