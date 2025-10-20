@@ -412,8 +412,11 @@ async function createTestProject() {
     throw new Error('Could not determine workspace Nx version');
   }
 
+  // Strip leading caret or tilde from version string for npx compatibility
+  const cleanVersion = workspaceNxVersion.replace(/^[\^~]/, '');
+
   execSync(
-    `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
+    `npx --yes create-nx-workspace@${cleanVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
       cwd: dirname(projectDirectory),
       stdio: 'pipe',
