@@ -6,6 +6,8 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/packages/workspace-e2e',
+  // Exclude benchmark files from e2e tests - they run separately via e2e-benchmark target
+  testPathIgnorePatterns: ['\\.bench\\.ts$'],
   globalSetup: '../../tools/scripts/start-local-registry.ts',
   globalTeardown: '../../tools/scripts/stop-local-registry.ts',
 };
