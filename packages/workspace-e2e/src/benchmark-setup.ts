@@ -416,7 +416,7 @@ async function createTestProject() {
   const cleanVersion = workspaceNxVersion.replace(/^[\^~]/, '');
 
   execSync(
-    `npx --yes create-nx-workspace@${cleanVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
+    `npx --yes create-nx-workspace@${cleanVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive --skipGit`,
     {
       cwd: dirname(projectDirectory),
       stdio: 'pipe',
