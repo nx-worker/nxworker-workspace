@@ -3,8 +3,11 @@
  * It is meant to be called in jest's globalSetup.
  */
 import { startLocalRegistry } from '@nx/js/plugins/jest/local-registry';
-import { execFileSync } from 'node:child_process';
 import { releasePublish, releaseVersion } from 'nx/release';
+
+interface StopLocalRegistry {
+  stopLocalRegistry?: () => void;
+}
 
 export default async () => {
   // local registry target to run
@@ -12,7 +15,7 @@ export default async () => {
   // storage folder for the local registry
   const storage = './tmp/local-registry/storage';
 
-  global.stopLocalRegistry = await startLocalRegistry({
+  (global as StopLocalRegistry).stopLocalRegistry = await startLocalRegistry({
     localRegistryTarget,
     storage,
     verbose: false,
