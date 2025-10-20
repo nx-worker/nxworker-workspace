@@ -23,7 +23,11 @@ describe('Cross-project move benchmarks', () => {
     : { minSamples: 3, maxSamples: 3, maxTime: 60 };
 
   const complexOptions = isCI
-    ? { minSamples: ciSamples, maxSamples: ciSamples, maxTime: ciComplexMaxTime }
+    ? {
+        minSamples: ciSamples,
+        maxSamples: ciSamples,
+        maxTime: ciComplexMaxTime,
+      }
     : { minSamples: 3, maxSamples: 3, maxTime: 120 };
 
   const simpleTimeout = isCI ? ciSimpleTimeout : 300;
@@ -42,7 +46,7 @@ describe('Cross-project move benchmarks', () => {
           lib,
           benchmarkLib2,
           scenario.fileName,
-          scenario.originalContent
+          scenario.originalContent,
         );
 
         execSync(
@@ -50,11 +54,11 @@ describe('Cross-project move benchmarks', () => {
           {
             cwd: projectDirectory,
             stdio: 'pipe',
-          }
+          },
         );
       },
     },
-    { timeoutSeconds: complexTimeout, ...complexOptions }
+    { timeoutSeconds: complexTimeout, ...complexOptions },
   );
 
   benchmarkSuite(
@@ -70,7 +74,7 @@ describe('Cross-project move benchmarks', () => {
           lib,
           benchmarkLib2,
           scenario.fileName,
-          scenario.originalContent
+          scenario.originalContent,
         );
 
         execSync(
@@ -78,10 +82,10 @@ describe('Cross-project move benchmarks', () => {
           {
             cwd: projectDirectory,
             stdio: 'pipe',
-          }
+          },
         );
       },
     },
-    { timeoutSeconds: complexTimeout, ...complexOptions }
+    { timeoutSeconds: complexTimeout, ...complexOptions },
   );
 });
