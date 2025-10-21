@@ -40,7 +40,7 @@ describe('Multi-file move benchmarks', () => {
         );
       },
     },
-    createSuiteOptions(480),
+    createSuiteOptions(720),
   );
 
   benchmarkSuite(
@@ -61,6 +61,6 @@ describe('Multi-file move benchmarks', () => {
         );
       },
     },
-    createSuiteOptions(480),
+    createSuiteOptions(720),
   );
 });
