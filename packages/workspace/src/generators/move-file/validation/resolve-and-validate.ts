@@ -11,6 +11,7 @@ import { deriveProjectDirectoryFromSource } from '../project-analysis/derive-pro
 import { getProjectImportPath } from '../project-analysis/get-project-import-path';
 import { isFileExported } from '../export-management/is-file-exported';
 import { checkForImportsInProject } from './check-for-imports-in-project';
+import { checkForRelativeImportsInProject } from './check-for-relative-imports-in-project';
 
 /**
  * Normalizes, validates, and gathers metadata about the source and target files.
@@ -177,9 +178,10 @@ export function resolveAndValidate(
   // Check if source project has imports to this file (for cross-project moves)
   // This is important when moving from application to library - the application
   // files that import this file need the target library to export it
+  // We check for relative imports within the source project to the file being moved
   const hasImportsInSource =
     !isSameProject &&
-    checkForImportsInProject(
+    checkForRelativeImportsInProject(
       tree,
       sourceProject,
       normalizedSource,
