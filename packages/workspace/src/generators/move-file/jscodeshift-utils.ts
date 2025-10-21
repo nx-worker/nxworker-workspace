@@ -399,6 +399,134 @@ export function hasImportSpecifier(
 }
 
 /**
+ * Checks if a file has an import matching a predicate function.
+ *
+ * @param tree - The virtual file system tree
+ * @param filePath - Path to the file to check
+ * @param matcher - Predicate function to test import specifiers
+ * @returns True if any import matches the predicate
+ */
+export function hasImportSpecifierMatching(
+  tree: Tree,
+  filePath: string,
+  matcher: (specifier: string) => boolean,
+): boolean {
+  // Get content from cache or read from tree
+  const content = astCache.getContent(tree, filePath);
+  if (!content || content.trim().length === 0) {
+    return false;
+  }
+
+  // Early exit: quick check if file contains any imports/requires at all
+  if (!mightContainImports(content)) {
+    return false;
+  }
+
+  // Get parsed AST from cache or parse content
+  const root = astCache.getAST(tree, filePath);
+  if (!root) {
+    return false;
+  }
+
+  try {
+    let found = false;
+
+    // Optimized: Filter to only relevant node types and use early termination
+    const relevantNodes = root.find(j.Node, (node) => {
+      return (
+        j.ImportDeclaration.check(node) ||
+        j.ExportNamedDeclaration.check(node) ||
+        j.ExportAllDeclaration.check(node) ||
+        j.CallExpression.check(node)
+      );
+    });
+
+    relevantNodes.forEach((path) => {
+      if (found) {
+        return; // Early termination if already found
+      }
+
+      const node = path.node as ASTNode;
+
+      // Handle ImportDeclaration: import ... from 'specifier'
+      if (j.ImportDeclaration.check(node)) {
+        const source = node.source.value;
+        if (typeof source === 'string' && matcher(source)) {
+          found = true;
+          return;
+        }
+      }
+      // Handle ExportNamedDeclaration: export { foo } from 'specifier'
+      else if (j.ExportNamedDeclaration.check(node)) {
+        if (node.source && typeof node.source.value === 'string') {
+          const source = node.source.value;
+          if (matcher(source)) {
+            found = true;
+            return;
+          }
+        }
+      }
+      // Handle ExportAllDeclaration: export * from 'specifier'
+      else if (j.ExportAllDeclaration.check(node)) {
+        const source = node.source.value;
+        if (typeof source === 'string' && matcher(source)) {
+          found = true;
+          return;
+        }
+      }
+      // Handle CallExpression for dynamic imports, require, and require.resolve
+      else if (j.CallExpression.check(node)) {
+        const { callee, arguments: args } = node;
+
+        // Check if first argument is a string literal
+        if (
+          args.length > 0 &&
+          j.StringLiteral.check(args[0]) &&
+          typeof args[0].value === 'string'
+        ) {
+          const specifier = args[0].value;
+
+          // Dynamic import: import('specifier')
+          if (j.Import.check(callee) && matcher(specifier)) {
+            found = true;
+            return;
+          }
+          // require('specifier')
+          else if (
+            j.Identifier.check(callee) &&
+            callee.name === 'require' &&
+            matcher(specifier)
+          ) {
+            found = true;
+            return;
+          }
+          // require.resolve('specifier')
+          else if (
+            j.MemberExpression.check(callee) &&
+            j.Identifier.check(callee.object) &&
+            callee.object.name === 'require' &&
+            j.Identifier.check(callee.property) &&
+            callee.property.name === 'resolve' &&
+            matcher(specifier)
+          ) {
+            found = true;
+            return;
+          }
+        }
+      }
+    });
+
+    return found;
+  } catch (error) {
+    // If parsing fails, log warning and return false
+    logger.warn(
+      `Unable to parse ${filePath}. Import check may be inaccurate. Error: ${error}`,
+    );
+    return false;
+  }
+}
+
+/**
  * Clears all cached ASTs and content. Should be called at the start of each move operation
  * to ensure a clean state.
  */

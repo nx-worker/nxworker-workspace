@@ -8,6 +8,7 @@ describe('shouldExportFile', () => {
       isSameProject: false,
       isExported: false,
       hasImportsInTarget: false,
+      hasImportsInSource: false,
       ...overrides,
     }) as MoveContext;
 
@@ -21,6 +22,7 @@ describe('shouldExportFile', () => {
     const ctx = createMockContext({
       isExported: true,
       hasImportsInTarget: true,
+      hasImportsInSource: true,
     });
     const options = createMockOptions({ skipExport: true });
     expect(shouldExportFile(ctx, options)).toBe(false);
@@ -43,6 +45,7 @@ describe('shouldExportFile', () => {
       isSameProject: false,
       isExported: true,
       hasImportsInTarget: false,
+      hasImportsInSource: false,
     });
     const options = createMockOptions();
     expect(shouldExportFile(ctx, options)).toBe(true);
@@ -53,6 +56,18 @@ describe('shouldExportFile', () => {
       isSameProject: false,
       isExported: false,
       hasImportsInTarget: true,
+      hasImportsInSource: false,
+    });
+    const options = createMockOptions();
+    expect(shouldExportFile(ctx, options)).toBe(true);
+  });
+
+  it('should export if source has imports for cross-project moves', () => {
+    const ctx = createMockContext({
+      isSameProject: false,
+      isExported: false,
+      hasImportsInTarget: false,
+      hasImportsInSource: true,
     });
     const options = createMockOptions();
     expect(shouldExportFile(ctx, options)).toBe(true);
@@ -63,16 +78,18 @@ describe('shouldExportFile', () => {
       isSameProject: false,
       isExported: true,
       hasImportsInTarget: true,
+      hasImportsInSource: false,
     });
     const options = createMockOptions();
     expect(shouldExportFile(ctx, options)).toBe(true);
   });
 
-  it('should not export if file was not exported and no target imports for cross-project', () => {
+  it('should not export if file was not exported and no imports for cross-project', () => {
     const ctx = createMockContext({
       isSameProject: false,
       isExported: false,
       hasImportsInTarget: false,
+      hasImportsInSource: false,
     });
     const options = createMockOptions();
     expect(shouldExportFile(ctx, options)).toBe(false);
@@ -83,6 +100,7 @@ describe('shouldExportFile', () => {
       isSameProject: false,
       isExported: true,
       hasImportsInTarget: true,
+      hasImportsInSource: true,
     });
     const options = createMockOptions({ skipExport: true });
     expect(shouldExportFile(ctx, options)).toBe(false);
