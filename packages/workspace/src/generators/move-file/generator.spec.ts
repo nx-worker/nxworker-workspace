@@ -491,6 +491,57 @@ describe('move-file generator', () => {
       const mainContent = tree.read('packages/lib1/src/lib/main.ts', 'utf-8');
       expect(mainContent).toContain("from './helpers/util.helper'");
     });
+
+    it('should export file from target library when moved from application with imports', async () => {
+      // Setup: Add an application project
+      addProjectConfiguration(tree, 'app1', {
+        root: 'packages/app1',
+        sourceRoot: 'packages/app1/src',
+        projectType: 'application',
+      });
+
+      // Setup tsconfig path for app1
+      updateJson(tree, 'tsconfig.base.json', (json) => {
+        json.compilerOptions.paths['@test/app1'] = [
+          'packages/app1/src/index.ts',
+        ];
+        return json;
+      });
+
+      // Create a file F1 in application project app1
+      tree.write(
+        'packages/app1/src/app/utils/helper.ts',
+        'export function helper() { return "hello"; }',
+      );
+
+      // Create a file F2 in application project app1 that depends on F1
+      tree.write(
+        'packages/app1/src/app/main.ts',
+        "import { helper } from './utils/helper';\n\nexport const result = helper();",
+      );
+
+      // Move F1 from app1 to lib2
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/app1/src/app/utils/helper.ts',
+        project: 'lib2',
+        projectDirectory: 'utils',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // File should be moved
+      expect(tree.exists('packages/app1/src/app/utils/helper.ts')).toBe(false);
+      expect(tree.exists('packages/lib2/src/lib/utils/helper.ts')).toBe(true);
+
+      // Import in F2 should be updated to point to lib2
+      const mainContent = tree.read('packages/app1/src/app/main.ts', 'utf-8');
+      expect(mainContent).toContain("from '@test/lib2'");
+
+      // The entrypoint of lib2 should export the moved file
+      const lib2Index = tree.read('packages/lib2/src/index.ts', 'utf-8');
+      expect(lib2Index).toContain("export * from './lib/utils/helper'");
+    });
   });
 
   describe('moving a file that is exported', () => {
