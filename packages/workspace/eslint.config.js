@@ -28,4 +28,11 @@ module.exports = [
       parser: require('jsonc-eslint-parser'),
     },
   },
+  {
+    // Benchmark files can import from tools directory
+    files: ['**/*.bench.ts'],
+    rules: {
+      '@nx/enforce-module-boundaries': 'off',
+    },
+  },
 ];
