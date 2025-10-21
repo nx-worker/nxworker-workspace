@@ -25,6 +25,7 @@ npx jest --projects jest-bench.config.ts --testPathPattern=cache-operations
 npx jest --projects jest-bench.config.ts --testPathPattern=path-resolution
 npx jest --projects jest-bench.config.ts --testPathPattern=import-updates
 npx jest --projects jest-bench.config.ts --testPathPattern=export-management
+npx jest --projects jest-bench.config.ts --testPathPattern=validation
 ```
 
 ### CI Integration
@@ -109,6 +110,7 @@ Cache miss                 4,595 ops/sec  0.218 ms ±  0.28 %  (93 runs sampled)
 - **path-resolution.bench.ts**: Benchmarks path manipulation, glob pattern building, and import specifier generation
 - **import-updates.bench.ts**: Benchmarks import detection, import path updates, and AST transformations
 - **export-management.bench.ts**: Benchmarks export detection, export statement addition/removal, and entrypoint management
+- **validation.bench.ts**: Benchmarks relative import detection and validation operations for file moves
 
 ## Related Documentation
 

@@ -64,10 +64,7 @@ describe('checkForRelativeImportsInProject', () => {
     const importerFile = 'packages/lib1/src/lib/features/auth/login.ts';
 
     tree.write(targetFile, 'export function helper() {}');
-    tree.write(
-      importerFile,
-      "import { helper } from '../../utils/helper';",
-    );
+    tree.write(importerFile, "import { helper } from '../../utils/helper';");
 
     const getProjectSourceFiles = jest
       .fn()

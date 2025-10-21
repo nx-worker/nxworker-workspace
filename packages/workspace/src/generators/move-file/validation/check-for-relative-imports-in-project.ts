@@ -30,23 +30,27 @@ export function checkForRelativeImportsInProject(
     }
 
     // Check if this file has an import that resolves to the source file
-    const hasImport = hasImportSpecifierMatching(tree, filePath, (specifier) => {
-      // Only check relative imports
-      if (!specifier.startsWith('.')) {
-        return false;
-      }
+    const hasImport = hasImportSpecifierMatching(
+      tree,
+      filePath,
+      (specifier) => {
+        // Only check relative imports
+        if (!specifier.startsWith('.')) {
+          return false;
+        }
 
-      // Resolve the import specifier to an absolute path
-      const importerDir = path.dirname(filePath);
-      const resolvedImport = path.join(importerDir, specifier);
+        // Resolve the import specifier to an absolute path
+        const importerDir = path.dirname(filePath);
+        const resolvedImport = path.join(importerDir, specifier);
 
-      // Normalize and compare with source file (both without extension)
-      const normalizedResolvedImport = normalizePath(
-        removeSourceFileExtension(resolvedImport),
-      );
+        // Normalize and compare with source file (both without extension)
+        const normalizedResolvedImport = normalizePath(
+          removeSourceFileExtension(resolvedImport),
+        );
 
-      return normalizedResolvedImport === normalizedSourceWithoutExt;
-    });
+        return normalizedResolvedImport === normalizedSourceWithoutExt;
+      },
+    );
 
     if (hasImport) {
       return true;
