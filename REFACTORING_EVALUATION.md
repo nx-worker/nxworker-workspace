@@ -449,10 +449,10 @@ Total:             601 tests
    - ~~Impact: High (prevents performance regressions)~~
    - ~~Approach: Store baseline metrics, compare on PR~~
    - ~~Tool: Consider `benchmark.js` or custom comparison~~
-   - **Implementation**: Using **jest-bench** (powered by benchmark.js) with **github-action-benchmark**
+   - **Implementation**: Using **tinybench** with **github-action-benchmark**
    - **Features**:
-     - Jest integration via jest-bench with benchmarkSuite API
-     - Statistical analysis from benchmark.js engine (ops/sec reporting)
+     - Jest integration via custom benchmarkSuite wrapper
+     - Statistical analysis from tinybench (ops/sec reporting in benchmark.js format)
      - Automatic baseline comparison on all PRs via github-action-benchmark
      - GitHub Pages charts for performance trend tracking
      - 150% regression threshold (configurable)
@@ -460,7 +460,7 @@ Total:             601 tests
      - No manual baseline management required
      - Nx task with proper caching configuration
    - **Benefits over custom scripts**:
-     - Industry-standard benchmarking library (benchmark.js used by Node.js core)
+     - Modern, actively maintained benchmarking library (vs archived benchmark.js)
      - Jest integration for consistent test environment
      - Statistical rigor: outlier detection, margin of error, confidence intervals
      - Visual tracking via GitHub Pages
