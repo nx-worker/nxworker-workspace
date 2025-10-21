@@ -1,18 +1,7 @@
 export default {
   displayName: 'benchmarks',
-  testEnvironment: 'jest-bench/environment',
-  testEnvironmentOptions: {
-    testEnvironment: 'node',
-  },
-  reporters: [
-    'default',
-    [
-      'jest-bench/reporter',
-      {
-        withOpsPerSecond: true,
-      },
-    ],
-  ],
+  testEnvironment: 'node',
+  reporters: ['default'],
   testMatch: ['<rootDir>/packages/**/benchmarks/**/*.bench.ts'],
   transform: {
     '^.+\\.[tj]s$': [
@@ -38,4 +27,5 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: './coverage/benchmarks',
+  transformIgnorePatterns: ['node_modules/(?!(tinybench)/)'],
 };

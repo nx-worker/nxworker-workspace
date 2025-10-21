@@ -271,12 +271,12 @@ jobs:
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
           npx nx benchmark workspace --skip-nx-cache 2>&1 | tee benchmark-output.txt
-          # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
-          # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
-          # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
+          # Strip ANSI escape codes and extract benchmark result lines
+          # tinybench output format: "name x ops/sec ±percent% (runs runs sampled)"
+          # This is already in benchmark.js format, so we just need to extract the lines
           sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | \
-            grep -E "ops/sec" | \
-            sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
+            grep -E "x [0-9,]+ ops/sec" | \
+            sed 's/^[[:space:]]*//' \
             > benchmark-results.txt
           # Verify the file has content
           if [ ! -s benchmark-results.txt ]; then
