@@ -8,6 +8,7 @@ import {
   writeFileSync,
   existsSync,
 } from 'node:fs';
+import { benchmarkSuite } from 'jest-bench';
 
 /**
  * Shared setup utilities for e2e performance benchmarks.
@@ -42,28 +43,20 @@ export const iterationCounters = {
 
 // Benchmark options
 export const isCI = process.env.CI === 'true';
-export const isPullRequest = process.env.GITHUB_EVENT_NAME === 'pull_request';
-export const ciSamples = isPullRequest ? 1 : 1; // Always 1 sample in CI for faster execution
 
-export const simpleBenchmarkOptions = isCI
-  ? {
-      timeoutSeconds: 2400,
-      minSamples: 1,
-      maxSamples: 1,
-      minTime: 0,
-      maxTime: 30,
-    } // CI: 40 min timeout, 1 sample, max 30s per benchmark
-  : { timeoutSeconds: 300, minSamples: 3, maxSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
+type SuiteOptions = Exclude<
+  Parameters<typeof benchmarkSuite>[2],
+  number | undefined
+>;
 
-export const complexBenchmarkOptions = isCI
-  ? {
-      timeoutSeconds: 3600,
-      minSamples: 1,
-      maxSamples: 1,
-      minTime: 0,
-      maxTime: 60,
-    } // CI: 60 min timeout, 1 sample, max 1 min per benchmark
-  : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
+export function createSuiteOptions(localTimeoutSeconds: number): SuiteOptions {
+  return {
+    timeoutSeconds: isCI ? 8 * localTimeoutSeconds : localTimeoutSeconds, // CI is slower than local/agent environments
+    minSamples: isCI ? 1 : 3, // `jest-bench` doesn't respect `maxSamples`
+    minTime: 0, // `jest-bench` doesn't respect `maxSamples`
+    maxTime: 0.01, // `jest-bench` doesn't respect `maxSamples`
+  };
+}
 
 // Setup functions
 export async function initializeBenchmarkProject() {
@@ -347,7 +340,7 @@ export function getProjectImportAlias(
     if (
       pathEntries.some((entry) =>
         (entry as string)
-          .replace(/\\/g, '/')
+          .replaceAll('\\', '/')
           .includes(`${projectName}/src/index`),
       )
     ) {

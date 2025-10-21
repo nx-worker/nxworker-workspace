@@ -8,8 +8,8 @@ import {
   benchmarkLib1,
   benchmarkLib2,
   testFiles,
-  complexBenchmarkOptions,
   resetFileLocation,
+  createSuiteOptions,
 } from './benchmark-setup';
 
 /**
@@ -44,7 +44,7 @@ describe('Import update benchmarks', () => {
         );
       },
     },
-    complexBenchmarkOptions,
+    createSuiteOptions(480),
   );
 
   benchmarkSuite(
@@ -67,6 +67,6 @@ describe('Import update benchmarks', () => {
         );
       },
     },
-    complexBenchmarkOptions,
+    createSuiteOptions(480),
   );
 });

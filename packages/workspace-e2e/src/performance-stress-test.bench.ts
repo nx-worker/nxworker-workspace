@@ -10,6 +10,7 @@ import {
   existsSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
+import { createSuiteOptions } from './benchmark-setup';
 
 /**
  * E2E stress test benchmarks for the move-file generator using jest-bench.
@@ -104,7 +105,7 @@ async function setupCrossProjectScenario() {
 
   testScenarios.crossProject = {
     sourceLib: libs[0],
-    targetLib: libs[libs.length - 1],
+    targetLib: libs.at(-1)!,
     sourceFile: utilityFile,
   };
 }
@@ -268,7 +269,7 @@ async function setupLargeWorkspaceScenario() {
 
   testScenarios.largeWorkspace = {
     sourceLib: libs[0],
-    targetLib: libs[libs.length - 1],
+    targetLib: libs.at(-1)!,
     sourceFile: coreFile,
   };
 }
@@ -324,7 +325,7 @@ benchmarkSuite(
       );
     },
   },
-  120000, // 2 minute timeout to account for setup + execution
+  createSuiteOptions(120),
 );
 
 benchmarkSuite(
@@ -376,7 +377,7 @@ benchmarkSuite(
       );
     },
   },
-  120000, // 2 minute timeout to account for setup + execution
+  createSuiteOptions(120),
 );
 
 benchmarkSuite(
@@ -425,7 +426,7 @@ benchmarkSuite(
       );
     },
   },
-  120000, // 2 minute timeout to account for setup + execution
+  createSuiteOptions(120),
 );
 
 benchmarkSuite(
@@ -478,7 +479,7 @@ benchmarkSuite(
       );
     },
   },
-  120000, // 2 minute timeout to account for setup + execution
+  createSuiteOptions(120),
 );
 
 // Helper functions
@@ -495,7 +496,7 @@ function getProjectImportAlias(
     if (
       pathEntries.some((entry) =>
         (entry as string)
-          .replace(/\\/g, '/')
+          .replaceAll('\\', '/')
           .includes(`${projectName}/src/index`),
       )
     ) {
