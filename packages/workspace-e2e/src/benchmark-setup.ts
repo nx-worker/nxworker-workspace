@@ -1,4 +1,4 @@
-import { uniqueId } from 'lodash';
+import { uniqueId } from './util/unique-id';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import {
