@@ -1,4 +1,4 @@
-import { uniqueId } from 'lodash';
+import { uniqueId } from './util/unique-id';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import {
@@ -8,6 +8,7 @@ import {
   writeFileSync,
   existsSync,
 } from 'node:fs';
+import { benchmarkSuite } from 'jest-bench';
 
 /**
  * Shared setup utilities for e2e performance benchmarks.
@@ -42,26 +43,20 @@ export const iterationCounters = {
 
 // Benchmark options
 export const isCI = process.env.CI === 'true';
-export const isPullRequest = process.env.GITHUB_EVENT_NAME === 'pull_request';
-export const ciSamples = isPullRequest ? 1 : 3;
 
-export const simpleBenchmarkOptions = isCI
-  ? {
-      timeoutSeconds: 2400,
-      minSamples: ciSamples,
-      maxSamples: ciSamples,
-      maxTime: ciSamples === 1 ? 60 : 180,
-    } // CI: 40 min timeout, 1 sample for PRs / 3 samples for main, max 1-3 min
-  : { timeoutSeconds: 300, minSamples: 3, maxSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
+type SuiteOptions = Exclude<
+  Parameters<typeof benchmarkSuite>[2],
+  number | undefined
+>;
 
-export const complexBenchmarkOptions = isCI
-  ? {
-      timeoutSeconds: 3600,
-      minSamples: ciSamples,
-      maxSamples: ciSamples,
-      maxTime: ciSamples === 1 ? 240 : 480,
-    } // CI: 60 min timeout, 1 sample for PRs / 3 samples for main, max 4-8 min
-  : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
+export function createSuiteOptions(localTimeoutSeconds: number): SuiteOptions {
+  return {
+    timeoutSeconds: isCI ? 8 * localTimeoutSeconds : localTimeoutSeconds, // CI is slower than local/agent environments
+    minSamples: isCI ? 1 : 3, // `jest-bench` doesn't respect `maxSamples`
+    minTime: 0, // `jest-bench` doesn't respect `maxSamples`
+    maxTime: 0.01, // `jest-bench` doesn't respect `maxSamples`
+  };
+}
 
 // Setup functions
 export async function initializeBenchmarkProject() {
@@ -345,7 +340,7 @@ export function getProjectImportAlias(
     if (
       pathEntries.some((entry) =>
         (entry as string)
-          .replace(/\\/g, '/')
+          .replaceAll('\\', '/')
           .includes(`${projectName}/src/index`),
       )
     ) {
@@ -412,8 +407,11 @@ async function createTestProject() {
     throw new Error('Could not determine workspace Nx version');
   }
 
+  // Strip leading caret or tilde from version string for npx compatibility
+  const cleanVersion = workspaceNxVersion.replace(/^[\^~]/, '');
+
   execSync(
-    `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
+    `npx --yes create-nx-workspace@${cleanVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive --skipGit`,
     {
       cwd: dirname(projectDirectory),
       stdio: 'pipe',

@@ -8,8 +8,8 @@ import {
   projectDirectory,
   benchmarkLib2,
   testFiles,
-  simpleBenchmarkOptions,
   iterationCounters,
+  createSuiteOptions,
 } from './benchmark-setup';
 
 /**
@@ -48,7 +48,7 @@ describe('Single file move benchmarks', () => {
         );
       },
     },
-    simpleBenchmarkOptions,
+    createSuiteOptions(300),
   );
 
   benchmarkSuite(
@@ -74,7 +74,7 @@ describe('Single file move benchmarks', () => {
         );
       },
     },
-    simpleBenchmarkOptions,
+    createSuiteOptions(300),
   );
 
   benchmarkSuite(
@@ -100,6 +100,6 @@ describe('Single file move benchmarks', () => {
         );
       },
     },
-    simpleBenchmarkOptions,
+    createSuiteOptions(300),
   );
 });

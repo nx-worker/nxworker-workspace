@@ -7,8 +7,7 @@ import {
   projectDirectory,
   benchmarkLib2,
   testFiles,
-  simpleBenchmarkOptions,
-  resetFileLocation,
+  createSuiteOptions,
 } from './benchmark-setup';
 
 /**
@@ -41,7 +40,7 @@ describe('Multi-file move benchmarks', () => {
         );
       },
     },
-    simpleBenchmarkOptions,
+    createSuiteOptions(720),
   );
 
   benchmarkSuite(
@@ -62,6 +61,6 @@ describe('Multi-file move benchmarks', () => {
         );
       },
     },
-    simpleBenchmarkOptions,
+    createSuiteOptions(720),
   );
 });
