@@ -73,6 +73,11 @@ export interface MoveContext {
   hasImportsInTarget: boolean;
 
   /**
+   * Whether the source project has imports to this file.
+   */
+  hasImportsInSource: boolean;
+
+  /**
    * Whether the source and target are the same project.
    */
   isSameProject: boolean;

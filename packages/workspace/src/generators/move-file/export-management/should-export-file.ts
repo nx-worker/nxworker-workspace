@@ -7,7 +7,7 @@ import type { MoveFileGeneratorSchema } from '../schema';
  * Export logic:
  * - Always skip if skipExport option is true
  * - For same-project moves: maintain existing export status
- * - For cross-project moves: export if previously exported OR if target has imports
+ * - For cross-project moves: export if previously exported OR if target has imports OR if source has imports
  *
  * @param ctx - Resolved move context.
  * @param options - Generator options controlling export behavior.
@@ -17,7 +17,8 @@ export function shouldExportFile(
   ctx: MoveContext,
   options: MoveFileGeneratorSchema,
 ): boolean {
-  const { isSameProject, isExported, hasImportsInTarget } = ctx;
+  const { isSameProject, isExported, hasImportsInTarget, hasImportsInSource } =
+    ctx;
 
   if (options.skipExport) {
     return false;
@@ -27,5 +28,5 @@ export function shouldExportFile(
     return isExported;
   }
 
-  return isExported || hasImportsInTarget;
+  return isExported || hasImportsInTarget || hasImportsInSource;
 }

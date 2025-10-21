@@ -161,6 +161,9 @@ export function resolveAndValidate(
     targetProject,
   );
 
+  // Check if moving within the same project
+  const isSameProject = sourceProjectName === targetProjectName;
+
   // Check if target project already has imports to this file
   const hasImportsInTarget =
     !!targetImportPath &&
@@ -171,8 +174,17 @@ export function resolveAndValidate(
       getProjectSourceFiles,
     );
 
-  // Check if moving within the same project
-  const isSameProject = sourceProjectName === targetProjectName;
+  // Check if source project has imports to this file (for cross-project moves)
+  // This is important when moving from application to library - the application
+  // files that import this file need the target library to export it
+  const hasImportsInSource =
+    !isSameProject &&
+    checkForImportsInProject(
+      tree,
+      sourceProject,
+      normalizedSource,
+      getProjectSourceFiles,
+    );
 
   return {
     normalizedSource,
@@ -188,6 +200,7 @@ export function resolveAndValidate(
     sourceImportPath,
     targetImportPath,
     hasImportsInTarget,
+    hasImportsInSource,
     isSameProject,
   };
 }

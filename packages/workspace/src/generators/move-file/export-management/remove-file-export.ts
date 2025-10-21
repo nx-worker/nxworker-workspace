@@ -5,6 +5,7 @@ import { getProjectEntryPointPaths } from '../project-analysis/get-project-entry
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
 import { escapeRegex } from '../security-utils/escape-regex';
 import { treeReadCache } from '../tree-cache';
+import { astCache } from '../ast-cache';
 
 /**
  * Removes the export for a file from the project's entrypoint.
@@ -71,6 +72,7 @@ export function removeFileExport(
 
       tree.write(indexPath, updatedContent);
       treeReadCache.invalidateFile(indexPath);
+      astCache.invalidate(indexPath);
       logger.verbose(`Removed export from ${indexPath}`);
     }
   });
