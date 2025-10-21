@@ -50,8 +50,9 @@ export const simpleBenchmarkOptions = isCI
       timeoutSeconds: 2400,
       minSamples: 1,
       maxSamples: 1,
-      maxTime: 60,
-    } // CI: 40 min timeout, 1 sample, max 1 min per benchmark
+      minTime: 0,
+      maxTime: 30,
+    } // CI: 40 min timeout, 1 sample, max 30s per benchmark
   : { timeoutSeconds: 300, minSamples: 3, maxSamples: 3, maxTime: 60 }; // Local: 5 min timeout, 3 samples, max 60s
 
 export const complexBenchmarkOptions = isCI
@@ -59,8 +60,9 @@ export const complexBenchmarkOptions = isCI
       timeoutSeconds: 3600,
       minSamples: 1,
       maxSamples: 1,
-      maxTime: 240,
-    } // CI: 60 min timeout, 1 sample, max 4 min per benchmark
+      minTime: 0,
+      maxTime: 60,
+    } // CI: 60 min timeout, 1 sample, max 1 min per benchmark
   : { timeoutSeconds: 480, minSamples: 3, maxSamples: 3, maxTime: 120 }; // Local: 8 min timeout, 3 samples, max 2 min
 
 // Setup functions
