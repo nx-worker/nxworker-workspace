@@ -2,6 +2,8 @@ import { benchmarkSuite } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration } from '@nx/devkit';
 import { updateMovedFileImportsIfNeeded } from '../import-updates/update-moved-file-imports-if-needed';
+import { cachedTreeExists } from '../cache/cached-tree-exists';
+import { MoveContext } from '../types/move-context';
 
 describe('Import Updates', () => {
   it('should run benchmarks', async () => {
@@ -27,19 +29,25 @@ describe('Import Updates', () => {
       import { service1 } from './services/service1';
       import { service2 } from './services/service2';
       import { util1 } from './utils/util1';
-      
+
       export function myFunction() {
         return service1() + service2() + util1();
       }
     `;
         tree.write(sourceFile, fileContent);
+        const fileExistenceCache = new Map<string, boolean>();
+
         updateMovedFileImportsIfNeeded(
           tree,
-          sourceFile,
-          targetFile,
-          'lib-a',
-          'lib-b',
-          projects,
+          {
+            isSameProject: false,
+            normalizedSource: sourceFile,
+            normalizedTarget: targetFile,
+            sourceProject: projects.get('lib-a'),
+            sourceImportPath: '@my/lib-a',
+          } satisfies Partial<MoveContext> as MoveContext,
+          (tree, filePath) =>
+            cachedTreeExists(tree, filePath, fileExistenceCache),
         );
       },
     });
