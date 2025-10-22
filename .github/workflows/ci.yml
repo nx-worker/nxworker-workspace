@@ -270,27 +270,14 @@ jobs:
       - name: Run micro-benchmarks
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
-          npx nx benchmark workspace --skip-nx-cache 2>&1 | tee benchmark-output.txt
-          # Strip ANSI escape codes, extract benchmark result lines, and convert to benchmark.js format
-          # jest-bench format: "name  ops/sec  time ± percent %  (runs runs sampled)"
-          # benchmark.js format: "name x ops/sec ±percent% (runs runs sampled)"
-          sed 's/\x1B\[[0-9;]*m//g' benchmark-output.txt | \
-            grep -E "ops/sec" | \
-            sed -E 's/^(.+) +([0-9,]+) +ops\/sec +[0-9.]+ [μm]?s +± +([0-9.]+) +% +\(([0-9]+) runs sampled\)/\1 x \2 ops\/sec ±\3% (\4 runs sampled)/' \
-            > benchmark-results.txt
-          # Verify the file has content
-          if [ ! -s benchmark-results.txt ]; then
-            echo "ERROR: benchmark-results.txt is empty or doesn't exist!"
-            exit 1
-          fi
-          echo "Successfully extracted $(wc -l < benchmark-results.txt) benchmark results"
+          npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee benchmark-output.txt
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Move-File Generator Benchmarks
           tool: 'benchmarkjs'
-          output-file-path: benchmark-results.txt
+          output-file-path: benchmark-output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Store benchmark data in external JSON file
           external-data-json-path: ./cache/benchmark-data.json

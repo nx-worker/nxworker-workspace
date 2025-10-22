@@ -13,27 +13,19 @@ export function formatBenchmarkResult(
   rme: number,
   samples: number,
 ): string {
-  // Format ops/sec with commas for thousands
-  const formattedOps = Math.round(opsPerSec).toLocaleString('en-US');
+  // Format ops/sec with commas for thousands and up to 2 decimal places for less than 100 ops/sec
+  const formattedOpsPerSec = opsPerSec.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: opsPerSec < 100 ? 2 : 0,
+  });
   // Format percentage with 2 decimal places
   const formattedRme = rme.toFixed(2);
 
-  // Calculate time per operation
-  const timePerOp = 1000 / opsPerSec; // in milliseconds
-  let formattedTime: string;
+  const formattedRunsSampled = `${samples} run${samples === 1 ? '' : 's'} sampled`;
 
-  if (timePerOp < 0.001) {
-    // Format as microseconds if less than 0.001 ms
-    formattedTime = `${(timePerOp * 1000).toFixed(3)} μs`;
-  } else if (timePerOp < 1) {
-    // Format with 3 decimal places for small values
-    formattedTime = `${timePerOp.toFixed(3)} ms`;
-  } else {
-    // Format with 2 decimal places for larger values
-    formattedTime = `${timePerOp.toFixed(2)} ms`;
-  }
-
-  return `${name}  ${formattedOps} ops/sec  ${formattedTime} ±  ${formattedRme} %  (${samples} runs sampled)`;
+  // Example:
+  // RegExp.test x 1,234,567 ops/sec ±1.23% (89 runs sampled)
+  return `${name} x ${formattedOpsPerSec} ops/sec ±${formattedRme}% (${formattedRunsSampled})`;
 }
 
 /**
@@ -70,9 +62,9 @@ export async function benchmarkSuite(
   // Run benchmarks
   await bench.run();
 
-  // Output results in jest-bench format immediately
+  // Output results in benchmark.js format immediately
   // This ensures compatibility with benchmark-action/github-action-benchmark
-  console.log(`\n  ${suiteName}`);
+  let summary = '';
 
   for (const task of bench.tasks) {
     if (task.result) {
@@ -80,10 +72,17 @@ export async function benchmarkSuite(
       const rme = task.result.rme ?? 0;
       const samples = task.result.samples?.length ?? 0;
 
-      const result = formatBenchmarkResult(task.name, opsPerSec, rme, samples);
-      console.log(`    ${result}`);
+      summary +=
+        formatBenchmarkResult(
+          `[${suiteName}] ${task.name}`,
+          opsPerSec,
+          rme,
+          samples,
+        ) + '\n';
     }
   }
+
+  console.log(summary);
 
   // Return the bench instance for potential further inspection
   return bench;
