@@ -5,27 +5,25 @@ import { updateMovedFileImportsIfNeeded } from '../import-updates/update-moved-f
 import { cachedTreeExists } from '../cache/cached-tree-exists';
 import { MoveContext } from '../types/move-context';
 
-describe('Import Updates', () => {
-  it('should run benchmarks', async () => {
-    await benchmarkSuite('Import Updates', {
-      'Import update': () => {
-        const tree = createTreeWithEmptyWorkspace();
-        const projects = new Map<string, ProjectConfiguration>();
-        projects.set('lib-a', {
-          name: 'lib-a',
-          root: 'libs/lib-a',
-          sourceRoot: 'libs/lib-a/src',
-          projectType: 'library',
-        });
-        projects.set('lib-b', {
-          name: 'lib-b',
-          root: 'libs/lib-b',
-          sourceRoot: 'libs/lib-b/src',
-          projectType: 'library',
-        });
-        const sourceFile = 'libs/lib-a/src/lib/source.ts';
-        const targetFile = 'libs/lib-b/src/lib/target.ts';
-        const fileContent = `
+benchmarkSuite('Import Updates', {
+  'Import update': () => {
+    const tree = createTreeWithEmptyWorkspace();
+    const projects = new Map<string, ProjectConfiguration>();
+    projects.set('lib-a', {
+      name: 'lib-a',
+      root: 'libs/lib-a',
+      sourceRoot: 'libs/lib-a/src',
+      projectType: 'library',
+    });
+    projects.set('lib-b', {
+      name: 'lib-b',
+      root: 'libs/lib-b',
+      sourceRoot: 'libs/lib-b/src',
+      projectType: 'library',
+    });
+    const sourceFile = 'libs/lib-a/src/lib/source.ts';
+    const targetFile = 'libs/lib-b/src/lib/target.ts';
+    const fileContent = `
       import { service1 } from './services/service1';
       import { service2 } from './services/service2';
       import { util1 } from './utils/util1';
@@ -34,22 +32,19 @@ describe('Import Updates', () => {
         return service1() + service2() + util1();
       }
     `;
-        tree.write(sourceFile, fileContent);
-        const fileExistenceCache = new Map<string, boolean>();
+    tree.write(sourceFile, fileContent);
+    const fileExistenceCache = new Map<string, boolean>();
 
-        updateMovedFileImportsIfNeeded(
-          tree,
-          {
-            isSameProject: false,
-            normalizedSource: sourceFile,
-            normalizedTarget: targetFile,
-            sourceProject: projects.get('lib-a'),
-            sourceImportPath: '@my/lib-a',
-          } satisfies Partial<MoveContext> as MoveContext,
-          (tree, filePath) =>
-            cachedTreeExists(tree, filePath, fileExistenceCache),
-        );
-      },
-    });
-  });
+    updateMovedFileImportsIfNeeded(
+      tree,
+      {
+        isSameProject: false,
+        normalizedSource: sourceFile,
+        normalizedTarget: targetFile,
+        sourceProject: projects.get('lib-a'),
+        sourceImportPath: '@my/lib-a',
+      } satisfies Partial<MoveContext> as MoveContext,
+      (tree, filePath) => cachedTreeExists(tree, filePath, fileExistenceCache),
+    );
+  },
 });

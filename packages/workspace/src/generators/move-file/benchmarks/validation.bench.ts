@@ -140,44 +140,40 @@ const withImportsData = setupWithImports();
 const nestedPathsData = setupNestedPaths();
 const largeProjectData = setupLargeProject();
 
-describe('Validation Operations', () => {
-  it('should run benchmarks', async () => {
-    await benchmarkSuite('Validation Operations', {
-      'Check for relative imports - no imports': () => {
-        checkForRelativeImportsInProject(
-          noImportsData.tree,
-          noImportsData.project,
-          noImportsData.targetFile,
-          noImportsData.getProjectSourceFiles,
-        );
-      },
+benchmarkSuite('Validation Operations', {
+  'Check for relative imports - no imports': () => {
+    checkForRelativeImportsInProject(
+      noImportsData.tree,
+      noImportsData.project,
+      noImportsData.targetFile,
+      noImportsData.getProjectSourceFiles,
+    );
+  },
 
-      'Check for relative imports - with imports': () => {
-        checkForRelativeImportsInProject(
-          withImportsData.tree,
-          withImportsData.project,
-          withImportsData.targetFile,
-          withImportsData.getProjectSourceFiles,
-        );
-      },
+  'Check for relative imports - with imports': () => {
+    checkForRelativeImportsInProject(
+      withImportsData.tree,
+      withImportsData.project,
+      withImportsData.targetFile,
+      withImportsData.getProjectSourceFiles,
+    );
+  },
 
-      'Check for relative imports - nested paths': () => {
-        checkForRelativeImportsInProject(
-          nestedPathsData.tree,
-          nestedPathsData.project,
-          nestedPathsData.targetFile,
-          nestedPathsData.getProjectSourceFiles,
-        );
-      },
+  'Check for relative imports - nested paths': () => {
+    checkForRelativeImportsInProject(
+      nestedPathsData.tree,
+      nestedPathsData.project,
+      nestedPathsData.targetFile,
+      nestedPathsData.getProjectSourceFiles,
+    );
+  },
 
-      'Check for relative imports - large project': () => {
-        checkForRelativeImportsInProject(
-          largeProjectData.tree,
-          largeProjectData.project,
-          largeProjectData.targetFile,
-          largeProjectData.getProjectSourceFiles,
-        );
-      },
-    });
-  });
+  'Check for relative imports - large project': () => {
+    checkForRelativeImportsInProject(
+      largeProjectData.tree,
+      largeProjectData.project,
+      largeProjectData.targetFile,
+      largeProjectData.getProjectSourceFiles,
+    );
+  },
 });

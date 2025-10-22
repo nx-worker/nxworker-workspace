@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+/* eslint-env jest */
 import { Bench, BenchOptions } from 'tinybench';
 
 /**
@@ -37,43 +39,35 @@ export function formatBenchmarkResult(
  * @param benchmarks - Object mapping benchmark names to functions to benchmark
  * @param options - Optional tinybench configuration
  */
-export async function benchmarkSuite(
+export function benchmarkSuite(
   suiteName: string,
   benchmarks: Record<string, () => void | Promise<void>>,
   options?: BenchOptions,
-) {
-  const bench = new Bench(options);
+): void {
+  describe(suiteName, () => {
+    let summary = '';
 
-  // Add all benchmark tasks
-  for (const [name, fn] of Object.entries(benchmarks)) {
-    bench.add(name, fn);
-  }
+    afterAll(() => {
+      console.log(summary);
+    });
 
-  // Run benchmarks
-  await bench.run();
+    it.each(Object.entries(benchmarks))('%s', async (name, benchmark) => {
+      const bench = new Bench(options);
+      bench.add(name, benchmark);
 
-  // Output results in benchmark.js format immediately
-  // This ensures compatibility with benchmark-action/github-action-benchmark
-  let summary = '';
+      const tasks = await bench.run();
 
-  for (const task of bench.tasks) {
-    if (task.result) {
-      const opsPerSec = task.result.throughput.mean;
-      const rme = task.result.latency.rme;
-      const samples = task.result.latency.samples.length;
-
-      summary +=
-        formatBenchmarkResult(
-          `[${suiteName}] ${task.name}`,
-          opsPerSec,
-          rme,
-          samples,
-        ) + '\n';
-    }
-  }
-
-  console.log(summary);
-
-  // Return the bench instance for potential further inspection
-  return bench;
+      for (const task of tasks) {
+        if (task.result) {
+          summary +=
+            formatBenchmarkResult(
+              `[${suiteName}] ${task.name}`,
+              task.result.throughput.mean,
+              task.result.latency.rme,
+              task.result.latency.samples.length,
+            ) + '\n';
+        }
+      }
+    });
+  });
 }
