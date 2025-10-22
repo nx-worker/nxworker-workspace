@@ -58,9 +58,9 @@ export async function benchmarkSuite(
 
   for (const task of bench.tasks) {
     if (task.result) {
-      const opsPerSec = task.result.hz ?? 0;
-      const rme = task.result.rme ?? 0;
-      const samples = task.result.samples?.length ?? 0;
+      const opsPerSec = task.result.throughput.mean;
+      const rme = task.result.latency.rme;
+      const samples = task.result.latency.samples.length;
 
       summary +=
         formatBenchmarkResult(
