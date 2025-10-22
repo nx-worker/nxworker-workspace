@@ -12,7 +12,7 @@ import { Tree } from '@nx/devkit';
  * - File existence caching (tree.exists results)
  * - Project source files caching (file lists per project)
  */
-class TreeReadCache {
+export class TreeReadCache {
   private contentCache = new Map<string, string | null>();
   private childrenCache = new Map<string, string[]>();
 
