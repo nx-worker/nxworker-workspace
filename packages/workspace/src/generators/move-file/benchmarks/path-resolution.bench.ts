@@ -5,16 +5,27 @@ import { getRelativeImportSpecifier } from '../path-utils/get-relative-import-sp
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
 import { toAbsoluteWorkspacePath } from '../path-utils/to-absolute-workspace-path';
 
+let buildPatternsPrefixes: readonly string[];
+
 benchmarkSuite('Path Resolution', {
   buildFileNames: () => {
     const baseNames = ['index', 'main'];
     buildFileNames(baseNames);
   },
 
-  'buildPatterns (100 files)': () => {
-    const prefixes = Array.from({ length: 100 }, (_, i) => `libs/lib-${i}/`);
-    const fileNames = ['index.ts', 'main.ts'];
-    buildPatterns(prefixes, fileNames);
+  'buildPatterns (100 files)': {
+    fn: () => {
+      const fileNames = ['index.ts', 'main.ts'];
+      buildPatterns(buildPatternsPrefixes, fileNames);
+    },
+    fnOptions: {
+      beforeAll() {
+        buildPatternsPrefixes = Array.from(
+          { length: 100 },
+          (_, i) => `libs/lib-${i}/`,
+        );
+      },
+    },
   },
 
   getRelativeImportSpecifier: () => {

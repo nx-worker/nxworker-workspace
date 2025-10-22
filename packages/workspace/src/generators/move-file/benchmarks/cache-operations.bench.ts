@@ -3,68 +3,73 @@ import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { cachedTreeExists } from '../cache/cached-tree-exists';
 import { getProjectSourceFiles } from '../cache/get-project-source-files';
 import { updateProjectSourceFilesCache } from '../cache/update-project-source-files-cache';
+import { Tree } from '@nx/devkit';
 
-benchmarkSuite('Cache Operations', {
-  'Cache hit': () => {
-    const tree = createTreeWithEmptyWorkspace();
-    const fileExistenceCache = new Map();
-    const testFiles = Array.from({ length: 100 }, (_, i) => `file-${i}.ts`);
-    testFiles.forEach((file) => tree.write(file, 'content'));
-    // Warmup - populate cache
-    testFiles.forEach((file) =>
-      cachedTreeExists(tree, file, fileExistenceCache),
-    );
-    // Benchmark
-    testFiles.forEach((file) =>
-      cachedTreeExists(tree, file, fileExistenceCache),
-    );
-  },
+let fileExistenceCache: Map<string, boolean>;
+let projectRoot: string;
+let projectSourceFilesCache: Map<string, string[]>;
+let tree: Tree;
 
-  'Cache miss': () => {
-    const tree = createTreeWithEmptyWorkspace();
-    const fileExistenceCache = new Map();
-    const testFiles = Array.from({ length: 10 }, (_, i) => `file-${i}.ts`);
-    testFiles.forEach((file) =>
-      cachedTreeExists(tree, file, fileExistenceCache),
-    );
-  },
+let testFiles: readonly string[];
 
-  'Source file retrieval': () => {
-    const tree = createTreeWithEmptyWorkspace();
-    const projectSourceFilesCache = new Map();
-    const fileExistenceCache = new Map();
-    const projectRoot = 'libs/test-lib';
-    const sourceFiles = Array.from(
-      { length: 50 },
-      (_, i) => `${projectRoot}/src/lib/file-${i}.ts`,
-    );
-    sourceFiles.forEach((file) => tree.write(file, 'content'));
-    // Warmup
-    getProjectSourceFiles(
-      tree,
-      projectRoot,
-      projectSourceFilesCache,
-      fileExistenceCache,
-    );
-    // Benchmark
-    getProjectSourceFiles(
-      tree,
-      projectRoot,
-      projectSourceFilesCache,
-      fileExistenceCache,
-    );
-  },
+benchmarkSuite(
+  'Cache Operations',
+  {
+    'Cache hit': {
+      fn: () => {
+        testFiles.forEach((file) =>
+          cachedTreeExists(tree, file, fileExistenceCache),
+        );
+      },
+      warmup: true,
+      warmupIterations: 1,
+    },
 
-  'Cache update': () => {
-    const projectSourceFilesCache = new Map();
-    const projectRoot = 'libs/test-lib';
-    const oldPath = `${projectRoot}/old.ts`;
-    const newPath = `${projectRoot}/new.ts`;
-    updateProjectSourceFilesCache(
-      projectRoot,
-      oldPath,
-      newPath,
-      projectSourceFilesCache,
-    );
+    'Cache miss': () => {
+      testFiles.forEach((file) =>
+        cachedTreeExists(tree, file, fileExistenceCache),
+      );
+    },
+
+    'Source file retrieval': {
+      fn: () => {
+        getProjectSourceFiles(
+          tree,
+          projectRoot,
+          projectSourceFilesCache,
+          fileExistenceCache,
+        );
+      },
+      warmup: true,
+      warmupIterations: 1,
+    },
+
+    'Cache update': () => {
+      const oldPath = `${projectRoot}/src/lib/old.ts`;
+      const newPath = `${projectRoot}/src/lib/new.ts`;
+      updateProjectSourceFilesCache(
+        projectRoot,
+        oldPath,
+        newPath,
+        projectSourceFilesCache,
+      );
+    },
   },
-});
+  {
+    setupSuite() {
+      fileExistenceCache = new Map();
+      projectRoot = 'libs/test-lib';
+      projectSourceFilesCache = new Map();
+      tree = createTreeWithEmptyWorkspace();
+      testFiles = Array.from(
+        { length: 100 },
+        (_, i) => `${projectRoot}/src/lib/file-${i}.ts`,
+      );
+      testFiles.forEach((file) => tree.write(file, 'export {};'));
+    },
+    teardown() {
+      fileExistenceCache.clear();
+      projectSourceFilesCache.clear();
+    },
+  },
+);
