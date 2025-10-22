@@ -95,25 +95,36 @@ The workflow processes each commit individually, applying formatting fixes and a
 
 ### Performance Testing
 
-The e2e suite includes two types of performance tests:
+The repository includes comprehensive performance testing at multiple levels:
 
-- **Performance Benchmarks** (`performance-benchmark.spec.ts`): Quick baseline tests (~1-2 minutes)
-- **Performance Stress Tests** (`performance-stress-test.spec.ts`): Comprehensive validation with large workspaces (~15-30 minutes)
+#### Unit Benchmarks (jest-bench)
 
-The stress tests validate that jscodeshift optimizations (parser reuse, early exit, single-pass traversal) provide significant performance benefits in realistic scenarios with many projects and files.
+Micro-benchmarks for individual functions in the move-file generator:
 
 ```shell
-# Run quick performance benchmarks
-npx nx e2e workspace-e2e --testPathPattern=performance-benchmark
-
-# Run comprehensive stress tests
-npx nx e2e workspace-e2e --testPathPattern=performance-stress-test
-
-# Run all performance tests
-npx nx e2e workspace-e2e --testPathPattern=performance
+# Run unit benchmarks
+npx nx benchmark workspace
 ```
 
-See `packages/workspace-e2e/QUICK_START_STRESS_TESTS.md` for a quick start guide and `packages/workspace-e2e/STRESS_TEST_GUIDE.md` for comprehensive documentation.
+See `packages/workspace/src/generators/move-file/benchmarks/README.md` for details.
+
+**Continuous Monitoring**: Unit benchmarks run on every PR and push to main, with automated regression detection (110% threshold).
+
+#### E2E Performance Benchmarks (jest-bench)
+
+End-to-end benchmarks using jest-bench for the move-file generator:
+
+- **Performance Benchmarks** (`performance-benchmark.bench.ts`): Quick baseline tests validating single-file moves, multi-file operations, and import updates
+- **Performance Stress Tests** (`performance-stress-test.bench.ts`): Comprehensive validation with large workspaces, many projects, and complex dependency graphs
+
+```shell
+# Run E2E benchmarks
+npx nx e2e-benchmark workspace-e2e
+```
+
+**Continuous Monitoring**: E2E benchmarks run on every PR and push to main across three platforms (macOS, Windows, Ubuntu ARM), with automated regression detection (110% threshold, fails if performance degrades >10%).
+
+The benchmarks validate that jscodeshift optimizations (parser reuse, early exit, single-pass traversal) provide significant performance benefits in realistic scenarios with many projects and files.
 
 ## Troubleshooting
 
