@@ -42,7 +42,7 @@ export function formatBenchmarkResult(
 export function benchmarkSuite(
   suiteName: string,
   benchmarks: Record<string, () => void | Promise<void>>,
-  options?: BenchOptions,
+  options: Omit<BenchOptions, 'name'> = {},
 ): void {
   describe(suiteName, () => {
     let summary = '';
@@ -51,38 +51,41 @@ export function benchmarkSuite(
       console.log(summary);
     });
 
-    it.each(Object.entries(benchmarks))('%s', async (name, benchmark) => {
-      const bench = new Bench(options);
-      bench.add(name, benchmark);
+    it.each(Object.entries(benchmarks))(
+      '%s',
+      async (benchmarkName, benchmark) => {
+        const bench = new Bench({ name: suiteName, ...options });
+        bench.add(benchmarkName, benchmark);
 
-      const tasks = await bench.run();
+        const tasks = await bench.run();
 
-      for (const task of tasks) {
-        const taskResult = task.result;
+        for (const task of tasks) {
+          const taskResult = task.result;
 
-        if (!taskResult) {
-          throw new Error(
-            `[${suiteName}] ${task.name} did not produce a result`,
-          );
+          if (!taskResult) {
+            throw new Error(
+              `[${suiteName}] ${task.name} did not produce a result`,
+            );
+          }
+
+          if (taskResult.error) {
+            throw new Error(
+              `[${suiteName}] ${task.name} failed: ${taskResult.error.message}`,
+              {
+                cause: taskResult.error,
+              },
+            );
+          }
+
+          summary +=
+            formatBenchmarkResult(
+              `[${suiteName}] ${task.name}`,
+              taskResult.throughput.mean,
+              taskResult.latency.rme,
+              taskResult.latency.samples.length,
+            ) + '\n';
         }
-
-        if (taskResult.error) {
-          throw new Error(
-            `[${suiteName}] ${task.name} failed: ${taskResult.error.message}`,
-            {
-              cause: taskResult.error,
-            },
-          );
-        }
-
-        summary +=
-          formatBenchmarkResult(
-            `[${suiteName}] ${task.name}`,
-            taskResult.throughput.mean,
-            taskResult.latency.rme,
-            taskResult.latency.samples.length,
-          ) + '\n';
-      }
-    });
+      },
+    );
   });
 }
