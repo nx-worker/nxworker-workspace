@@ -38,8 +38,8 @@ The benchmarks use [github-action-benchmark](https://github.com/benchmark-action
 
 The CI system:
 
-1. Runs all benchmark tests using jest-bench (powered by benchmark.js)
-2. Parses benchmark results (ops/sec)
+1. Runs all benchmark tests using tinybench via Jest
+2. Parses benchmark results (ops/sec) in benchmark.js format
 3. Compares against historical baseline data
 4. Fails the PR if regressions exceed 150% threshold
 5. Posts a comment showing which benchmarks regressed
@@ -72,28 +72,26 @@ To accept an intentional regression (e.g., trading performance for maintainabili
 
 ## Benchmark Implementation
 
-Benchmarks use the [jest-bench](https://www.npmjs.com/package/jest-bench) library, which provides:
+Benchmarks use the [tinybench](https://www.npmjs.com/package/tinybench) library ([API reference](https://tinylibs.github.io/tinybench/)), which provides:
 
-- Jest integration with `benchmarkSuite` API
-- Powered by benchmark.js for statistical rigor
-- Multiple iterations with automatic calibration
-- Detection of performance outliers
+- Jest integration via custom `benchmarkSuite` wrapper
+- Fast and accurate benchmarking with statistical rigor
+- Multiple iterations with automatic warmup
 - Standard deviation and margin of error calculation
 - Standard ops/sec reporting compatible with github-action-benchmark
 
-Each benchmark file uses `benchmarkSuite` from jest-bench for clean, Jest-compatible syntax.
+Each benchmark file uses `benchmarkSuite` from `tools/tinybench-utils` for clean, Jest-compatible syntax.
 
 ## Interpreting Results
 
-jest-bench (powered by benchmark.js) reports results in operations per second (ops/sec):
+tinybench reports results in operations per second (ops/sec) in benchmark.js format:
 
 ```
-Cache hit                    623 ops/sec   1.60 ms ±  0.42 %  (90 runs sampled)
-Cache miss                 4,595 ops/sec  0.218 ms ±  0.28 %  (93 runs sampled)
+Cache hit x 623 ops/sec ±0.42% (90 runs sampled)
+Cache miss x 4,595 ops/sec ±0.28% (93 runs sampled)
 ```
 
 - **ops/sec**: Higher is better (more operations per second = faster)
-- **ms**: Time per operation (lower is better)
 - **±%**: Margin of error (lower is better = more consistent)
 - **runs sampled**: Number of test iterations completed
 
