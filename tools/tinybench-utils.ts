@@ -1,4 +1,4 @@
-import { Bench } from 'tinybench';
+import { Bench, BenchOptions } from 'tinybench';
 
 /**
  * Formats benchmark results in jest-bench format for compatibility with
@@ -40,19 +40,9 @@ export function formatBenchmarkResult(
 export async function benchmarkSuite(
   suiteName: string,
   benchmarks: Record<string, () => void | Promise<void>>,
-  options?: {
-    time?: number;
-    iterations?: number;
-    warmupTime?: number;
-    warmupIterations?: number;
-  },
+  options?: BenchOptions,
 ) {
-  const bench = new Bench({
-    time: options?.time ?? 1000,
-    iterations: options?.iterations,
-    warmupTime: options?.warmupTime ?? 100,
-    warmupIterations: options?.warmupIterations,
-  });
+  const bench = new Bench(options);
 
   // Add all benchmark tasks
   for (const [name, fn] of Object.entries(benchmarks)) {
