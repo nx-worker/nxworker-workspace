@@ -42,10 +42,27 @@ export function formatBenchmarkResult(
 export function benchmarkSuite(
   suiteName: string,
   benchmarks: Record<string, () => void | Promise<void>>,
-  options: Omit<BenchOptions, 'name'> = {},
+  options: Omit<BenchOptions, 'name'> & {
+    readonly teardownSuite?: Parameters<typeof afterAll>[0];
+    readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
+    readonly setupSuite?: Parameters<typeof beforeAll>[0];
+    readonly setupSuiteTimeout?: Parameters<typeof beforeAll>[1];
+  } = {},
 ): void {
   describe(suiteName, () => {
-    let summary = '';
+    let summary: string;
+
+    beforeAll(() => {
+      summary = '';
+    });
+
+    if (options.setupSuite) {
+      beforeAll(options.setupSuite, options.setupSuiteTimeout);
+    }
+
+    if (options.teardownSuite) {
+      afterAll(options.teardownSuite, options.teardownSuiteTimeout);
+    }
 
     afterAll(() => {
       console.log(summary);
