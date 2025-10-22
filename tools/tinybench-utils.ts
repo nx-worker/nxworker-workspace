@@ -1,6 +1,19 @@
 /// <reference types="jest" />
 /* eslint-env jest */
-import { Bench, BenchOptions } from 'tinybench';
+import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
+
+interface FnWithOptions extends Omit<BenchOptions, 'name'> {
+  readonly fn: Fn;
+  readonly fnOptions?: FnOptions;
+}
+
+function isFnWithOptions(value: unknown): value is FnWithOptions {
+  return isObject(value) && 'fn' in value && typeof value['fn'] === 'function';
+}
+
+function isObject(value: unknown): value is Record<PropertyKey, unknown> {
+  return value !== null && typeof value === 'object';
+}
 
 /**
  * Formats benchmark results in jest-bench format for compatibility with
@@ -37,12 +50,12 @@ export function formatBenchmarkResult(
  *
  * @param suiteName - The name of the benchmark suite
  * @param benchmarks - Object mapping benchmark names to functions to benchmark
- * @param options - Optional tinybench configuration
+ * @param suiteOptions - Optional tinybench configuration
  */
 export function benchmarkSuite(
   suiteName: string,
-  benchmarks: Record<string, () => void | Promise<void>>,
-  options: Omit<BenchOptions, 'name'> & {
+  benchmarks: Record<string, Fn | FnWithOptions>,
+  suiteOptions: Omit<BenchOptions, 'name'> & {
     readonly teardownSuite?: Parameters<typeof afterAll>[0];
     readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
     readonly setupSuite?: Parameters<typeof beforeAll>[0];
@@ -56,12 +69,12 @@ export function benchmarkSuite(
       summary = '';
     });
 
-    if (options.setupSuite) {
-      beforeAll(options.setupSuite, options.setupSuiteTimeout);
+    if (suiteOptions.setupSuite) {
+      beforeAll(suiteOptions.setupSuite, suiteOptions.setupSuiteTimeout);
     }
 
-    if (options.teardownSuite) {
-      afterAll(options.teardownSuite, options.teardownSuiteTimeout);
+    if (suiteOptions.teardownSuite) {
+      afterAll(suiteOptions.teardownSuite, suiteOptions.teardownSuiteTimeout);
     }
 
     afterAll(() => {
@@ -71,8 +84,22 @@ export function benchmarkSuite(
     it.each(Object.entries(benchmarks))(
       '%s',
       async (benchmarkName, benchmark) => {
+        const benchmarkFn = isFnWithOptions(benchmark)
+          ? benchmark.fn
+          : benchmark;
+        let options = { ...suiteOptions };
+        let fnOptions: FnOptions | undefined;
+
+        if (isFnWithOptions(benchmark)) {
+          const { fn, ...benchmarkOptions } = benchmark;
+          // Override suite options with benchmark-specific options
+          options = { ...options, ...benchmarkOptions };
+          fnOptions = benchmark.fnOptions;
+        }
+
         const bench = new Bench({ name: suiteName, ...options });
-        bench.add(benchmarkName, benchmark);
+
+        bench.add(benchmarkName, benchmarkFn, fnOptions);
 
         const tasks = await bench.run();
 
