@@ -5,6 +5,7 @@ import { isFileExported } from '../export-management/is-file-exported';
 import { ensureFileExported } from '../export-management/ensure-file-exported';
 import { removeFileExport } from '../export-management/remove-file-export';
 import { treeReadCache } from '../tree-cache';
+import { cachedTreeExists } from '../cache/cached-tree-exists';
 
 describe('Export Management', () => {
   it('should run benchmarks', async () => {
@@ -16,7 +17,7 @@ describe('Export Management', () => {
           sourceRoot: 'libs/my-lib/src',
           name: 'my-lib',
         } as ProjectConfiguration;
-        const cachedTreeExists = (t, path) => t.exists(path);
+        const fileExistenceCache = new Map<string, boolean>();
         treeReadCache.clear();
         const entryPoint = 'libs/my-lib/src/index.ts';
         tree.write(
@@ -27,7 +28,9 @@ describe('Export Management', () => {
       export * from './lib/file3';
     `,
         );
-        isFileExported(tree, project, 'lib/file2.ts', cachedTreeExists);
+        isFileExported(tree, project, 'lib/file2.ts', (tree, filePath) =>
+          cachedTreeExists(tree, filePath, fileExistenceCache),
+        );
       },
 
       'Export addition': () => {
@@ -37,7 +40,7 @@ describe('Export Management', () => {
           sourceRoot: 'libs/my-lib/src',
           name: 'my-lib',
         } as ProjectConfiguration;
-        const cachedTreeExists = (t, path) => t.exists(path);
+        const fileExistenceCache = new Map<string, boolean>();
         treeReadCache.clear();
         const entryPoint = 'libs/my-lib/src/index.ts';
         const initialContent = `
@@ -45,7 +48,9 @@ describe('Export Management', () => {
       export * from './lib/file2';
     `;
         tree.write(entryPoint, initialContent);
-        ensureFileExported(tree, project, 'lib/new-file.ts', cachedTreeExists);
+        ensureFileExported(tree, project, 'lib/new-file.ts', (tree, filePath) =>
+          cachedTreeExists(tree, filePath, fileExistenceCache),
+        );
       },
 
       'Export removal': () => {
@@ -55,7 +60,7 @@ describe('Export Management', () => {
           sourceRoot: 'libs/my-lib/src',
           name: 'my-lib',
         } as ProjectConfiguration;
-        const cachedTreeExists = (t, path) => t.exists(path);
+        const fileExistenceCache = new Map<string, boolean>();
         treeReadCache.clear();
         const entryPoint = 'libs/my-lib/src/index.ts';
         tree.write(
@@ -66,7 +71,9 @@ describe('Export Management', () => {
       export * from './lib/file2';
     `,
         );
-        removeFileExport(tree, project, 'lib/to-remove.ts', cachedTreeExists);
+        removeFileExport(tree, project, 'lib/to-remove.ts', (tree, filePath) =>
+          cachedTreeExists(tree, filePath, fileExistenceCache),
+        );
       },
     });
   });
