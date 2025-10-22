@@ -58,15 +58,30 @@ export function benchmarkSuite(
       const tasks = await bench.run();
 
       for (const task of tasks) {
-        if (task.result) {
-          summary +=
-            formatBenchmarkResult(
-              `[${suiteName}] ${task.name}`,
-              task.result.throughput.mean,
-              task.result.latency.rme,
-              task.result.latency.samples.length,
-            ) + '\n';
+        const taskResult = task.result;
+
+        if (!taskResult) {
+          throw new Error(
+            `[${suiteName}] ${task.name} did not produce a result`,
+          );
         }
+
+        if (taskResult.error) {
+          throw new Error(
+            `[${suiteName}] ${task.name} failed: ${taskResult.error.message}`,
+            {
+              cause: taskResult.error,
+            },
+          );
+        }
+
+        summary +=
+          formatBenchmarkResult(
+            `[${suiteName}] ${task.name}`,
+            taskResult.throughput.mean,
+            taskResult.latency.rme,
+            taskResult.latency.samples.length,
+          ) + '\n';
       }
     });
   });
