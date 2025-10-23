@@ -1,4 +1,19 @@
-import { Bench } from 'tinybench';
+/// <reference types="jest" />
+/* eslint-env jest */
+import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
+
+interface FnWithOptions extends Omit<BenchOptions, 'name'> {
+  readonly fn: Fn;
+  readonly fnOptions?: FnOptions;
+}
+
+function isFnWithOptions(value: unknown): value is FnWithOptions {
+  return isObject(value) && 'fn' in value && typeof value['fn'] === 'function';
+}
+
+function isObject(value: unknown): value is Record<PropertyKey, unknown> {
+  return value !== null && typeof value === 'object';
+}
 
 /**
  * Formats benchmark results in jest-bench format for compatibility with
@@ -13,27 +28,19 @@ export function formatBenchmarkResult(
   rme: number,
   samples: number,
 ): string {
-  // Format ops/sec with commas for thousands
-  const formattedOps = Math.round(opsPerSec).toLocaleString('en-US');
+  // Format ops/sec with commas for thousands and up to 2 decimal places for less than 100 ops/sec
+  const formattedOpsPerSec = opsPerSec.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: opsPerSec < 100 ? 2 : 0,
+  });
   // Format percentage with 2 decimal places
   const formattedRme = rme.toFixed(2);
 
-  // Calculate time per operation
-  const timePerOp = 1000 / opsPerSec; // in milliseconds
-  let formattedTime: string;
+  const formattedRunsSampled = `${samples} run${samples === 1 ? '' : 's'} sampled`;
 
-  if (timePerOp < 0.001) {
-    // Format as microseconds if less than 0.001 ms
-    formattedTime = `${(timePerOp * 1000).toFixed(3)} μs`;
-  } else if (timePerOp < 1) {
-    // Format with 3 decimal places for small values
-    formattedTime = `${timePerOp.toFixed(3)} ms`;
-  } else {
-    // Format with 2 decimal places for larger values
-    formattedTime = `${timePerOp.toFixed(2)} ms`;
-  }
-
-  return `${name}  ${formattedOps} ops/sec  ${formattedTime} ±  ${formattedRme} %  (${samples} runs sampled)`;
+  // Example:
+  // RegExp.test x 1,234,567 ops/sec ±1.23% (89 runs sampled)
+  return `${name} x ${formattedOpsPerSec} ops/sec ±${formattedRme}% (${formattedRunsSampled})`;
 }
 
 /**
@@ -43,48 +50,86 @@ export function formatBenchmarkResult(
  *
  * @param suiteName - The name of the benchmark suite
  * @param benchmarks - Object mapping benchmark names to functions to benchmark
- * @param options - Optional tinybench configuration
+ * @param suiteOptions - Optional tinybench configuration
  */
-export async function benchmarkSuite(
+export function benchmarkSuite(
   suiteName: string,
-  benchmarks: Record<string, () => void | Promise<void>>,
-  options?: {
-    time?: number;
-    iterations?: number;
-    warmupTime?: number;
-    warmupIterations?: number;
-  },
-) {
-  const bench = new Bench({
-    time: options?.time ?? 1000,
-    iterations: options?.iterations,
-    warmupTime: options?.warmupTime ?? 100,
-    warmupIterations: options?.warmupIterations,
-  });
+  benchmarks: Record<string, Fn | FnWithOptions>,
+  suiteOptions: Omit<BenchOptions, 'name'> & {
+    readonly teardownSuite?: Parameters<typeof afterAll>[0];
+    readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
+    readonly setupSuite?: Parameters<typeof beforeAll>[0];
+    readonly setupSuiteTimeout?: Parameters<typeof beforeAll>[1];
+  } = {},
+): void {
+  describe(suiteName, () => {
+    let summary: string;
 
-  // Add all benchmark tasks
-  for (const [name, fn] of Object.entries(benchmarks)) {
-    bench.add(name, fn);
-  }
+    beforeAll(() => {
+      summary = '';
+    });
 
-  // Run benchmarks
-  await bench.run();
-
-  // Output results in jest-bench format immediately
-  // This ensures compatibility with benchmark-action/github-action-benchmark
-  console.log(`\n  ${suiteName}`);
-
-  for (const task of bench.tasks) {
-    if (task.result) {
-      const opsPerSec = task.result.hz ?? 0;
-      const rme = task.result.rme ?? 0;
-      const samples = task.result.samples?.length ?? 0;
-
-      const result = formatBenchmarkResult(task.name, opsPerSec, rme, samples);
-      console.log(`    ${result}`);
+    if (suiteOptions.setupSuite) {
+      beforeAll(suiteOptions.setupSuite, suiteOptions.setupSuiteTimeout);
     }
-  }
 
-  // Return the bench instance for potential further inspection
-  return bench;
+    if (suiteOptions.teardownSuite) {
+      afterAll(suiteOptions.teardownSuite, suiteOptions.teardownSuiteTimeout);
+    }
+
+    afterAll(() => {
+      console.log(summary);
+    });
+
+    it.each(Object.entries(benchmarks))(
+      '%s',
+      async (benchmarkName, benchmark) => {
+        const benchmarkFn = isFnWithOptions(benchmark)
+          ? benchmark.fn
+          : benchmark;
+        let options = { ...suiteOptions };
+        let fnOptions: FnOptions | undefined;
+
+        if (isFnWithOptions(benchmark)) {
+          const { fn, ...benchmarkOptions } = benchmark;
+          // Override suite options with benchmark-specific options
+          options = { ...options, ...benchmarkOptions };
+          fnOptions = benchmark.fnOptions;
+        }
+
+        const bench = new Bench({ name: suiteName, ...options });
+
+        bench.add(benchmarkName, benchmarkFn, fnOptions);
+
+        const tasks = await bench.run();
+
+        for (const task of tasks) {
+          const taskResult = task.result;
+
+          if (!taskResult) {
+            throw new Error(
+              `[${suiteName}] ${task.name} did not produce a result`,
+            );
+          }
+
+          if (taskResult.error) {
+            throw new Error(
+              `[${suiteName}] ${task.name} failed: ${taskResult.error.message}`,
+              {
+                cause: taskResult.error,
+              },
+            );
+          }
+
+          summary +=
+            formatBenchmarkResult(
+              `[${suiteName}] ${task.name}`,
+              taskResult.throughput.mean,
+              taskResult.latency.rme,
+              taskResult.latency.samples.length,
+            ) + '\n';
+        }
+      },
+    );
+  });
 }
