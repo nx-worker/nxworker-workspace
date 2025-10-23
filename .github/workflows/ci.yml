@@ -306,7 +306,7 @@ jobs:
           summary-always: true
 
       - name: '[PR] Save benchmark cache'
-        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix != 'main' && steps.benchmark-cache-restore.outputs.cache-hit != 'true' }}
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix != 'main' }}
         uses: actions/cache/save@v4
         with:
           path: ./benchmarks/workspace
