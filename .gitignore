@@ -44,3 +44,6 @@ Thumbs.db
 # tinybench results
 benchmarks/
 *-benchmark.txt
+
+# Agents
+.claude/settings.local.json
