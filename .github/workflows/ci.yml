@@ -263,24 +263,24 @@ jobs:
       - name: Download previous benchmark data
         uses: actions/cache@v4
         with:
-          path: ./cache
+          path: ./benchmarks/workspace
           key: ${{ runner.os }}-benchmark
 
       # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
-          npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee benchmark-output.txt
+          npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee benchmarks/workspace.txt
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Move-File Generator Benchmarks
           tool: 'benchmarkjs'
-          output-file-path: benchmark-output.txt
+          output-file-path: benchmarks/workspace.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Store benchmark data in external JSON file
-          external-data-json-path: ./cache/benchmark-data.json
+          external-data-json-path: ./benchmarks/workspace/benchmark.json
           # Disable GitHub Pages integration
           save-data-file: true
           skip-fetch-gh-pages: true
