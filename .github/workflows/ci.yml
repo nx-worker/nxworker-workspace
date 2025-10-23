@@ -277,9 +277,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./benchmarks/workspace
-          key: ${{ format('{0}-benchmark-{1}', runner.os, steps.benchmark-cache-key.outputs.suffix) }}
+          # Include run id to ensure each save uses a unique cache key
+          key: ${{ format('{0}-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
           restore-keys: |
-            ${{ format('{0}-benchmark-main', runner.os) }}
+            ${{ format('{0}-benchmark-{1}-', runner.os, steps.benchmark-cache-key.outputs.suffix) }}
+            ${{ format('{0}-benchmark-main-', runner.os) }}
 
       # Run all benchmark tests using Nx task
       - name: Run micro-benchmarks
@@ -310,14 +312,14 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ./benchmarks/workspace
-          key: ${{ format('{0}-benchmark-{1}', runner.os, steps.benchmark-cache-key.outputs.suffix) }}
+          key: ${{ format('{0}-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
 
       - name: '[Merge] Save benchmark cache'
-        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix == 'main' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.benchmark-cache-restore.outputs.cache-hit != 'true' }}
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix == 'main' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: actions/cache/save@v4
         with:
           path: ./benchmarks/workspace
-          key: ${{ format('{0}-benchmark-main', runner.os) }}
+          key: ${{ format('{0}-benchmark-main-{1}', runner.os, github.run_id) }}
 
       - name: Run e2e performance benchmarks
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
