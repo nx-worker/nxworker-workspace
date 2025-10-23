@@ -1,6 +1,6 @@
 # Performance Baselines
 
-Last updated: 2025-10-15
+Last updated: 2025-10-23
 
 ## Overview
 
@@ -54,6 +54,20 @@ This document establishes baseline performance metrics for the move-file generat
 
 **Analysis**: Export management operations are slightly slower due to file I/O and content parsing, but still very fast. Bulk operations scale linearly as expected.
 
+### Validation Operations
+
+| Operation | Average Time | Notes |
+| --- | --- | --- |
+| Check for relative imports - no imports | ~2.9ms | Scan 20 files with no imports |
+| Check for relative imports - with imports | ~0.16ms | Scan files to find relative import |
+| Check for relative imports - nested paths | ~0.16ms | Handle complex path resolution |
+| Check for relative imports - large project | ~7.4ms | Scan 100 files in large project |
+| Check for unexported dependencies - no imports | ~0.14ms | Simple file with no dependencies |
+| Check for unexported dependencies - multiple imports | ~0.54ms | File with 10 relative imports |
+| Check for unexported dependencies - large file | ~1.13ms | File with 20 relative imports |
+
+**Analysis**: Validation operations leverage AST parsing and caching for efficient import analysis. The `checkForUnexportedRelativeDependencies` function shows good performance even with large files (20 imports in ~1.13ms). Performance scales roughly linearly with the number of imports analyzed.
+
 ## Key Findings
 
 1. **Excellent cache performance**: Sub-millisecond cache operations validate the caching strategy
@@ -61,6 +75,7 @@ This document establishes baseline performance metrics for the move-file generat
 3. **Efficient AST operations**: Import updates benefit from AST caching, completing much faster than expected
 4. **Reasonable I/O performance**: Export management operations complete quickly despite file I/O overhead
 5. **Linear scaling**: Bulk operations scale linearly with the number of files as expected
+6. **Efficient validation**: New validation operations show good performance with AST caching, handling complex dependency checks efficiently
 
 ## Performance Trends
 
@@ -72,6 +87,7 @@ The Phase 1-9 refactoring focused on maintainability and testability, with perfo
 - **Path operations**: Very fast due to string manipulation (no I/O)
 - **Import updates**: Limited by AST parsing/transformation (inherent complexity)
 - **Export management**: Reasonable performance for file I/O operations
+- **Validation operations**: Benefit from AST caching, achieving good performance for dependency analysis
 
 ### Scaling Characteristics
 
@@ -79,6 +95,7 @@ The Phase 1-9 refactoring focused on maintainability and testability, with perfo
 - **Path operations**: O(1) or O(n) where n is path length (typically < 100 chars)
 - **Import updates**: O(n × m) where n = files, m = imports per file
 - **Export management**: O(n) where n = existing exports in entrypoint
+- **Validation operations**: O(n × m) where n = files scanned, m = imports per file analyzed
 
 ## Performance Regression Detection
 

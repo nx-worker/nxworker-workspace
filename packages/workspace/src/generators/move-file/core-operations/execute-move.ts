@@ -6,6 +6,7 @@ import type { MoveContext } from '../types/move-context';
 import { updateMovedFileImportsIfNeeded } from '../import-updates/update-moved-file-imports-if-needed';
 import { updateTargetProjectImportsIfNeeded } from '../import-updates/update-target-project-imports-if-needed';
 import { ensureExportIfNeeded } from '../export-management/ensure-export-if-needed';
+import { checkForUnexportedRelativeDependencies } from '../validation/check-for-unexported-relative-dependencies';
 import { createTargetFile } from './create-target-file';
 import { handleMoveStrategy } from './handle-move-strategy';
 import { finalizeMove } from './finalize-move';
@@ -64,6 +65,34 @@ export async function executeMove(
     fileContent,
     updateFileExistenceCache,
   );
+
+  // Check for unexported relative dependencies when moving to a different project
+  if (!ctx.isSameProject) {
+    const unexportedDeps = checkForUnexportedRelativeDependencies(
+      tree,
+      normalizedSource,
+      ctx.sourceProject,
+      cachedTreeExists,
+    );
+
+    if (unexportedDeps.length > 0) {
+      logger.warn(
+        `File "${normalizedSource}" has ${unexportedDeps.length} relative ${
+          unexportedDeps.length === 1 ? 'dependency' : 'dependencies'
+        } that ${
+          unexportedDeps.length === 1 ? 'is' : 'are'
+        } not exported from project "${sourceProjectName}":`,
+      );
+      for (const dep of unexportedDeps) {
+        logger.warn(`  - ${dep.specifier} (${dep.relativePathInProject})`);
+      }
+      logger.warn(
+        `After the move, imports to these dependencies will be updated to use the project alias/path, ` +
+          `but they are not exported from "${sourceProjectName}". ` +
+          `Consider exporting these files from the project's entry point or moving them together.`,
+      );
+    }
+  }
 
   // Update cache incrementally for projects that will be modified
   // This is more efficient than invalidating and re-scanning the entire project

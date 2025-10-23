@@ -2,11 +2,18 @@ import { benchmarkSuite } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
 import { checkForRelativeImportsInProject } from '../validation/check-for-relative-imports-in-project';
+import { checkForUnexportedRelativeDependencies } from '../validation/check-for-unexported-relative-dependencies';
+import { cachedTreeExists as cachedTreeExistsImpl } from '../cache/cached-tree-exists';
+import { clearCache } from '../jscodeshift-utils';
+import { TreeReadCache } from '../tree-cache';
 
+let cachedTreeExists: (tree: Tree, filePath: string) => boolean;
+let fileExistenceCache: Map<string, boolean>;
 let project: ProjectConfiguration;
 let sourceFiles: string[];
 let targetFile: string;
 let tree: Tree;
+let treeReadCache: TreeReadCache;
 
 benchmarkSuite(
   'Validation Operations',
@@ -141,9 +148,104 @@ benchmarkSuite(
         },
       },
     },
+
+    'Check for unexported dependencies - no imports': {
+      fn: () => {
+        checkForUnexportedRelativeDependencies(
+          tree,
+          targetFile,
+          project,
+          cachedTreeExists,
+        );
+      },
+      fnOptions: {
+        beforeAll() {
+          tree.write('packages/lib1/src/index.ts', '');
+          tree.write(
+            targetFile,
+            'export function helper() { return "hello"; }',
+          );
+        },
+      },
+    },
+
+    'Check for unexported dependencies - multiple imports': {
+      fn: () => {
+        checkForUnexportedRelativeDependencies(
+          tree,
+          'packages/lib1/src/lib/file.ts',
+          project,
+          cachedTreeExists,
+        );
+      },
+      fnOptions: {
+        beforeAll() {
+          tree.write('packages/lib1/src/index.ts', '');
+
+          // Create multiple dependency files
+          for (let i = 1; i <= 10; i++) {
+            tree.write(
+              `packages/lib1/src/lib/util${i}.ts`,
+              `export function util${i}() { return "util${i}"; }`,
+            );
+          }
+
+          // Create file with multiple imports
+          const imports = Array.from(
+            { length: 10 },
+            (_, i) => `import { util${i + 1} } from './util${i + 1}';`,
+          ).join('\n');
+          tree.write(
+            'packages/lib1/src/lib/file.ts',
+            `${imports}\nexport function file() { return "test"; }`,
+          );
+        },
+      },
+    },
+
+    'Check for unexported dependencies - large file': {
+      fn: () => {
+        checkForUnexportedRelativeDependencies(
+          tree,
+          'packages/lib1/src/lib/large-file.ts',
+          project,
+          cachedTreeExists,
+        );
+      },
+      fnOptions: {
+        beforeAll() {
+          tree.write('packages/lib1/src/index.ts', '');
+
+          // Create a large number of dependency files
+          for (let i = 1; i <= 20; i++) {
+            tree.write(
+              `packages/lib1/src/lib/util${i}.ts`,
+              `export function util${i}() { return "util${i}"; }`,
+            );
+          }
+
+          // Create a large file with many imports
+          const imports = Array.from(
+            { length: 20 },
+            (_, i) => `import { util${i + 1} } from './util${i + 1}';`,
+          ).join('\n');
+          const functions = Array.from(
+            { length: 20 },
+            (_, i) => `function func${i}() { return util${i + 1}(); }`,
+          ).join('\n');
+          tree.write(
+            'packages/lib1/src/lib/large-file.ts',
+            `${imports}\n${functions}\nexport function main() { return "test"; }`,
+          );
+        },
+      },
+    },
   },
   {
     setupSuite() {
+      cachedTreeExists = (tree, filePath) =>
+        cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
+      fileExistenceCache = new Map<string, boolean>();
       project = {
         name: 'lib1',
         root: 'packages/lib1',
@@ -151,10 +253,16 @@ benchmarkSuite(
         projectType: 'library',
       };
       targetFile = 'packages/lib1/src/lib/utils/helper.ts';
+      treeReadCache = new TreeReadCache();
     },
     setup() {
+      clearCache();
       sourceFiles = [];
       tree = createTreeWithEmptyWorkspace();
+    },
+    teardown() {
+      fileExistenceCache.clear();
+      treeReadCache.clear();
     },
   },
 );

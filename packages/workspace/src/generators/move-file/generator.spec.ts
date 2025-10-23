@@ -1103,6 +1103,59 @@ describe('move-file generator', () => {
 
       warnSpy.mockRestore();
     });
+
+    it('should warn when moved file has unexported relative dependencies', async () => {
+      // Create two utility files
+      tree.write(
+        'packages/lib1/src/lib/utils/util1.ts',
+        'export function util1() { return "util1"; }',
+      );
+      tree.write(
+        'packages/lib1/src/lib/utils/util2.ts',
+        'export function util2() { return "util2"; }',
+      );
+
+      // lib1 index does NOT export util2 (only util1)
+      tree.write(
+        'packages/lib1/src/index.ts',
+        "export * from './lib/utils/util1';",
+      );
+
+      // Create a file that imports both utilities
+      tree.write(
+        'packages/lib1/src/lib/feature.ts',
+        "import { util1 } from './utils/util1';\nimport { util2 } from './utils/util2';\nexport function feature() { return util1() + util2(); }",
+      );
+
+      // Spy on logger.warn
+      const warnSpy = jest.spyOn(logger, 'warn');
+
+      const options: MoveFileGeneratorSchema = {
+        file: 'packages/lib1/src/lib/feature.ts',
+        project: 'lib2',
+        projectDirectory: 'features',
+        skipFormat: true,
+      };
+
+      await moveFileGenerator(tree, options);
+
+      // Should have logged a warning about the unexported dependency (util2)
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'has 1 relative dependency that is not exported from project "lib1"',
+        ),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('./utils/util2'),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Consider exporting these files from the project's entry point or moving them together",
+        ),
+      );
+
+      warnSpy.mockRestore();
+    });
   });
 
   // ============================================================================
