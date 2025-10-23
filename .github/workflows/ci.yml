@@ -285,14 +285,14 @@ jobs:
       - name: Run micro-benchmarks
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
-          npx nx benchmark workspace 2>&1 | sed -E 's/^[[:space:]]*//' | tee benchmarks/workspace.txt
+          npx nx benchmark workspace 2>&1 | sed -E 's/^[[:space:]]*//' | tee workspace-benchmark.txt
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Move-File Generator Benchmarks
           tool: 'benchmarkjs'
-          output-file-path: benchmarks/workspace.txt
+          output-file-path: workspace-benchmark.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Store benchmark data in external JSON file
           external-data-json-path: ./benchmarks/workspace/benchmark.json
