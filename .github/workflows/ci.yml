@@ -285,7 +285,7 @@ jobs:
       - name: Run micro-benchmarks
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
-          npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee benchmarks/workspace.txt
+          npx nx benchmark workspace 2>&1 | sed -E 's/^[[:space:]]*//' | tee benchmarks/workspace.txt
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
