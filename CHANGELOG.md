@@ -1,6 +1,6 @@
 # Changelog
 
-## 19.0.0-dev
+## 19.0.0-rc.2
 
 ### Features
 
@@ -18,6 +18,7 @@
   - Security hardening with path sanitization, regex escaping, and traversal blocking
   - Optional Unicode parameter support via `--allow-unicode` flag
   - Optional `--remove-empty-project` flag cleans up source projects that no longer contain source code files after the file move
+  - **NEW**: Warns when moving a file with unexported relative dependencies to help prevent broken imports and maintain project boundaries
 - `nx add @nxworker/workspace` support
   - The `@nxworker/workspace:init` generator installs the plugin's peer dependencies (`@nx/devkit` and `@nx/workspace`) matching your workspace's Nx version
 

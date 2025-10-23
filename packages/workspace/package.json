@@ -1,6 +1,6 @@
 {
   "name": "@nxworker/workspace",
-  "version": "19.0.0-rc.1",
+  "version": "19.0.0-rc.2",
   "description": "Nx plugin providing generators for managing workspace files, including the move-file generator for safely moving files between projects while updating all imports",
   "keywords": [
     "monorepo",
