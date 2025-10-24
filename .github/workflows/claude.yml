@@ -21,7 +21,7 @@ jobs:
     # Each event scenario checks:
     #   1. Correct event type (issue_comment, pull_request_review_comment, issues, pull_request, etc.)
     #   2. Body contains '@claude' mention OR 'claude' label is applied OR '@claude' is assigned
-    #   3. Author is trusted (MEMBER, OWNER, or COLLABORATOR)
+    #   3. Author/commenter is trusted (MEMBER, OWNER, or COLLABORATOR)
     #
     # Supported triggers:
     #   - Comments on issues/PRs with '@claude' mention
@@ -29,6 +29,10 @@ jobs:
     #   - Issues opened/assigned with '@claude' in title/body
     #   - 'claude' label assigned to issues or pull requests
     #   - Pull requests assigned to '@claude'
+    #
+    # Note: For label events, GitHub Actions does not expose the label applier's author_association.
+    # Security relies on repository settings restricting label permissions to trusted users
+    # (Members, Collaborators, Owners). Ensure only trusted users have triage or write access.
     #
     # This prevents external/untrusted users from triggering workflows with write permissions
     # that could potentially push commits, modify PRs, or change issues.
