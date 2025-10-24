@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write # Required for Claude to create comments on PRs
-      issues: write # Required for Claude to create comments on issues
+      pull-requests: write # Required for Claude to create PR reviews and comments
+      issues: write # Required for PR comments (GitHub treats PR comments as issue comments in the API)
       id-token: write
 
     steps:
