@@ -8,7 +8,7 @@ on:
   issues:
     types: [opened, assigned, labeled]
   pull_request:
-    types: [labeled]
+    types: [labeled, assigned]
   pull_request_review:
     types: [submitted]
 
@@ -20,7 +20,7 @@ jobs:
     #
     # Each event scenario checks:
     #   1. Correct event type (issue_comment, pull_request_review_comment, issues, pull_request, etc.)
-    #   2. Body contains '@claude' mention OR 'claude' label is applied
+    #   2. Body contains '@claude' mention OR 'claude' label is applied OR '@claude' is assigned
     #   3. Author is trusted (MEMBER, OWNER, or COLLABORATOR)
     #
     # Supported triggers:
@@ -28,6 +28,7 @@ jobs:
     #   - Pull request reviews with '@claude' mention
     #   - Issues opened/assigned with '@claude' in title/body
     #   - 'claude' label assigned to issues or pull requests
+    #   - Pull requests assigned to '@claude'
     #
     # This prevents external/untrusted users from triggering workflows with write permissions
     # that could potentially push commits, modify PRs, or change issues.
@@ -75,6 +76,15 @@ jobs:
           github.event_name == 'pull_request' &&
           github.event.action == 'labeled' &&
           github.event.label.name == 'claude' &&
+          (github.event.sender.type == 'User') &&
+          (github.event.pull_request.author_association == 'MEMBER' ||
+           github.event.pull_request.author_association == 'OWNER' ||
+           github.event.pull_request.author_association == 'COLLABORATOR')
+        ) ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.action == 'assigned' &&
+          github.event.assignee.login == 'claude' &&
           (github.event.sender.type == 'User') &&
           (github.event.pull_request.author_association == 'MEMBER' ||
            github.event.pull_request.author_association == 'OWNER' ||
