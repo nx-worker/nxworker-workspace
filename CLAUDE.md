@@ -71,4 +71,12 @@ The following is a list of allowed GitHub CLI commands where `<owner>` is `nx-wo
 - `gh api --method GET /repos/<owner>/<repo>/issues/<number>`
 - `gh api --method GET /repos/<owner>/<repo>/pulls/<number>`
 
+### Restricted Commands
+
+The following commands are intentionally omitted for security.
+
+- `gh pr create` - PR creation restricted to humans
+- `gh issue create` - Issue creation restricted to humans
+- `gh pr merge` - Merging requires human approval
+
 Ask a human if we need to extend this list with more commands to perform your tasks.
