@@ -2,23 +2,22 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+    types: [review_requested]
 
 jobs:
   claude-review:
-    # Skip if PR is authored by a bot
-    if: github.event.pull_request.user.type != 'Bot'
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Security: Only trigger when code review is requested from @claude by a trusted user
+    #
+    # Checks:
+    #   1. Review is requested from '@claude' specifically
+    #   2. Sender is a User (not a bot)
+    #   3. PR author is trusted (MEMBER, OWNER, or COLLABORATOR)
+    if: |
+      github.event.requested_reviewer.login == 'claude' &&
+      github.event.sender.type == 'User' &&
+      (github.event.pull_request.author_association == 'MEMBER' ||
+       github.event.pull_request.author_association == 'OWNER' ||
+       github.event.pull_request.author_association == 'COLLABORATOR')
 
     runs-on: ubuntu-latest
     permissions:
