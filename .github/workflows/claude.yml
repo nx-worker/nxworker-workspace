@@ -113,8 +113,7 @@ jobs:
               Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
               Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
               Bash(gh extension list),
-              Bash(gh alias list),
-            '
+              Bash(gh alias list)'
             --mcp-config '{
               "mcpServers": {
                 "nx": {
