@@ -13,32 +13,47 @@ on:
 jobs:
   claude:
     # Security: Only allow trusted users to trigger Claude Code workflows
-    # Allowed users: repository owner, members, collaborators
+    #
+    # Pattern: github.event.sender.type == 'User' AND (one of the event scenarios below)
+    #
+    # Each event scenario checks:
+    #   1. Correct event type (issue_comment, pull_request_review_comment, etc.)
+    #   2. Body contains '@claude' mention
+    #   3. Author is trusted (MEMBER, OWNER, or COLLABORATOR)
+    #
     # This prevents external/untrusted users from triggering workflows with write permissions
     # that could potentially push commits, modify PRs, or change issues.
     if: |
       github.event.sender.type == 'User' &&
       (
-        (github.event_name == 'issue_comment' &&
-         contains(github.event.comment.body, '@claude') &&
-         (github.event.comment.author_association == 'MEMBER' ||
-          github.event.comment.author_association == 'OWNER' ||
-          github.event.comment.author_association == 'COLLABORATOR')) ||
-        (github.event_name == 'pull_request_review_comment' &&
-         contains(github.event.comment.body, '@claude') &&
-         (github.event.comment.author_association == 'MEMBER' ||
-          github.event.comment.author_association == 'OWNER' ||
-          github.event.comment.author_association == 'COLLABORATOR')) ||
-        (github.event_name == 'pull_request_review' &&
-         contains(github.event.review.body, '@claude') &&
-         (github.event.review.author_association == 'MEMBER' ||
-          github.event.review.author_association == 'OWNER' ||
-          github.event.review.author_association == 'COLLABORATOR')) ||
-        (github.event_name == 'issues' &&
-         (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
-         (github.event.issue.author_association == 'MEMBER' ||
-          github.event.issue.author_association == 'OWNER' ||
-          github.event.issue.author_association == 'COLLABORATOR'))
+        (
+          github.event_name == 'issue_comment' &&
+          contains(github.event.comment.body, '@claude') &&
+          (github.event.comment.author_association == 'MEMBER' ||
+           github.event.comment.author_association == 'OWNER' ||
+           github.event.comment.author_association == 'COLLABORATOR')
+        ) ||
+        (
+          github.event_name == 'pull_request_review_comment' &&
+          contains(github.event.comment.body, '@claude') &&
+          (github.event.comment.author_association == 'MEMBER' ||
+           github.event.comment.author_association == 'OWNER' ||
+           github.event.comment.author_association == 'COLLABORATOR')
+        ) ||
+        (
+          github.event_name == 'pull_request_review' &&
+          contains(github.event.review.body, '@claude') &&
+          (github.event.review.author_association == 'MEMBER' ||
+           github.event.review.author_association == 'OWNER' ||
+           github.event.review.author_association == 'COLLABORATOR')
+        ) ||
+        (
+          github.event_name == 'issues' &&
+          (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+          (github.event.issue.author_association == 'MEMBER' ||
+           github.event.issue.author_association == 'OWNER' ||
+           github.event.issue.author_association == 'COLLABORATOR')
+        )
       )
     runs-on: ubuntu-latest
     permissions:
