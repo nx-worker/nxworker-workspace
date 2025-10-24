@@ -18,7 +18,11 @@ jobs:
       (github.event.pull_request.author_association == 'MEMBER' ||
        github.event.pull_request.author_association == 'OWNER' ||
        github.event.pull_request.author_association == 'COLLABORATOR')
-
+    concurrency:
+      # Only one code review per PR at a time
+      # Re-requests cancel in-progress reviews to provide fresh feedback
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
