@@ -1,6 +1,16 @@
 name: Claude Code
 
 on:
+  workflow_dispatch:
+    inputs:
+      target_issue:
+        description: 'Issue or PR number to work on'
+        required: false
+        type: string
+      instruction:
+        description: 'Custom instruction for Claude (optional)'
+        required: false
+        type: string
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -16,14 +26,15 @@ jobs:
   claude:
     # Security: Only allow trusted users to trigger Claude Code workflows
     #
-    # Pattern: github.event.sender.type == 'User' AND (one of the event scenarios below)
+    # Pattern: (workflow_dispatch OR github.event.sender.type == 'User') AND (one of the event scenarios below)
     #
     # Each event scenario checks:
-    #   1. Correct event type (issue_comment, pull_request_review_comment, issues, pull_request, etc.)
-    #   2. Body contains '@claude' mention OR 'claude' label is applied OR '@claude' is assigned
+    #   1. Correct event type (workflow_dispatch, issue_comment, pull_request_review_comment, issues, pull_request, etc.)
+    #   2. Body contains '@claude' mention OR 'claude' label is applied OR '@claude' is assigned OR manual dispatch
     #   3. Author/commenter is trusted (MEMBER, OWNER, or COLLABORATOR)
     #
     # Supported triggers:
+    #   - Manual workflow dispatch (requires write access to repository)
     #   - Comments on issues/PRs with '@claude' mention
     #   - Pull request reviews with '@claude' mention
     #   - Issues opened/assigned with '@claude' in title/body
@@ -31,6 +42,8 @@ jobs:
     #   - Pull requests assigned to '@claude'
     #
     # Security Controls:
+    #   - Manual dispatch: GitHub requires write access to trigger workflow_dispatch, ensuring only
+    #     trusted users (Members, Collaborators, Owners) can manually invoke Claude.
     #   - Label triggers: GitHub Actions does not expose the label applier's author_association.
     #     Security relies on repository settings restricting label permissions to trusted users
     #     (Members, Collaborators, Owners). Ensure only trusted users have triage or write access.
@@ -42,8 +55,9 @@ jobs:
     # This prevents external/untrusted users from triggering workflows with write permissions
     # that could potentially push commits, modify PRs, or change issues.
     if: |
-      github.event.sender.type == 'User' &&
+      github.event_name == 'workflow_dispatch' ||
       (
+        github.event.sender.type == 'User' &&
         (
           github.event_name == 'issue_comment' &&
           contains(github.event.comment.body, '@claude') &&
@@ -126,6 +140,22 @@ jobs:
 
           echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
 
+      - name: Build custom prompt for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        id: build_prompt
+        run: |
+          PROMPT=""
+          if [ -n "${{ github.event.inputs.target_issue }}" ]; then
+            PROMPT="Please work on issue/PR #${{ github.event.inputs.target_issue }}."
+          fi
+          if [ -n "${{ github.event.inputs.instruction }}" ]; then
+            if [ -n "$PROMPT" ]; then
+              PROMPT="$PROMPT "
+            fi
+            PROMPT="${PROMPT}${{ github.event.inputs.instruction }}"
+          fi
+          echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -137,8 +167,9 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # Use custom prompt from workflow_dispatch if provided
+          # Otherwise, Claude will perform the instructions specified in the comment that tagged it
+          prompt: ${{ steps.build_prompt.outputs.prompt || '' }}
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
