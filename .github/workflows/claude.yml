@@ -48,4 +48,4 @@ jobs:
           # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
           claude_args: |
             --allowed-tools 'Bash(gh pr:*),Bash(npm install),Bash(npm run:*),Bash(npx nx:*)'
-            --mcp-config '{ "github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/" }, "nx": { "type": "stdio", "command": "npx", "args": ["-y", "nx-mcp@latest"] } }'
+            --mcp-config '{ "mcpServers": { "github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/" }, "nx": { "type": "stdio", "command": "npx", "args": ["-y", "nx-mcp@latest"] } } }'
