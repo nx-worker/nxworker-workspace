@@ -67,7 +67,7 @@ The following is a list of allowed GitHub CLI commands where `<owner>` is `nx-wo
 
 ### GitHub API Access
 
-- `gh api /repos/<owner>/<repo> --method GET`
+- `gh api --method GET /repos/<owner>/<repo>`
 - `gh api --method GET /repos/<owner>/<repo>/issues/<number>`
 - `gh api --method GET /repos/<owner>/<repo>/pulls/<number>`
 

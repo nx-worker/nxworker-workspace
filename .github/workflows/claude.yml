@@ -109,7 +109,7 @@ jobs:
               Bash(gh search issues --limit 50 --json number,title,state,repository,author :*),
               Bash(gh search prs --limit 50 --json number,title,state,repository,author :*),
               Bash(gh search code --limit 50 :*),
-              Bash(gh api /repos/nx-worker/nxworker-workspace --method GET),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
               Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
               Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
               Bash(gh extension list),
