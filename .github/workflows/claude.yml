@@ -38,7 +38,7 @@ jobs:
     #   - Comments on issues/PRs with '@claude' mention
     #   - Pull request reviews with '@claude' mention
     #   - Issues opened with '@claude' in title/body
-    #   - 'claude' label assigned to issues or pull requests
+    #   - 'claude' label applied to issues or pull requests
     #
     # Security Controls:
     #   - Manual dispatch: GitHub requires write access to trigger workflow_dispatch, ensuring only
