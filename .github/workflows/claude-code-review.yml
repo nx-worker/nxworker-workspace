@@ -2,25 +2,25 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [review_requested]
+    types: [labeled]
 
 jobs:
   claude-review:
-    # Security: Only trigger when code review is requested from @claude by a trusted user
+    # Security: Only trigger when 'claude-review' label is added by a trusted user
     #
     # Checks:
-    #   1. Review is requested from '@claude' specifically
+    #   1. Label added is 'claude-review' specifically
     #   2. Sender is a User (not a bot)
     #   3. PR author is trusted (MEMBER, OWNER, or COLLABORATOR)
     if: |
-      github.event.requested_reviewer.login == 'claude' &&
+      github.event.label.name == 'claude-review' &&
       github.event.sender.type == 'User' &&
       (github.event.pull_request.author_association == 'MEMBER' ||
        github.event.pull_request.author_association == 'OWNER' ||
        github.event.pull_request.author_association == 'COLLABORATOR')
     concurrency:
       # Only one code review per PR at a time
-      # Re-requests cancel in-progress reviews to provide fresh feedback
+      # Re-adding the label cancels in-progress reviews to provide fresh feedback
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
