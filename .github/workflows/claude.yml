@@ -42,14 +42,11 @@ jobs:
             actions: read
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          prompt: |
-            IMPORTANT: IMPORTANT: Use the repository's `AGENTS.md` file for instructions.
-
-            Use the `gh` CLI with your Bash tool to interact with the GitHub API.
+          # prompt: 'Update the pull request description to include a summary of changes.'
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
           claude_args: |
-            --allowed-tools 'Bash(gh *),Bash(npm install),Bash(npm run *),Bash(npx nx *)'
+            --allowed-tools 'Bash(npm install),Bash(npm run :*),Bash(npx nx :*),Bash(gh auth status),Bash(gh help),Bash(gh version),Bash(gh status),Bash(gh repo list nx-worker --limit 100),Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),Bash(gh issue view :*),Bash(gh issue status --repo nx-worker/nxworker-workspace),Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable :*),Bash(gh pr diff --repo nx-worker/nxworker-workspace :*),Bash(gh pr checks --repo nx-worker/nxworker-workspace :*),Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url :*),Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt :*),Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt :*),Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount ":*),Bash(gh search issues --limit 50 --json number,title,state,repository,author ":*),Bash(gh search prs --limit 50 --json number,title,state,repository,author ":*),Bash(gh search code --limit 50 ":*"),Bash(gh api /repos/nx-worker/nxworker-workspace --method GET),Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),Bash(gh extension list),Bash(gh alias list)'
             --mcp-config '{ "mcpServers": { "nx": { "type": "stdio", "command": "npx", "args": ["-y", "nx-mcp@latest"] } } }'
