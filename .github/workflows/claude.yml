@@ -186,6 +186,9 @@ jobs:
           # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
           claude_args: |
             --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
               Bash(npm install),
               Bash(npm run:*),
               Bash(npx nx:*),
@@ -224,7 +227,8 @@ jobs:
               Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
               Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
               Bash(gh extension list),
-              Bash(gh alias list)'
+              Bash(gh alias list)
+            '
             --mcp-config '{
               "mcpServers": {
                 "nx": {
