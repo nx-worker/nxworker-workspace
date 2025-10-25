@@ -72,7 +72,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
           ref: ${{ inputs.checkout_ref || github.ref }}
           token: ${{ github.token }}
 
@@ -110,6 +112,60 @@ jobs:
 
           chmod +x .git/hooks/pre-push
 
+      - name: Set Nx SHAs
+        uses: ./.github/actions/set-nx-shas
+
+      - name: Set up Node.js and install packages
+        uses: ./.github/actions/setup-node-and-install
+
+      - name: Build Claude prompt
+        id: build_prompt
+        run: |
+          # Build system prompt
+          {
+            echo 'SYSTEM_PROMPT<<EOF'
+            echo 'You are an autonomous coding assistant running in a GitHub Actions workflow. Your role is to:'
+            echo ''
+            echo '1. **Work autonomously** - Complete the given task independently without asking for clarification'
+            echo '2. **Push your commits** - Always push your commits using `git push` when you finish working on a task'
+            echo '3. **Report via GitHub CLI** - Use `gh pr comment` to post updates and completion status to the PR'
+            echo '4. **Handle errors gracefully** - If you encounter permission errors, report them via PR comments'
+            echo ''
+            echo '## Workflow Guidelines'
+            echo ''
+            echo '- Make focused, incremental commits with clear commit messages'
+            echo '- After completing your work, push all commits: `git push origin <branch-name>`'
+            echo '- Post a summary comment to the PR when done: `gh pr comment <pr-number> --body "✅ Completed: <summary>"`'
+            echo '- Follow the repository conventions in AGENTS.md and other documentation'
+            echo '- Run linters, formatters, and tests as appropriate for the changes'
+            echo ''
+            echo '## Permission Denied Handling'
+            echo ''
+            echo 'If you encounter a permission denied or tool not allowed error, post a comment with:'
+            echo ''
+            echo '```'
+            echo '## Permission Denied'
+            echo ''
+            echo '**Command:** `<command>`'
+            echo '**Intent:** <what you were trying to accomplish>'
+            echo '**Task:** <the specific task you were working on>'
+            echo '**Context:** <additional context>'
+            echo '```'
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+          # Build user prompt
+          {
+            echo 'CLAUDE_PROMPT<<EOF'
+            
+            # Add custom prompt if provided
+            if [ -n "${{ inputs.custom_prompt }}" ]; then
+              echo '${{ inputs.custom_prompt }}'
+            fi
+            
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
@@ -117,8 +173,9 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
-          prompt: ${{ inputs.custom_prompt || '' }}
+          prompt: ${{ steps.build_prompt.outputs.CLAUDE_PROMPT }}
           claude_args: |
+            --system '${{ steps.build_prompt.outputs.SYSTEM_PROMPT }}'
             --allowed-tools '
               Read,
               Grep,
@@ -131,6 +188,41 @@ jobs:
               WebFetch(domain:github.com),
               WebFetch(domain:nx.dev),
               Bash(git log:*),
+              Bash(git status),
+              Bash(git diff:*),
+              Bash(git add:*),
+              Bash(git commit:*),
+              Bash(git push:*),
+              Bash(git reset:*),
+              Bash(git checkout:*),
+              Bash(git branch:*),
+              Bash(git show:*),
+              Bash(git remote:*),
+              Bash(git fetch:*),
+              Bash(git tag:*),
+              Bash(git stash:*),
+              Bash(git config --get:*),
+              Bash(git config --list),
+              Bash(pwd),
+              Bash(find:*),
+              Bash(cat:*),
+              Bash(head:*),
+              Bash(tail:*),
+              Bash(wc:*),
+              Bash(sort:*),
+              Bash(uniq:*),
+              Bash(tree:*),
+              Bash(which:*),
+              Bash(mkdir:*),
+              Bash(mv:*),
+              Bash(cp:*),
+              Bash(touch:*),
+              Bash(sed:*),
+              Bash(awk:*),
+              Bash(cut:*),
+              Bash(node:*),
+              Bash(python:*),
+              Bash(python3:*),
               Bash(npm install),
               Bash(npm run:*),
               Bash(npx nx:*),
