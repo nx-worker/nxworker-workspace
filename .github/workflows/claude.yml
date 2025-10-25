@@ -23,172 +23,27 @@ on:
     types: [submitted]
 
 jobs:
-  claude:
-    # Security: Only allow trusted users to trigger Claude Code workflows
-    #
-    # Pattern: (workflow_dispatch OR github.event.sender.type == 'User') AND (one of the event scenarios below)
-    #
-    # Each event scenario checks:
-    #   1. Correct event type (workflow_dispatch, issue_comment, pull_request_review_comment, issues, pull_request, etc.)
-    #   2. Body contains '@claude' mention OR 'claude' label is applied OR manual dispatch
-    #   3. Author/commenter is trusted (MEMBER, OWNER, or COLLABORATOR)
-    #
-    # Supported triggers:
-    #   - Manual workflow dispatch (requires write access to repository)
-    #   - Comments on issues/PRs with '@claude' mention
-    #   - Pull request reviews with '@claude' mention
-    #   - Issues opened with '@claude' in title/body
-    #   - 'claude' label applied to issues or pull requests
-    #
-    # Security Controls:
-    #   - Manual dispatch: GitHub requires write access to trigger workflow_dispatch, ensuring only
-    #     trusted users (Members, Collaborators, Owners) can manually invoke Claude.
-    #   - Label triggers: GitHub Actions does not expose the label applier's author_association.
-    #     Security relies on repository settings restricting label permissions to trusted users
-    #     (Members, Collaborators, Owners). Ensure only trusted users have triage or write access.
-    #   - Branch protection: The workflow validates that commits are only pushed to non-main branches.
-    #     Attempts to push to main/master or the default branch will fail the workflow.
-    #   - Required branch protection rules: Ensure the main branch has protections enabled to prevent
-    #     force pushes and require pull request reviews.
-    #
-    # This prevents external/untrusted users from triggering workflows with write permissions
-    # that could potentially push commits, modify PRs, or change issues.
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.sender.type == 'User' &&
-        (
-          github.event_name == 'issue_comment' &&
-          contains(github.event.comment.body, '@claude') &&
-          (github.event.comment.author_association == 'MEMBER' ||
-           github.event.comment.author_association == 'OWNER' ||
-           github.event.comment.author_association == 'COLLABORATOR')
-        ) ||
-        (
-          github.event_name == 'pull_request_review_comment' &&
-          contains(github.event.comment.body, '@claude') &&
-          (github.event.comment.author_association == 'MEMBER' ||
-           github.event.comment.author_association == 'OWNER' ||
-           github.event.comment.author_association == 'COLLABORATOR')
-        ) ||
-        (
-          github.event_name == 'pull_request_review' &&
-          contains(github.event.review.body, '@claude') &&
-          (github.event.review.author_association == 'MEMBER' ||
-           github.event.review.author_association == 'OWNER' ||
-           github.event.review.author_association == 'COLLABORATOR')
-        ) ||
-        (
-          github.event_name == 'issues' &&
-          (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
-          (github.event.issue.author_association == 'MEMBER' ||
-           github.event.issue.author_association == 'OWNER' ||
-           github.event.issue.author_association == 'COLLABORATOR')
-        ) ||
-        (
-          github.event_name == 'issues' &&
-          github.event.action == 'labeled' &&
-          github.event.label.name == 'claude' &&
-          (github.event.issue.author_association == 'MEMBER' ||
-           github.event.issue.author_association == 'OWNER' ||
-           github.event.issue.author_association == 'COLLABORATOR')
-        ) ||
-        (
-          github.event_name == 'pull_request' &&
-          github.event.action == 'labeled' &&
-          github.event.label.name == 'claude' &&
-          (github.event.pull_request.author_association == 'MEMBER' ||
-           github.event.pull_request.author_association == 'OWNER' ||
-           github.event.pull_request.author_association == 'COLLABORATOR')
-        )
-      )
-    concurrency:
-      # Prevent multiple Claude instances from running simultaneously
-      # Strategy:
-      #   - PR events: One Claude run per PR (using PR number)
-      #   - Issue events: One Claude run per issue (using issue number)
-      #   - workflow_dispatch: One Claude run per branch (using branch name)
-      #   - Manual dispatch with target_issue: Joins the queue for that issue/PR
-      group: claude-${{ github.event.inputs.target_issue || github.event.pull_request.number || github.event.issue.number || github.ref_name }}
-      # Do not cancel in-progress runs; queue new requests instead
-      cancel-in-progress: false
+  # Job 1: Manual workflow dispatch
+  # Security: GitHub requires write access to trigger workflow_dispatch
+  manual-dispatch:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.inputs.target_issue || github.ref_name }}
+      cancel-in-progress: false
     permissions:
-      contents: write # Required for Claude to push commits (restricted to non-main branches)
-      pull-requests: write # Required for Claude to create comments on PRs
-      issues: write # Required for Claude to create comments on issues
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Prevent commits to main branch
-        run: |
-          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-          echo "Current branch: $CURRENT_BRANCH"
-          echo "Default branch: $DEFAULT_BRANCH"
-
-          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
-            echo "❌ Error: Claude cannot push commits to the main branch ($CURRENT_BRANCH)"
-            echo "This workflow only allows commits to non-main branches for security."
-            echo "Please work on a feature branch instead."
-            exit 1
-          fi
-
-          echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
-
-      - name: Install Git pre-push hook
-        run: |
-          # Defense-in-depth: Install a Git pre-push hook to prevent Claude from pushing to main
-          # even if it checks out a different branch after this workflow starts.
-          #
-          # This addresses the timing gap where:
-          # 1. Initial branch check passes (we're on a feature branch)
-          # 2. Claude checks out main
-          # 3. Claude makes commits to main
-          # 4. Claude attempts to push to main
-          #
-          # The pre-push hook blocks step 4, preventing commits from reaching the main branch.
-
-          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-
-          cat > .git/hooks/pre-push << EOF
-          #!/bin/sh
-          # Pre-push hook to prevent pushing to main/master branches
-          # This provides defense-in-depth protection for automated workflows
-
-          # Default branch is embedded at hook creation time: $DEFAULT_BRANCH
-          DEFAULT_BRANCH="$DEFAULT_BRANCH"
-
-          # Read push information from stdin
-          while read local_ref local_sha remote_ref remote_sha; do
-            # Extract branch name from ref (refs/heads/branch-name -> branch-name)
-            branch=\$(echo "\$remote_ref" | sed 's/refs\/heads\///')
-
-            # Block pushes to main, master, or default branch
-            if [ "\$branch" = "main" ] || [ "\$branch" = "master" ] || [ "\$branch" = "\$DEFAULT_BRANCH" ]; then
-              echo "❌ Error: pre-push hook blocked push to protected branch: \$branch"
-              echo "This workflow only allows pushes to non-main branches for security."
-              echo "Current push target: \$remote_ref"
-              exit 1
-            fi
-          done
-
-          exit 0
-          EOF
-
-          # Make the hook executable
-          chmod +x .git/hooks/pre-push
-
-          echo "✅ Git pre-push hook installed successfully"
-          echo "   Protected branches: main, master, $DEFAULT_BRANCH"
-
       - name: Validate workflow_dispatch inputs
-        if: github.event_name == 'workflow_dispatch'
         run: |
           # Validate target_issue is a number if provided
           if [ -n "${{ github.event.inputs.target_issue }}" ]; then
@@ -211,8 +66,45 @@ jobs:
             echo "✅ instruction validation passed"
           fi
 
-      - name: Build custom prompt for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
+      - name: Prevent commits to main branch
+        run: |
+          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          echo "Current branch: $CURRENT_BRANCH"
+          echo "Default branch: $DEFAULT_BRANCH"
+
+          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+            echo "❌ Error: Claude cannot push commits to the main branch ($CURRENT_BRANCH)"
+            echo "This workflow only allows commits to non-main branches for security."
+            echo "Please work on a feature branch instead."
+            exit 1
+          fi
+
+          echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          # Pre-push hook to prevent pushing to main/master branches
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+          echo "✅ Git pre-push hook installed successfully"
+
+      - name: Build custom prompt
         id: build_prompt
         run: |
           PROMPT=""
@@ -228,23 +120,767 @@ jobs:
           echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
 
       - name: Run Claude Code
-        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
-
-          # Use custom prompt from workflow_dispatch if provided
-          # Otherwise, Claude will perform the instructions specified in the comment that tagged it
           prompt: ${{ steps.build_prompt.outputs.prompt || '' }}
+          claude_args: |
+            --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
+              Bash(npm install),
+              Bash(npm run:*),
+              Bash(npx nx:*),
+              Bash(gh auth status),
+              Bash(gh help),
+              Bash(gh version),
+              Bash(gh status),
+              Bash(gh repo list nx-worker --limit 100),
+              Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),
+              Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh issue view:*),
+              Bash(gh issue status --repo nx-worker/nxworker-workspace),
+              Bash(gh issue comment:*),
+              Bash(gh issue edit:*),
+              Bash(gh issue close:*),
+              Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable:*),
+              Bash(gh pr diff --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr checks --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr comment:*),
+              Bash(gh pr edit:*),
+              Bash(gh pr ready:*),
+              Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url:*),
+              Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt:*),
+              Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt:*),
+              Bash(gh run rerun:*),
+              Bash(gh workflow run:*),
+              Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount:*),
+              Bash(gh search issues --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search prs --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search code --limit 50:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
+              Bash(gh extension list),
+              Bash(gh alias list)
+            '
+            --mcp-config '{
+              "mcpServers": {
+                "nx": {
+                  "type": "stdio",
+                  "command": "npx",
+                  "args": ["-y", "nx-mcp@latest"]
+                }
+              }
+            }'
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
+  # Job 2: Comment on issue with @claude mention (on a PR or standalone issue)
+  # Security: Only trusted members can trigger
+  issue-comment:
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.sender.type == 'User' &&
+      contains(github.event.comment.body, '@claude') &&
+      (github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'OWNER' ||
+       github.event.comment.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Determine if issue is a PR and handle branch
+        id: check_context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if this issue is actually a PR
+          if [ -n "${{ github.event.issue.pull_request }}" ]; then
+            echo "is_pr=true" >> $GITHUB_OUTPUT
+            # Get PR details to find the head branch
+            PR_DATA=$(gh api /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
+            HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
+            echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+            echo "✅ This is a PR comment. Will checkout PR branch: $HEAD_REF"
+            
+            # Checkout the PR branch
+            git fetch origin "$HEAD_REF"
+            git checkout "$HEAD_REF"
+          else
+            echo "is_pr=false" >> $GITHUB_OUTPUT
+            echo "⚠️ This is an issue comment. Will let Claude create a branch."
+            # For standalone issues, we stay on main and let Claude create the branch
+            # The branch check will be skipped for this scenario
+          fi
+
+      - name: Prevent commits to main branch (PR comments only)
+        if: steps.check_context.outputs.is_pr == 'true'
+        run: |
+          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+            echo "❌ Error: Claude cannot push commits to the main branch ($CURRENT_BRANCH)"
+            exit 1
+          fi
+
+          echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          claude_args: |
+            --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
+              Bash(npm install),
+              Bash(npm run:*),
+              Bash(npx nx:*),
+              Bash(gh auth status),
+              Bash(gh help),
+              Bash(gh version),
+              Bash(gh status),
+              Bash(gh repo list nx-worker --limit 100),
+              Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),
+              Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh issue view:*),
+              Bash(gh issue status --repo nx-worker/nxworker-workspace),
+              Bash(gh issue comment:*),
+              Bash(gh issue edit:*),
+              Bash(gh issue close:*),
+              Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable:*),
+              Bash(gh pr diff --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr checks --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr comment:*),
+              Bash(gh pr edit:*),
+              Bash(gh pr ready:*),
+              Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url:*),
+              Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt:*),
+              Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt:*),
+              Bash(gh run rerun:*),
+              Bash(gh workflow run:*),
+              Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount:*),
+              Bash(gh search issues --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search prs --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search code --limit 50:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
+              Bash(gh extension list),
+              Bash(gh alias list)
+            '
+            --mcp-config '{
+              "mcpServers": {
+                "nx": {
+                  "type": "stdio",
+                  "command": "npx",
+                  "args": ["-y", "nx-mcp@latest"]
+                }
+              }
+            }'
+
+  # Job 3: PR review comment with @claude mention
+  # Security: Only trusted members can trigger
+  pr-review-comment:
+    if: |
+      github.event_name == 'pull_request_review_comment' &&
+      github.event.sender.type == 'User' &&
+      contains(github.event.comment.body, '@claude') &&
+      (github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'OWNER' ||
+       github.event.comment.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Prevent commits to main branch
+        run: |
+          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+            echo "❌ Error: Claude cannot push commits to the main branch ($CURRENT_BRANCH)"
+            exit 1
+          fi
+
+          echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          claude_args: |
+            --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
+              Bash(npm install),
+              Bash(npm run:*),
+              Bash(npx nx:*),
+              Bash(gh auth status),
+              Bash(gh help),
+              Bash(gh version),
+              Bash(gh status),
+              Bash(gh repo list nx-worker --limit 100),
+              Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),
+              Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh issue view:*),
+              Bash(gh issue status --repo nx-worker/nxworker-workspace),
+              Bash(gh issue comment:*),
+              Bash(gh issue edit:*),
+              Bash(gh issue close:*),
+              Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable:*),
+              Bash(gh pr diff --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr checks --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr comment:*),
+              Bash(gh pr edit:*),
+              Bash(gh pr ready:*),
+              Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url:*),
+              Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt:*),
+              Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt:*),
+              Bash(gh run rerun:*),
+              Bash(gh workflow run:*),
+              Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount:*),
+              Bash(gh search issues --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search prs --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search code --limit 50:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
+              Bash(gh extension list),
+              Bash(gh alias list)
+            '
+            --mcp-config '{
+              "mcpServers": {
+                "nx": {
+                  "type": "stdio",
+                  "command": "npx",
+                  "args": ["-y", "nx-mcp@latest"]
+                }
+              }
+            }'
+
+  # Job 4: PR review with @claude mention
+  # Security: Only trusted members can trigger
+  pr-review:
+    if: |
+      github.event_name == 'pull_request_review' &&
+      github.event.sender.type == 'User' &&
+      contains(github.event.review.body, '@claude') &&
+      (github.event.review.author_association == 'MEMBER' ||
+       github.event.review.author_association == 'OWNER' ||
+       github.event.review.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Prevent commits to main branch
+        run: |
+          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+            echo "❌ Error: Claude cannot push commits to the main branch ($CURRENT_BRANCH)"
+            exit 1
+          fi
+
+          echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          claude_args: |
+            --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
+              Bash(npm install),
+              Bash(npm run:*),
+              Bash(npx nx:*),
+              Bash(gh auth status),
+              Bash(gh help),
+              Bash(gh version),
+              Bash(gh status),
+              Bash(gh repo list nx-worker --limit 100),
+              Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),
+              Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh issue view:*),
+              Bash(gh issue status --repo nx-worker/nxworker-workspace),
+              Bash(gh issue comment:*),
+              Bash(gh issue edit:*),
+              Bash(gh issue close:*),
+              Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable:*),
+              Bash(gh pr diff --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr checks --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr comment:*),
+              Bash(gh pr edit:*),
+              Bash(gh pr ready:*),
+              Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url:*),
+              Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt:*),
+              Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt:*),
+              Bash(gh run rerun:*),
+              Bash(gh workflow run:*),
+              Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount:*),
+              Bash(gh search issues --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search prs --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search code --limit 50:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
+              Bash(gh extension list),
+              Bash(gh alias list)
+            '
+            --mcp-config '{
+              "mcpServers": {
+                "nx": {
+                  "type": "stdio",
+                  "command": "npx",
+                  "args": ["-y", "nx-mcp@latest"]
+                }
+              }
+            }'
+
+  # Job 5: Issue opened with @claude in title or body
+  # Security: Only trusted members can trigger
+  issue-opened:
+    if: |
+      github.event_name == 'issues' &&
+      github.event.action == 'opened' &&
+      github.event.sender.type == 'User' &&
+      (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+      (github.event.issue.author_association == 'MEMBER' ||
+       github.event.issue.author_association == 'OWNER' ||
+       github.event.issue.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # For issues, we stay on main and let Claude create the branch
+      # No branch check needed here
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+
+      - name: Build custom prompt
+        id: build_prompt
+        run: |
+          PROMPT="Please work on issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+          echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: ${{ steps.build_prompt.outputs.prompt }}
+          claude_args: |
+            --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
+              Bash(npm install),
+              Bash(npm run:*),
+              Bash(npx nx:*),
+              Bash(gh auth status),
+              Bash(gh help),
+              Bash(gh version),
+              Bash(gh status),
+              Bash(gh repo list nx-worker --limit 100),
+              Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),
+              Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh issue view:*),
+              Bash(gh issue status --repo nx-worker/nxworker-workspace),
+              Bash(gh issue comment:*),
+              Bash(gh issue edit:*),
+              Bash(gh issue close:*),
+              Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable:*),
+              Bash(gh pr diff --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr checks --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr comment:*),
+              Bash(gh pr edit:*),
+              Bash(gh pr ready:*),
+              Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url:*),
+              Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt:*),
+              Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt:*),
+              Bash(gh run rerun:*),
+              Bash(gh workflow run:*),
+              Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount:*),
+              Bash(gh search issues --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search prs --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search code --limit 50:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
+              Bash(gh extension list),
+              Bash(gh alias list)
+            '
+            --mcp-config '{
+              "mcpServers": {
+                "nx": {
+                  "type": "stdio",
+                  "command": "npx",
+                  "args": ["-y", "nx-mcp@latest"]
+                }
+              }
+            }'
+
+  # Job 6: Issue labeled with 'claude'
+  # Security: Relies on repository settings restricting label permissions to trusted users
+  issue-labeled:
+    if: |
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'claude' &&
+      github.event.sender.type == 'User' &&
+      (github.event.issue.author_association == 'MEMBER' ||
+       github.event.issue.author_association == 'OWNER' ||
+       github.event.issue.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # For issues, we stay on main and let Claude create the branch
+      # No branch check needed here
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+
+      - name: Build custom prompt
+        id: build_prompt
+        run: |
+          PROMPT="Please work on issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+          echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: ${{ steps.build_prompt.outputs.prompt }}
+          claude_args: |
+            --allowed-tools '
+              WebSearch,
+              WebFetch(domain:github.com),
+              WebFetch(domain:nx.dev),
+              Bash(npm install),
+              Bash(npm run:*),
+              Bash(npx nx:*),
+              Bash(gh auth status),
+              Bash(gh help),
+              Bash(gh version),
+              Bash(gh status),
+              Bash(gh repo list nx-worker --limit 100),
+              Bash(gh repo view nx-worker/nxworker-workspace --json name,description,visibility,defaultBranchRef,archived,isTemplate),
+              Bash(gh issue list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh issue view:*),
+              Bash(gh issue status --repo nx-worker/nxworker-workspace),
+              Bash(gh issue comment:*),
+              Bash(gh issue edit:*),
+              Bash(gh issue close:*),
+              Bash(gh pr list --repo nx-worker/nxworker-workspace --state all --limit 100),
+              Bash(gh pr view --repo nx-worker/nxworker-workspace --json number,title,state,author,baseRefName,headRefName,mergeable:*),
+              Bash(gh pr diff --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr checks --repo nx-worker/nxworker-workspace:*),
+              Bash(gh pr comment:*),
+              Bash(gh pr edit:*),
+              Bash(gh pr ready:*),
+              Bash(gh release list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh release view --repo nx-worker/nxworker-workspace --json tagName,name,publishedAt,url:*),
+              Bash(gh workflow list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh workflow view --repo nx-worker/nxworker-workspace --json name,path,state,createdAt,updatedAt:*),
+              Bash(gh run list --repo nx-worker/nxworker-workspace --limit 50),
+              Bash(gh run view --repo nx-worker/nxworker-workspace --json databaseId,displayTitle,status,conclusion,workflowName,createdAt,updatedAt:*),
+              Bash(gh run rerun:*),
+              Bash(gh workflow run:*),
+              Bash(gh search repos --limit 50 --json name,owner,description,stargazersCount:*),
+              Bash(gh search issues --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search prs --limit 50 --json number,title,state,repository,author:*),
+              Bash(gh search code --limit 50:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/issues/:*),
+              Bash(gh api --method GET /repos/nx-worker/nxworker-workspace/pulls/:*),
+              Bash(gh extension list),
+              Bash(gh alias list)
+            '
+            --mcp-config '{
+              "mcpServers": {
+                "nx": {
+                  "type": "stdio",
+                  "command": "npx",
+                  "args": ["-y", "nx-mcp@latest"]
+                }
+              }
+            }'
+
+  # Job 7: PR labeled with 'claude'
+  # Security: Relies on repository settings restricting label permissions to trusted users
+  pr-labeled:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'claude' &&
+      github.event.sender.type == 'User' &&
+      (github.event.pull_request.author_association == 'MEMBER' ||
+       github.event.pull_request.author_association == 'OWNER' ||
+       github.event.pull_request.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: claude-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Prevent commits to main branch
+        run: |
+          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+            echo "❌ Error: Claude cannot push commits to the main branch ($CURRENT_BRANCH)"
+            exit 1
+          fi
+
+          echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
+
+      - name: Install Git pre-push hook
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << 'EOF'
+          #!/bin/sh
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          while read local_ref local_sha remote_ref remote_sha; do
+            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+              exit 1
+            fi
+          done
+          exit 0
+          EOF
+
+          chmod +x .git/hooks/pre-push
+
+      - name: Build custom prompt
+        id: build_prompt
+        run: |
+          PROMPT="Please work on PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: ${{ steps.build_prompt.outputs.prompt }}
           claude_args: |
             --allowed-tools '
               WebSearch,
