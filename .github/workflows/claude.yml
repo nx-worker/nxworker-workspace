@@ -67,6 +67,12 @@ jobs:
 
   manual-dispatch-run:
     needs: manual-dispatch
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.inputs.target_issue }}
@@ -112,6 +118,12 @@ jobs:
 
   issue-comment-run:
     needs: issue-comment-check
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.issue.number }}
@@ -135,6 +147,12 @@ jobs:
       (github.event.comment.author_association == 'MEMBER' ||
        github.event.comment.author_association == 'OWNER' ||
        github.event.comment.author_association == 'COLLABORATOR')
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.pull_request.number }}
@@ -158,6 +176,12 @@ jobs:
       (github.event.review.author_association == 'MEMBER' ||
        github.event.review.author_association == 'OWNER' ||
        github.event.review.author_association == 'COLLABORATOR')
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.pull_request.number }}
@@ -247,6 +271,12 @@ jobs:
 
   issue-opened-run:
     needs: issue-opened-setup
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-opened-setup.outputs.pr_number }}
@@ -336,6 +366,12 @@ jobs:
 
   issue-labeled-run:
     needs: issue-labeled-setup
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-labeled-setup.outputs.pr_number }}
@@ -356,6 +392,12 @@ jobs:
       (github.event.pull_request.author_association == 'MEMBER' ||
        github.event.pull_request.author_association == 'OWNER' ||
        github.event.pull_request.author_association == 'COLLABORATOR')
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.pull_request.number }}
