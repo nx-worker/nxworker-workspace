@@ -331,8 +331,7 @@ jobs:
             --body "$PR_BODY" \
             --base "${{ github.event.repository.default_branch }}" \
             --head "${{ steps.create_branch.outputs.branch_name }}" \
-            --label "claude" \
-            --label "automated" | grep -oP '(?<=pull/)[0-9]+')
+            --label "claude" | grep -oP '(?<=pull/)[0-9]+')
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
@@ -453,8 +452,7 @@ jobs:
             --body "$PR_BODY" \
             --base "${{ github.event.repository.default_branch }}" \
             --head "${{ steps.create_branch.outputs.branch_name }}" \
-            --label "claude" \
-            --label "automated" | grep -oP '(?<=pull/)[0-9]+')
+            --label "claude" | grep -oP '(?<=pull/)[0-9]+')
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
