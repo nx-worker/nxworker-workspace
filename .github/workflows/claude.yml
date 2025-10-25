@@ -80,7 +80,7 @@ jobs:
 
           # Validate instruction doesn't contain shell metacharacters
           if [ -n "${{ github.event.inputs.instruction }}" ]; then
-            if [[ "${{ github.event.inputs.instruction }}" =~ [\$\`\;\|\&\>\<\(\)\{\ }$'\n'] ]]; then
+            if [[ "${{ github.event.inputs.instruction }}" =~ [\$\`\;\|\&\>\<\(\)\{\}]|$'\n' ]]; then
               echo "❌ Error: instruction contains potentially dangerous characters"
               exit 1
             fi
