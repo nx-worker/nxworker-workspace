@@ -74,7 +74,6 @@ jobs:
       checkout_ref: ${{ github.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 2: Comment on issue with @claude mention (handles both PR and standalone issue)
@@ -120,7 +119,6 @@ jobs:
       checkout_ref: ${{ needs.issue-comment-check.outputs.head_ref }}
       skip_branch_check: ${{ needs.issue-comment-check.outputs.is_pr != 'true' }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 3: PR review comment with @claude mention
@@ -144,7 +142,6 @@ jobs:
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 4: PR review with @claude mention
@@ -168,7 +165,6 @@ jobs:
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 5: Issue opened with @claude in title or body
@@ -231,7 +227,7 @@ jobs:
           ${{ github.event.issue.title }}
 
           ## Prompt
-          ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+          ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
 
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
@@ -254,11 +250,10 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-opened-setup.outputs.pr_number }}
-      custom_prompt: ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+      custom_prompt: ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
       checkout_ref: ${{ needs.issue-opened-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 6: Issue labeled with 'claude'
@@ -321,7 +316,7 @@ jobs:
           ${{ github.event.issue.title }}
 
           ## Prompt
-          ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+          ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
 
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
@@ -344,11 +339,10 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-labeled-setup.outputs.pr_number }}
-      custom_prompt: ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+      custom_prompt: ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
       checkout_ref: ${{ needs.issue-labeled-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 7: PR labeled with 'claude'
@@ -365,9 +359,8 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.pull_request.number }}
-      custom_prompt: ${{ format('Please work on PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title) }}
+      custom_prompt: ${{ format('Please work on PR #{{0}}: {{1}}', github.event.pull_request.number, github.event.pull_request.title) }}
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
