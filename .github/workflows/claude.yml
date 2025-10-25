@@ -299,14 +299,21 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create new branch
-          git checkout -b "$BRANCH_NAME"
+          # Check if branch exists remotely
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+            echo "Branch $BRANCH_NAME already exists remotely, checking it out"
+            git fetch origin "$BRANCH_NAME"
+            git checkout -B "$BRANCH_NAME" "origin/$BRANCH_NAME"
+          else
+            echo "Creating new branch $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+          fi
 
           # Create empty commit
           git commit --allow-empty -m "chore: initialize branch for issue #${{ github.event.issue.number }}"
 
-          # Push branch
-          git push origin "$BRANCH_NAME"
+          # Push branch (use --force-with-lease for safety if branch existed)
+          git push --force-with-lease origin "$BRANCH_NAME"
 
       - name: Create PR
         id: create_pr
@@ -420,14 +427,21 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create new branch
-          git checkout -b "$BRANCH_NAME"
+          # Check if branch exists remotely
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+            echo "Branch $BRANCH_NAME already exists remotely, checking it out"
+            git fetch origin "$BRANCH_NAME"
+            git checkout -B "$BRANCH_NAME" "origin/$BRANCH_NAME"
+          else
+            echo "Creating new branch $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+          fi
 
           # Create empty commit
           git commit --allow-empty -m "chore: initialize branch for issue #${{ github.event.issue.number }}"
 
-          # Push branch
-          git push origin "$BRANCH_NAME"
+          # Push branch (use --force-with-lease for safety if branch existed)
+          git push --force-with-lease origin "$BRANCH_NAME"
 
       - name: Create PR
         id: create_pr
