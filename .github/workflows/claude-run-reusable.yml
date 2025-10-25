@@ -126,6 +126,7 @@ jobs:
               MultiEdit,
               Write,
               LS,
+              mcp:nx:*,
               WebSearch,
               WebFetch(domain:github.com),
               WebFetch(domain:nx.dev),
