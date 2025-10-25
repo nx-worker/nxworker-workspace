@@ -110,6 +110,41 @@ jobs:
 
           chmod +x .git/hooks/pre-push
 
+      - name: Build Claude prompt
+        id: build_prompt
+        run: |
+          # Build the full prompt with system instruction
+          {
+            echo 'CLAUDE_PROMPT<<EOF'
+            echo 'IMPORTANT: If you attempt to run a command and receive a permission denied or tool not allowed error, you must immediately post a comment in the PR with the following information:'
+            echo ''
+            echo '1. The exact command you tried to run'
+            echo '2. Your intent - what you were trying to accomplish'
+            echo '3. The specific task or TODO item you were working on'
+            echo '4. Any context that would help understand why you needed this command'
+            echo ''
+            echo 'Use the GitHub CLI (gh pr comment) to post this information so the repository maintainers can evaluate whether to add the command to the allowed tools list.'
+            echo ''
+            echo 'Example comment format:'
+            echo '```'
+            echo '## Permission Denied'
+            echo ''
+            echo '**Command:** `<command>`'
+            echo '**Intent:** <description of what you were trying to do>'
+            echo '**Task:** <the specific task or TODO>'
+            echo '**Context:** <additional context>'
+            echo '```'
+            
+            # Add custom prompt if provided
+            if [ -n "${{ inputs.custom_prompt }}" ]; then
+              echo ''
+              echo ''
+              echo '${{ inputs.custom_prompt }}'
+            fi
+            
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
@@ -117,7 +152,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
-          prompt: ${{ inputs.custom_prompt || '' }}
+          prompt: ${{ steps.build_prompt.outputs.CLAUDE_PROMPT }}
           claude_args: |
             --allowed-tools '
               Read,

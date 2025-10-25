@@ -6,6 +6,17 @@ This document describes the tools and commands that are allowed for Claude Code 
 
 The allowed tools are configured in `.github/workflows/claude-run-reusable.yml` under the `claude_args` section. These tools control what operations Claude Code can perform when working on issues and pull requests.
 
+## Permission Rejection Reporting
+
+Claude Code is configured to automatically report permission denials. If Claude attempts to run a command that is not in the allowed tools list, it will post a comment in the PR with:
+
+1. The exact command that was blocked
+2. The intent - what Claude was trying to accomplish
+3. The specific task or TODO item being worked on
+4. Any additional context
+
+This helps maintainers evaluate whether to add new commands to the allowed tools list based on actual usage patterns.
+
 ## File Operations
 
 - `Read` - Read file contents
