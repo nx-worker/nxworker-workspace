@@ -76,6 +76,8 @@ jobs:
 
             Use the repository's @AGENTS.md for guidance on style and conventions. Be constructive and helpful in your feedback.
 
+            Add the *eyes* emoji (👀) reaction to the comment containing `/review` to indicate *in progress*.
+
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
