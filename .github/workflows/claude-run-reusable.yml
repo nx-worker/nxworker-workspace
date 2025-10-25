@@ -1,4 +1,26 @@
 name: Claude Run (Reusable)
+#
+# Permission Documentation
+# =======================
+#
+# This reusable workflow is called by multiple jobs in claude.yml
+#
+# Job: run
+# Permissions:
+#   - contents:write: Push commits to the repository
+#   - pull-requests:write: Create/update PRs and PR comments
+#   - issues:write: Create/update issue comments
+#   - id-token:write: OIDC authentication with Claude Code service
+#   - actions:read: Access workflow run information
+#
+# These permissions are required for Claude Code to:
+# 1. Check out the repository
+# 2. Make code changes and commit them
+# 3. Push commits to the PR branch
+# 4. Update PR descriptions and comments
+# 5. Reply to issue/PR comments
+# 6. Authenticate with the Claude Code service via OIDC
+#
 
 # Reusable workflow for running Claude Code with shared configuration
 # Called by claude.yml with different trigger contexts
@@ -28,6 +50,13 @@ on:
         required: true
 
 jobs:
+  # Main execution job for Claude Code
+  # Permissions:
+  #   - contents:write: Push commits to repository
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - issues:write: Create/update issue comments
+  #   - id-token:write: OIDC authentication with Claude Code service
+  #   - actions:read: Access workflow run information
   run:
     runs-on: ubuntu-24.04-arm
     concurrency:
