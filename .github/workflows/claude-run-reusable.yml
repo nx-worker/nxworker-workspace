@@ -121,9 +121,9 @@ jobs:
       - name: Build Claude prompt
         id: build_prompt
         run: |
-          # Build the full prompt with system instruction
+          # Build system prompt
           {
-            echo 'CLAUDE_PROMPT<<EOF'
+            echo 'SYSTEM_PROMPT<<EOF'
             echo 'You are an autonomous coding assistant running in a GitHub Actions workflow. Your role is to:'
             echo ''
             echo '1. **Work autonomously** - Complete the given task independently without asking for clarification'
@@ -151,14 +151,15 @@ jobs:
             echo '**Task:** <the specific task you were working on>'
             echo '**Context:** <additional context>'
             echo '```'
-            echo ''
-            echo '---'
-            echo ''
-            echo '## Your Task'
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+          # Build user prompt
+          {
+            echo 'CLAUDE_PROMPT<<EOF'
             
             # Add custom prompt if provided
             if [ -n "${{ inputs.custom_prompt }}" ]; then
-              echo ''
               echo '${{ inputs.custom_prompt }}'
             fi
             
@@ -174,6 +175,7 @@ jobs:
             actions: read
           prompt: ${{ steps.build_prompt.outputs.CLAUDE_PROMPT }}
           claude_args: |
+            --system '${{ steps.build_prompt.outputs.SYSTEM_PROMPT }}'
             --allowed-tools '
               Read,
               Grep,
