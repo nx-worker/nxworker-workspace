@@ -78,6 +78,7 @@ Modified both jobs to check for existing PRs before attempting to create a new o
 ## Testing
 
 ### Manual Validation
+
 - ✅ YAML syntax validation passed
 - ✅ Prettier formatting check passed
 - ✅ Logic tested with shell script simulation
@@ -85,7 +86,7 @@ Modified both jobs to check for existing PRs before attempting to create a new o
 ### Expected Behavior
 
 | Scenario | Old Behavior | New Behavior |
-|----------|-------------|--------------|
+| --- | --- | --- |
 | First time labeling an issue | Creates branch and PR | Creates branch and PR ✅ |
 | Re-labeling the same issue | ❌ Fails with error | Uses existing PR ✅ |
 | Labeling issue with existing branch/PR | ❌ Fails with error | Uses existing PR ✅ |
