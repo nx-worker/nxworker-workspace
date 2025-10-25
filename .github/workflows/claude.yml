@@ -141,6 +141,52 @@ jobs:
 
           echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
 
+      - name: Install Git pre-push hook
+        run: |
+          # Defense-in-depth: Install a Git pre-push hook to prevent Claude from pushing to main
+          # even if it checks out a different branch after this workflow starts.
+          #
+          # This addresses the timing gap where:
+          # 1. Initial branch check passes (we're on a feature branch)
+          # 2. Claude checks out main
+          # 3. Claude makes commits to main
+          # 4. Claude attempts to push to main
+          #
+          # The pre-push hook blocks step 4, preventing commits from reaching the main branch.
+
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          cat > .git/hooks/pre-push << EOF
+          #!/bin/sh
+          # Pre-push hook to prevent pushing to main/master branches
+          # This provides defense-in-depth protection for automated workflows
+
+          # Default branch is embedded at hook creation time: $DEFAULT_BRANCH
+          DEFAULT_BRANCH="$DEFAULT_BRANCH"
+
+          # Read push information from stdin
+          while read local_ref local_sha remote_ref remote_sha; do
+            # Extract branch name from ref (refs/heads/branch-name -> branch-name)
+            branch=\$(echo "\$remote_ref" | sed 's/refs\/heads\///')
+
+            # Block pushes to main, master, or default branch
+            if [ "\$branch" = "main" ] || [ "\$branch" = "master" ] || [ "\$branch" = "\$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: \$branch"
+              echo "This workflow only allows pushes to non-main branches for security."
+              echo "Current push target: \$remote_ref"
+              exit 1
+            fi
+          done
+
+          exit 0
+          EOF
+
+          # Make the hook executable
+          chmod +x .git/hooks/pre-push
+
+          echo "✅ Git pre-push hook installed successfully"
+          echo "   Protected branches: main, master, $DEFAULT_BRANCH"
+
       - name: Validate workflow_dispatch inputs
         if: github.event_name == 'workflow_dispatch'
         run: |
