@@ -308,15 +308,6 @@ jobs:
           # Push branch
           git push origin "$BRANCH_NAME"
 
-      - name: Ensure automated label exists
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Check if automated label exists, create it if not
-          if ! gh label list | grep -q "^automated"; then
-            gh label create "automated" --color "ededed" --description "Automated PR created by Claude workflow"
-          fi
-
       - name: Create PR
         id: create_pr
         env:
@@ -340,8 +331,7 @@ jobs:
             --body "$PR_BODY" \
             --base "${{ github.event.repository.default_branch }}" \
             --head "${{ steps.create_branch.outputs.branch_name }}" \
-            --label "claude" \
-            --label "automated" | grep -oP '(?<=pull/)[0-9]+')
+            --label "claude" | grep -oP '(?<=pull/)[0-9]+')
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
@@ -439,15 +429,6 @@ jobs:
           # Push branch
           git push origin "$BRANCH_NAME"
 
-      - name: Ensure automated label exists
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Check if automated label exists, create it if not
-          if ! gh label list | grep -q "^automated"; then
-            gh label create "automated" --color "ededed" --description "Automated PR created by Claude workflow"
-          fi
-
       - name: Create PR
         id: create_pr
         env:
@@ -471,8 +452,7 @@ jobs:
             --body "$PR_BODY" \
             --base "${{ github.event.repository.default_branch }}" \
             --head "${{ steps.create_branch.outputs.branch_name }}" \
-            --label "claude" \
-            --label "automated" | grep -oP '(?<=pull/)[0-9]+')
+            --label "claude" | grep -oP '(?<=pull/)[0-9]+')
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
