@@ -5,7 +5,7 @@ on:
 
 permissions:
   contents: write # needed to amend commits and force push
-  workflows: write # needed to modify files in .github/workflows/
+  actions: write # needed to modify files in .github/workflows/
 
 jobs:
   format:
