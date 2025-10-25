@@ -157,12 +157,9 @@ jobs:
           # Build user prompt
           {
             echo 'CLAUDE_PROMPT<<EOF'
-            
-            # Add custom prompt if provided
-            if [ -n "${{ inputs.custom_prompt }}" ]; then
-              echo '${{ inputs.custom_prompt }}'
-            fi
-            
+            cat <<'PROMPT_END'
+${{ inputs.custom_prompt }}
+PROMPT_END
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
