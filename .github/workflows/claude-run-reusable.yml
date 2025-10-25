@@ -78,7 +78,8 @@ jobs:
       - name: Prevent commits to main branch
         if: ${{ !inputs.skip_branch_check }}
         run: |
-          CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          # Get the actual checked-out branch name
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
 
           if [ "$CURRENT_BRANCH" = "$DEFAULT_BRANCH" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
