@@ -231,7 +231,7 @@ jobs:
           ${{ github.event.issue.title }}
 
           ## Prompt
-          ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+          ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
 
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
@@ -254,7 +254,7 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-opened-setup.outputs.pr_number }}
-      custom_prompt: ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+      custom_prompt: ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
       checkout_ref: ${{ needs.issue-opened-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
@@ -321,7 +321,7 @@ jobs:
           ${{ github.event.issue.title }}
 
           ## Prompt
-          ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+          ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
 
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
@@ -344,7 +344,7 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-labeled-setup.outputs.pr_number }}
-      custom_prompt: ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+      custom_prompt: ${{ format('Please work on issue #{{0}}: {{1}}', github.event.issue.number, github.event.issue.title) }}
       checkout_ref: ${{ needs.issue-labeled-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
@@ -365,7 +365,7 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.pull_request.number }}
-      custom_prompt: ${{ format('Please work on PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title) }}
+      custom_prompt: ${{ format('Please work on PR #{{0}}: {{1}}', github.event.pull_request.number, github.event.pull_request.title) }}
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
