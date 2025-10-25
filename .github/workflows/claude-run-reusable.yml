@@ -74,6 +74,7 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ inputs.checkout_ref || github.ref }}
+          token: ${{ github.token }}
 
       - name: Prevent commits to main branch
         if: ${{ !inputs.skip_branch_check }}
