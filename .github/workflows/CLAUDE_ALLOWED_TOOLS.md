@@ -139,5 +139,5 @@ To add new allowed tools:
 ## References
 
 - [Claude Code Action Documentation](https://github.com/anthropics/claude-code-action)
-- [GitHub Actions Permissions](.github/workflows/PERMISSIONS.md)
+- [GitHub Actions Permissions](./PERMISSIONS.md)
 - [Claude Workflow Documentation](../../CLAUDE.md)
