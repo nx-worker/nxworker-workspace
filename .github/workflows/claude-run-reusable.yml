@@ -120,9 +120,16 @@ jobs:
           prompt: ${{ inputs.custom_prompt || '' }}
           claude_args: |
             --allowed-tools '
+              Read,
+              Grep,
+              Edit,
+              MultiEdit,
+              Write,
+              LS,
               WebSearch,
               WebFetch(domain:github.com),
               WebFetch(domain:nx.dev),
+              Bash(git log:*),
               Bash(npm install),
               Bash(npm run:*),
               Bash(npx nx:*),
