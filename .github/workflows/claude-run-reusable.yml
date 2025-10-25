@@ -65,14 +65,14 @@ jobs:
         run: |
           DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
 
-          cat > .git/hooks/pre-push << 'EOF'
+          cat > .git/hooks/pre-push << EOF
           #!/bin/sh
-          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          DEFAULT_BRANCH="$DEFAULT_BRANCH"
 
           while read local_ref local_sha remote_ref remote_sha; do
-            branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
-            if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "$DEFAULT_BRANCH" ]; then
-              echo "❌ Error: pre-push hook blocked push to protected branch: $branch"
+            branch=\$(echo "\$remote_ref" | sed 's/refs\/heads\///')
+            if [ "\$branch" = "main" ] || [ "\$branch" = "master" ] || [ "\$branch" = "\$DEFAULT_BRANCH" ]; then
+              echo "❌ Error: pre-push hook blocked push to protected branch: \$branch"
               exit 1
             fi
           done

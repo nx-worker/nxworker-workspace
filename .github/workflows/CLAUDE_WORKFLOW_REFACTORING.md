@@ -8,11 +8,15 @@ This document describes the refactoring of the Claude workflow to address issues
 
 ### 1. Massive Compound Condition
 
-**Before:** Single job with a 49-line compound conditional that checked all trigger scenarios **After:** 7 separate jobs (plus helper jobs), each with a simple, focused condition
+**Before:** Single job with a 49-line compound conditional that checked all trigger scenarios.
+
+**After:** 7 separate jobs (plus helper jobs), each with a simple, focused condition
 
 ### 2. Branch Assignment Issues
 
-**Before:** When issues were labeled with "claude" or mentioned @claude in the issue body, the workflow ran on the main branch, causing the branch protection checks to fail **After:** Different branch handling strategies based on trigger type:
+**Before:** When issues were labeled with "claude" or mentioned @claude in the issue body, the workflow ran on the main branch, causing the branch protection checks to fail.
+
+**After:** Different branch handling strategies based on trigger type:
 
 - **Issue-based triggers** (issue opened, issue labeled, issue comments on standalone issues): Skip the branch check and let Claude create the branch automatically
 - **PR-based triggers** (PR labeled, PR reviews, issue comments on PRs): Checkout the PR's head branch explicitly

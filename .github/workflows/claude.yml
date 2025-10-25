@@ -43,7 +43,7 @@ jobs:
 
           # Validate instruction doesn't contain shell metacharacters
           if [ -n "${{ github.event.inputs.instruction }}" ]; then
-            if [[ "${{ github.event.inputs.instruction }}" =~ [\$\`\;] ]]; then
+            if [[ "${{ github.event.inputs.instruction }}" =~ [\$\`\;\|\&\>\<\(\)\{\ }$'\n'] ]]; then
               echo "❌ Error: instruction contains potentially dangerous characters"
               exit 1
             fi
@@ -56,11 +56,12 @@ jobs:
           if [ -n "${{ github.event.inputs.target_issue }}" ]; then
             PROMPT="Please work on issue/PR #${{ github.event.inputs.target_issue }}."
           fi
-          if [ -n "${{ github.event.inputs.instruction }}" ]; then
+          INSTRUCTION="${{ github.event.inputs.instruction }}"
+          if [ -n "$INSTRUCTION" ]; then
             if [ -n "$PROMPT" ]; then
               PROMPT="$PROMPT "
             fi
-            PROMPT="${PROMPT}${{ github.event.inputs.instruction }}"
+            PROMPT="${PROMPT}${INSTRUCTION}"
           fi
           echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
 
