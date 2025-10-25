@@ -59,10 +59,12 @@ on:
 jobs:
   # Job 1: Manual workflow dispatch
   # Security: GitHub requires write access to trigger workflow_dispatch
-  # Permissions: None (validation only, no GitHub API calls)
+  # Permissions: None for validation step; contents:read for API calls
   manual-dispatch:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
     outputs:
       prompt: ${{ steps.build_prompt.outputs.prompt }}
     steps:
@@ -84,21 +86,82 @@ jobs:
             fi
           fi
 
+      - name: Fetch issue/PR details
+        id: fetch_details
+        if: github.event.inputs.target_issue != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ github.event.inputs.target_issue }}"
+
+          # Try to fetch as issue first
+          ISSUE_DATA=$(gh api /repos/${{ github.repository }}/issues/$ISSUE_NUMBER 2>/dev/null || echo "")
+
+          if [ -n "$ISSUE_DATA" ]; then
+            TITLE=$(echo "$ISSUE_DATA" | jq -r '.title')
+            BODY=$(echo "$ISSUE_DATA" | jq -r '.body // ""')
+            
+            # Check if it's a PR
+            IS_PR=$(echo "$ISSUE_DATA" | jq -r 'has("pull_request")')
+            
+            if [ "$IS_PR" = "true" ]; then
+              # Fetch full PR data to get the body
+              PR_DATA=$(gh api /repos/${{ github.repository }}/pulls/$ISSUE_NUMBER 2>/dev/null || echo "")
+              if [ -n "$PR_DATA" ]; then
+                BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
+              fi
+            fi
+            
+            # Set outputs using multiline format
+            {
+              echo 'title<<EOF'
+              echo "$TITLE"
+              echo 'EOF'
+              echo 'body<<EOF'
+              echo "$BODY"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+          else
+            echo "title=" >> $GITHUB_OUTPUT
+            echo "body=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build custom prompt
         id: build_prompt
         run: |
           PROMPT=""
           if [ -n "${{ github.event.inputs.target_issue }}" ]; then
-            PROMPT="Please work on issue/PR #${{ github.event.inputs.target_issue }}."
+            TITLE="${{ steps.fetch_details.outputs.title }}"
+            BODY="${{ steps.fetch_details.outputs.body }}"
+            
+            if [ -n "$TITLE" ]; then
+              PROMPT="$TITLE"
+              if [ -n "$BODY" ]; then
+                PROMPT="$PROMPT
+
+          $BODY"
+              fi
+            else
+              # Fallback if we couldn't fetch the issue/PR
+              PROMPT="Issue/PR #${{ github.event.inputs.target_issue }}"
+            fi
           fi
+
           INSTRUCTION="${{ github.event.inputs.instruction }}"
           if [ -n "$INSTRUCTION" ]; then
             if [ -n "$PROMPT" ]; then
-              PROMPT="$PROMPT "
+              PROMPT="$PROMPT
+
+          "
             fi
             PROMPT="${PROMPT}${INSTRUCTION}"
           fi
-          echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
+
+          {
+            echo 'prompt<<EOF'
+            echo "$PROMPT"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
   # Job 1b: Execute Claude for manual workflow dispatch
   # Permissions:
@@ -337,7 +400,9 @@ jobs:
           ${{ github.event.issue.title }}
 
           ## Prompt
-          ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+          ${{ github.event.issue.title }}
+
+          ${{ github.event.issue.body }}
 
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
@@ -373,7 +438,8 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-opened-setup.outputs.pr_number }}
-      custom_prompt: "${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}"
+      custom_prompt:
+        "${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}"
       checkout_ref: ${{ needs.issue-opened-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
@@ -475,7 +541,9 @@ jobs:
           ${{ github.event.issue.title }}
 
           ## Prompt
-          ${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}
+          ${{ github.event.issue.title }}
+
+          ${{ github.event.issue.body }}
 
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
@@ -511,7 +579,8 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ needs.issue-labeled-setup.outputs.pr_number }}
-      custom_prompt: "${{ format('Please work on issue #{0}: {1}', github.event.issue.number, github.event.issue.title) }}"
+      custom_prompt:
+        "${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}"
       checkout_ref: ${{ needs.issue-labeled-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
@@ -561,7 +630,8 @@ jobs:
     uses: ./.github/workflows/claude-run-reusable.yml
     with:
       issue_number: ${{ github.event.pull_request.number }}
-      custom_prompt: "${{ format('Please work on PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title) }}"
+      custom_prompt:
+        "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}\n\n${{ github.event.pull_request.body }}"
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
