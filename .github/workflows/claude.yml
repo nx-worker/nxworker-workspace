@@ -320,9 +320,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create PR with placeholder content
-          PR_TITLE="🤖 Claude: ${{ github.event.issue.title }}"
-          PR_BODY="Automated PR created by Claude to work on issue #${{ github.event.issue.number }}
+          # Check if PR already exists for this branch
+          BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR already exists for branch $BRANCH_NAME: #$EXISTING_PR"
+            PR_NUMBER="$EXISTING_PR"
+          else
+            echo "Creating new PR for branch $BRANCH_NAME"
+            # Create PR with placeholder content
+            PR_TITLE="🤖 Claude: ${{ github.event.issue.title }}"
+            PR_BODY="Automated PR created by Claude to work on issue #${{ github.event.issue.number }}
 
           ## Issue
           ${{ github.event.issue.title }}
@@ -333,12 +342,13 @@ jobs:
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
 
-          PR_NUMBER=$(gh pr create \
-            --title "$PR_TITLE" \
-            --body "$PR_BODY" \
-            --base "${{ github.event.repository.default_branch }}" \
-            --head "${{ steps.create_branch.outputs.branch_name }}" \
-            --label "claude" | grep -oP '(?<=pull/)[0-9]+')
+            PR_NUMBER=$(gh pr create \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" \
+              --base "${{ github.event.repository.default_branch }}" \
+              --head "$BRANCH_NAME" \
+              --label "claude" | grep -oP '(?<=pull/)[0-9]+')
+          fi
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
@@ -448,9 +458,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create PR with placeholder content
-          PR_TITLE="🤖 Claude: ${{ github.event.issue.title }}"
-          PR_BODY="Automated PR created by Claude to work on issue #${{ github.event.issue.number }}
+          # Check if PR already exists for this branch
+          BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR already exists for branch $BRANCH_NAME: #$EXISTING_PR"
+            PR_NUMBER="$EXISTING_PR"
+          else
+            echo "Creating new PR for branch $BRANCH_NAME"
+            # Create PR with placeholder content
+            PR_TITLE="🤖 Claude: ${{ github.event.issue.title }}"
+            PR_BODY="Automated PR created by Claude to work on issue #${{ github.event.issue.number }}
 
           ## Issue
           ${{ github.event.issue.title }}
@@ -461,12 +480,13 @@ jobs:
           ---
           _This PR was automatically created by the Claude workflow. Claude will update this PR with the implementation._"
 
-          PR_NUMBER=$(gh pr create \
-            --title "$PR_TITLE" \
-            --body "$PR_BODY" \
-            --base "${{ github.event.repository.default_branch }}" \
-            --head "${{ steps.create_branch.outputs.branch_name }}" \
-            --label "claude" | grep -oP '(?<=pull/)[0-9]+')
+            PR_NUMBER=$(gh pr create \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" \
+              --base "${{ github.event.repository.default_branch }}" \
+              --head "$BRANCH_NAME" \
+              --label "claude" | grep -oP '(?<=pull/)[0-9]+')
+          fi
 
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
