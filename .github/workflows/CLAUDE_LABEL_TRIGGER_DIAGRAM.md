@@ -18,6 +18,7 @@ graph TD
 **Problem**: Checks the **issue author's** association, not the **label applier's** permissions.
 
 **Example Failure Scenario**:
+
 - Issue created by external contributor (no MEMBER/OWNER/COLLABORATOR association)
 - Trusted team member (COLLABORATOR) applies 'claude' label
 - Workflow skips because it checks the issue author, not the labeler ❌
@@ -47,6 +48,7 @@ graph TD
 **Solution**: Explicitly verifies the **label applier** has write or admin permissions using GitHub API.
 
 **Example Success Scenario**:
+
 - Issue created by external contributor (no MEMBER/OWNER/COLLABORATOR association)
 - Trusted team member (COLLABORATOR) applies 'claude' label
 - Workflow runs because it checks the labeler's permissions via API ✅
@@ -60,6 +62,7 @@ graph TD
 ### 1. Removed Incorrect Check
 
 **Before:**
+
 ```yaml
 if: |
   github.event_name == 'issues' &&
@@ -72,6 +75,7 @@ if: |
 ```
 
 **After:**
+
 ```yaml
 if: |
   github.event_name == 'issues' &&
@@ -83,6 +87,7 @@ if: |
 ### 2. Added Explicit Permission Check
 
 **New step in workflow:**
+
 ```yaml
 - name: Verify sender permissions
   env:
@@ -105,7 +110,7 @@ if: |
 ## Security Comparison
 
 | Security Control | Before | After |
-|-----------------|--------|-------|
+| --- | --- | --- |
 | Bot prevention | ✅ `sender.type == 'User'` | ✅ `sender.type == 'User'` |
 | Permission check | ❌ Checked wrong person | ✅ Explicit API check of labeler |
 | GitHub label permissions | ✅ Write access required | ✅ Write access required |
@@ -118,11 +123,13 @@ if: |
 ## Impact
 
 ### Before
+
 - ❌ Workflow fails when trusted member labels issue from non-member
 - ❌ Inconsistent behavior between different trigger methods
 - ❌ Confusing security model (checking wrong person)
 
 ### After
+
 - ✅ Workflow runs correctly for any issue/PR when labeled by authorized user
 - ✅ Consistent behavior across all trigger methods
 - ✅ Clear, explicit security model with API verification
