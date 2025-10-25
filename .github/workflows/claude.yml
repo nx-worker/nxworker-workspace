@@ -74,7 +74,6 @@ jobs:
       checkout_ref: ${{ github.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 2: Comment on issue with @claude mention (handles both PR and standalone issue)
@@ -120,7 +119,6 @@ jobs:
       checkout_ref: ${{ needs.issue-comment-check.outputs.head_ref }}
       skip_branch_check: ${{ needs.issue-comment-check.outputs.is_pr != 'true' }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 3: PR review comment with @claude mention
@@ -144,7 +142,6 @@ jobs:
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 4: PR review with @claude mention
@@ -168,7 +165,6 @@ jobs:
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 5: Issue opened with @claude in title or body
@@ -258,7 +254,6 @@ jobs:
       checkout_ref: ${{ needs.issue-opened-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 6: Issue labeled with 'claude'
@@ -348,7 +343,6 @@ jobs:
       checkout_ref: ${{ needs.issue-labeled-setup.outputs.branch_name }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   # Job 7: PR labeled with 'claude'
@@ -369,5 +363,4 @@ jobs:
       checkout_ref: ${{ github.event.pull_request.head.ref }}
       skip_branch_check: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
