@@ -82,6 +82,7 @@ jobs:
     if: |
       github.event_name == 'issue_comment' &&
       github.event.sender.type == 'User' &&
+      github.event.sender.login != 'copilot' &&
       !endsWith(github.event.sender.login, '[bot]') &&
       contains(github.event.comment.body, '@claude') &&
       (github.event.comment.author_association == 'MEMBER' ||
@@ -125,6 +126,7 @@ jobs:
     if: |
       github.event_name == 'pull_request_review_comment' &&
       github.event.sender.type == 'User' &&
+      github.event.sender.login != 'copilot' &&
       !endsWith(github.event.sender.login, '[bot]') &&
       contains(github.event.comment.body, '@claude') &&
       (github.event.comment.author_association == 'MEMBER' ||
@@ -146,6 +148,7 @@ jobs:
     if: |
       github.event_name == 'pull_request_review' &&
       github.event.sender.type == 'User' &&
+      github.event.sender.login != 'copilot' &&
       !endsWith(github.event.sender.login, '[bot]') &&
       contains(github.event.review.body, '@claude') &&
       (github.event.review.author_association == 'MEMBER' ||
