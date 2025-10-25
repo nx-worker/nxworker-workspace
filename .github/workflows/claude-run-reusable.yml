@@ -31,7 +31,7 @@ on:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64
     concurrency:
       group: claude-${{ inputs.issue_number || github.ref_name }}
       cancel-in-progress: false
