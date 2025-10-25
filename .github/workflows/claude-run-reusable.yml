@@ -78,12 +78,6 @@ jobs:
           ref: ${{ inputs.checkout_ref || github.ref }}
           token: ${{ github.token }}
 
-      - name: Set Nx SHAs
-        uses: ./.github/actions/set-nx-shas
-
-      - name: Set up Node.js and install packages
-        uses: ./.github/actions/setup-node-and-install
-
       - name: Prevent commits to main branch
         if: ${{ !inputs.skip_branch_check }}
         run: |
@@ -117,6 +111,12 @@ jobs:
           EOF
 
           chmod +x .git/hooks/pre-push
+
+      - name: Set Nx SHAs
+        uses: ./.github/actions/set-nx-shas
+
+      - name: Set up Node.js and install packages
+        uses: ./.github/actions/setup-node-and-install
 
       - name: Build Claude prompt
         id: build_prompt
