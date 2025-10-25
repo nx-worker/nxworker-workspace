@@ -53,18 +53,18 @@ Contains 9 jobs that handle different trigger mechanisms:
    - Executes Claude for PR reviews
    - Uses PR head branch
 
-7. **issue-opened**
-   - Executes Claude when an issue is opened with @claude
-   - Lets Claude create a branch (skips branch check)
+7. **issue-opened-setup** and **issue-opened-run**
+   - Creates branch and PR when an issue is opened with @claude
    - Provides custom prompt with issue title
 
-8. **issue-labeled**
-   - Executes Claude when the "claude" label is applied to an issue
-   - Lets Claude create a branch (skips branch check)
+8. **issue-labeled-setup** and **issue-labeled-run**
+   - Creates branch and PR when the "claude" label is applied to an issue
+   - Verifies sender has write/admin permissions before proceeding
    - Provides custom prompt with issue title
 
-9. **pr-labeled**
+9. **pr-labeled-check** and **pr-labeled**
    - Executes Claude when the "claude" label is applied to a PR
+   - Verifies sender has write/admin permissions before proceeding
    - Uses PR head branch
    - Provides custom prompt with PR title
 
@@ -87,12 +87,15 @@ Contains the actual Claude execution logic with:
 
 ## Security Considerations
 
-All jobs maintain the same security controls as the original:
+All jobs maintain robust security controls:
 
-1. **Trusted member check**: Only users with MEMBER, OWNER, or COLLABORATOR association can trigger
+1. **Trusted member check**:
+   - Comment/review-based triggers verify the commenter/reviewer has MEMBER, OWNER, or COLLABORATOR association
+   - Label-based triggers explicitly verify the sender has write or admin repository permissions via GitHub API
 2. **Branch protection**: Main branch pushes are blocked (either by upfront check or pre-push hook)
 3. **Input validation**: workflow_dispatch inputs are validated before use
 4. **Concurrency control**: One Claude run per issue/PR/branch at a time
+5. **Bot prevention**: All triggers check `sender.type == 'User'` to prevent bot triggers
 
 ## Benefits
 

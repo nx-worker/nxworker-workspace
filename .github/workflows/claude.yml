@@ -1,4 +1,38 @@
 name: Claude Code
+#
+# Permission Documentation
+# =======================
+#
+# This workflow has multiple jobs with different permission requirements:
+#
+# Setup Jobs (create branches and PRs):
+# - issue-opened-setup: contents:write, issues:write, pull-requests:write
+# - issue-labeled-setup: contents:write, issues:write, pull-requests:write
+#
+# Execution Jobs (call reusable workflow):
+# - manual-dispatch-run: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+# - issue-comment-run: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+# - pr-review-comment: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+# - pr-review: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+# - issue-opened-run: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+# - issue-labeled-run: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+# - pr-labeled: actions:read, contents:write, issues:write, pull-requests:write, id-token:write
+#
+# Check Jobs (read-only or no permissions needed):
+# - manual-dispatch: No explicit permissions (validation only)
+# - issue-comment-check: No explicit permissions (uses GitHub API with GITHUB_TOKEN)
+# - pr-labeled-check: No explicit permissions (uses GitHub API with GITHUB_TOKEN)
+#
+# Reusable Workflow (claude-run-reusable.yml):
+# - run: contents:write, pull-requests:write, issues:write, id-token:write, actions:read
+#
+# Permission Explanations:
+# - contents:write: Required to push commits and create branches
+# - issues:write: Required to create/update issue comments
+# - pull-requests:write: Required to create/update PRs and PR comments
+# - actions:read: Required to access workflow run information
+# - id-token:write: Required for OIDC authentication with external services
+#
 
 on:
   workflow_dispatch:
@@ -25,6 +59,7 @@ on:
 jobs:
   # Job 1: Manual workflow dispatch
   # Security: GitHub requires write access to trigger workflow_dispatch
+  # Permissions: None (validation only, no GitHub API calls)
   manual-dispatch:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
@@ -65,6 +100,13 @@ jobs:
           fi
           echo "prompt=$PROMPT" >> $GITHUB_OUTPUT
 
+  # Job 1b: Execute Claude for manual workflow dispatch
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
   manual-dispatch-run:
     needs: manual-dispatch
     permissions:
@@ -84,6 +126,7 @@ jobs:
 
   # Job 2: Comment on issue with @claude mention (handles both PR and standalone issue)
   # Security: Only trusted members can trigger
+  # Permissions: None (uses GITHUB_TOKEN with default permissions for API calls)
   issue-comment-check:
     if: |
       github.event_name == 'issue_comment' &&
@@ -116,6 +159,13 @@ jobs:
             echo "head_ref=" >> $GITHUB_OUTPUT
           fi
 
+  # Job 2b: Execute Claude for issue/PR comments
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
   issue-comment-run:
     needs: issue-comment-check
     permissions:
@@ -135,6 +185,12 @@ jobs:
 
   # Job 3: PR review comment with @claude mention
   # Security: Only trusted members can trigger
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
   pr-review-comment:
     if: |
       github.event_name == 'pull_request_review_comment' &&
@@ -164,6 +220,12 @@ jobs:
 
   # Job 4: PR review with @claude mention
   # Security: Only trusted members can trigger
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
   pr-review:
     if: |
       github.event_name == 'pull_request_review' &&
@@ -193,6 +255,10 @@ jobs:
 
   # Job 5: Issue opened with @claude in title or body
   # Security: Only trusted members can trigger
+  # Permissions:
+  #   - contents:write: Create and push branch for the issue
+  #   - issues:write: Create issue comments
+  #   - pull-requests:write: Create PR for the issue
   issue-opened-setup:
     if: |
       github.event_name == 'issues' &&
@@ -203,6 +269,10 @@ jobs:
        github.event.issue.author_association == 'OWNER' ||
        github.event.issue.author_association == 'COLLABORATOR')
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       branch_name: ${{ steps.create_branch.outputs.branch_name }}
       pr_number: ${{ steps.create_pr.outputs.pr_number }}
@@ -269,6 +339,13 @@ jobs:
           # Link PR to issue
           gh issue comment ${{ github.event.issue.number }} --body "🤖 Claude is working on this issue in PR #$PR_NUMBER"
 
+  # Job 5b: Execute Claude for opened issues
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
   issue-opened-run:
     needs: issue-opened-setup
     permissions:
@@ -288,20 +365,40 @@ jobs:
 
   # Job 6: Issue labeled with 'claude'
   # Security: Relies on repository settings restricting label permissions to trusted users
+  # Permissions:
+  #   - contents:write: Create and push branch for the issue
+  #   - issues:write: Create issue comments
+  #   - pull-requests:write: Create PR for the issue
   issue-labeled-setup:
     if: |
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'claude' &&
-      github.event.sender.type == 'User' &&
-      (github.event.issue.author_association == 'MEMBER' ||
-       github.event.issue.author_association == 'OWNER' ||
-       github.event.issue.author_association == 'COLLABORATOR')
+      github.event.sender.type == 'User'
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       branch_name: ${{ steps.create_branch.outputs.branch_name }}
       pr_number: ${{ steps.create_pr.outputs.pr_number }}
     steps:
+      - name: Verify sender permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Verify the sender has write or admin permission
+          PERMISSION=$(gh api /repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission | jq -r '.permission')
+
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "write" ]]; then
+            echo "❌ Error: User ${{ github.event.sender.login }} does not have sufficient permissions (permission: $PERMISSION)"
+            echo "Only users with write or admin access can trigger Claude via labels"
+            exit 1
+          fi
+
+          echo "✅ Permission check passed: ${{ github.event.sender.login }} has $PERMISSION permission"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -364,6 +461,13 @@ jobs:
           # Link PR to issue
           gh issue comment ${{ github.event.issue.number }} --body "🤖 Claude is working on this issue in PR #$PR_NUMBER"
 
+  # Job 6b: Execute Claude for labeled issues
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
   issue-labeled-run:
     needs: issue-labeled-setup
     permissions:
@@ -381,17 +485,41 @@ jobs:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-  # Job 7: PR labeled with 'claude'
+  # Job 7: PR labeled with 'claude' - permission verification
   # Security: Relies on repository settings restricting label permissions to trusted users
-  pr-labeled:
+  # Permissions: None (uses GITHUB_TOKEN with default permissions for API calls)
+  pr-labeled-check:
     if: |
       github.event_name == 'pull_request' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'claude' &&
-      github.event.sender.type == 'User' &&
-      (github.event.pull_request.author_association == 'MEMBER' ||
-       github.event.pull_request.author_association == 'OWNER' ||
-       github.event.pull_request.author_association == 'COLLABORATOR')
+      github.event.sender.type == 'User'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Verify sender permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Verify the sender has write or admin permission
+          PERMISSION=$(gh api /repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission | jq -r '.permission')
+
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "write" ]]; then
+            echo "❌ Error: User ${{ github.event.sender.login }} does not have sufficient permissions (permission: $PERMISSION)"
+            echo "Only users with write or admin access can trigger Claude via labels"
+            exit 1
+          fi
+
+          echo "✅ Permission check passed: ${{ github.event.sender.login }} has $PERMISSION permission"
+
+  # Job 7b: Execute Claude for labeled PRs
+  # Permissions:
+  #   - actions:read: Access workflow run information
+  #   - contents:write: Push commits to repository
+  #   - issues:write: Create/update issue comments
+  #   - pull-requests:write: Create/update PRs and PR comments
+  #   - id-token:write: OIDC authentication with Claude Code service
+  pr-labeled:
+    needs: pr-labeled-check
     permissions:
       actions: read
       contents: write
