@@ -141,6 +141,30 @@ jobs:
 
           echo "✅ Branch check passed: Working on non-main branch ($CURRENT_BRANCH)"
 
+      - name: Validate workflow_dispatch inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # Validate target_issue is a number if provided
+          if [ -n "${{ github.event.inputs.target_issue }}" ]; then
+            if ! [[ "${{ github.event.inputs.target_issue }}" =~ ^[0-9]+$ ]]; then
+              echo "❌ Error: target_issue must be a number"
+              echo "Provided value: '${{ github.event.inputs.target_issue }}'"
+              exit 1
+            fi
+            echo "✅ target_issue validation passed: ${{ github.event.inputs.target_issue }}"
+          fi
+
+          # Validate instruction doesn't contain shell metacharacters that could be used for injection
+          if [ -n "${{ github.event.inputs.instruction }}" ]; then
+            # Check for dangerous shell metacharacters
+            if [[ "${{ github.event.inputs.instruction }}" =~ [\$\`\;] ]]; then
+              echo "❌ Error: instruction contains potentially dangerous characters"
+              echo "The following characters are not allowed: $ \` ;"
+              exit 1
+            fi
+            echo "✅ instruction validation passed"
+          fi
+
       - name: Build custom prompt for workflow_dispatch
         if: github.event_name == 'workflow_dispatch'
         id: build_prompt
