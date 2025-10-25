@@ -27,7 +27,7 @@ jobs:
   # Security: GitHub requires write access to trigger workflow_dispatch
   manual-dispatch:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-24.04-arm
     outputs:
       prompt: ${{ steps.build_prompt.outputs.prompt }}
     steps:
@@ -96,7 +96,7 @@ jobs:
       (github.event.comment.author_association == 'MEMBER' ||
        github.event.comment.author_association == 'OWNER' ||
        github.event.comment.author_association == 'COLLABORATOR')
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-24.04-arm
     outputs:
       is_pr: ${{ steps.check.outputs.is_pr }}
       head_ref: ${{ steps.check.outputs.head_ref }}
@@ -202,7 +202,7 @@ jobs:
       (github.event.issue.author_association == 'MEMBER' ||
        github.event.issue.author_association == 'OWNER' ||
        github.event.issue.author_association == 'COLLABORATOR')
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-24.04-arm
     outputs:
       branch_name: ${{ steps.create_branch.outputs.branch_name }}
       pr_number: ${{ steps.create_pr.outputs.pr_number }}
@@ -297,7 +297,7 @@ jobs:
       (github.event.issue.author_association == 'MEMBER' ||
        github.event.issue.author_association == 'OWNER' ||
        github.event.issue.author_association == 'COLLABORATOR')
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-24.04-arm
     outputs:
       branch_name: ${{ steps.create_branch.outputs.branch_name }}
       pr_number: ${{ steps.create_pr.outputs.pr_number }}

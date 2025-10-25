@@ -29,7 +29,7 @@ on:
 
 jobs:
   run:
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-24.04-arm
     concurrency:
       group: claude-${{ inputs.issue_number || github.ref_name }}
       cancel-in-progress: false
