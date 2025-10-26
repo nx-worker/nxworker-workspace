@@ -124,16 +124,16 @@ jobs:
           # Sanitize the custom_prompt to prevent prompt injection attacks
           # Remove or escape any potential prompt injection patterns
           CUSTOM_PROMPT=$(cat <<'PROMPT_INPUT'
-${{ inputs.custom_prompt }}
-PROMPT_INPUT
-)
-          
+          ${{ inputs.custom_prompt }}
+          PROMPT_INPUT
+          )
+
           # Remove common prompt injection patterns while preserving legitimate content:
           # 1. Remove markdown code fences that might contain instructions
           # 2. Remove lines that look like system instructions (e.g., "You are...", "Your role is...")
           # 3. Remove lines with role-playing attempts (e.g., "Act as...", "Pretend to be...")
           # 4. Escape any attempt to override instructions
-          
+
           SANITIZED_PROMPT=$(echo "$CUSTOM_PROMPT" | \
             # Remove markdown code fences with "system", "assistant", "user" markers
             sed '/^```[[:space:]]*\(system\|assistant\|user\)/,/^```/d' | \
@@ -144,7 +144,7 @@ PROMPT_INPUT
             # Limit consecutive newlines to prevent spacing-based injection
             sed '/^$/N;/^\n$/D'
           )
-          
+
           # Output the sanitized prompt
           {
             echo 'sanitized_prompt<<EOF'
@@ -192,8 +192,8 @@ PROMPT_INPUT
           {
             echo 'CLAUDE_PROMPT<<EOF'
             cat <<'PROMPT_END'
-${{ steps.sanitize_prompt.outputs.sanitized_prompt }}
-PROMPT_END
+          ${{ steps.sanitize_prompt.outputs.sanitized_prompt }}
+          PROMPT_END
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
