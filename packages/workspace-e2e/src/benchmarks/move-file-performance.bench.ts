@@ -42,6 +42,16 @@ benchmarkSuite(
           'export function smallFunction() { return "small"; }\n',
         );
       },
+      teardown() {
+        // Move file back to original location for next iteration
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      },
     },
 
     'Medium file move (~10KB)': {
@@ -65,6 +75,15 @@ benchmarkSuite(
         );
         const content = generateLargeTypeScriptFile(200);
         writeFileSync(filePath, content);
+      },
+      teardown() {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
       },
     },
 
@@ -90,6 +109,15 @@ benchmarkSuite(
         const content = generateLargeTypeScriptFile(1000);
         writeFileSync(filePath, content);
       },
+      teardown() {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      },
     },
 
     'Multiple small files (10 files)': {
@@ -113,6 +141,15 @@ benchmarkSuite(
             `export function func${i}() { return ${i}; }\n`,
           );
         }
+      },
+      teardown() {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file "${benchmarkLib2}/src/lib/multi-small-${currentBatchId}-*.ts" --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
       },
     },
 
@@ -143,6 +180,15 @@ benchmarkSuite(
             `export function util${i}() { return 'util${i}'; }\n`,
           );
         }
+      },
+      teardown() {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file "${benchmarkLib2}/src/lib/api-${currentBatchId}-*.ts,${benchmarkLib2}/src/lib/service-${currentBatchId}-*.ts,${benchmarkLib2}/src/lib/util-${currentBatchId}-*.ts" --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
       },
     },
 
@@ -183,6 +229,15 @@ benchmarkSuite(
             `import { source } from '${lib1Alias}';\nexport const value${i} = source();\n`,
           );
         }
+      },
+      teardown() {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
       },
     },
 
@@ -232,6 +287,15 @@ benchmarkSuite(
         writeFileSync(
           consumerPath,
           `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
+        );
+      },
+      teardown() {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
         );
       },
     },
