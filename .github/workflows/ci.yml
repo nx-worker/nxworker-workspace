@@ -320,3 +320,99 @@ jobs:
         with:
           path: ./benchmarks/workspace
           key: ${{ format('{0}-benchmark-main-{1}', runner.os, github.run_id) }}
+
+  # E2E Benchmark job runs on PRs and pushes to main with multi-OS matrix
+  e2e-benchmark:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+          - os: windows-latest
+          - os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      # Build all projects to ensure e2e benchmarks have required artifacts
+      - run: npx nx run-many -t build --output-style=static
+
+      # Resolve benchmark cache key
+      - name: Resolve benchmark cache key
+        id: benchmark-cache-key
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            suffix="${{ github.event.pull_request.id }}"
+          else
+            branch="${{ github.ref_name }}"
+            suffix="${branch//\//-}"
+          fi
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        id: benchmark-cache-restore
+        uses: actions/cache@v4
+        with:
+          path: ./benchmarks/workspace-e2e/${{ matrix.os }}
+          # Include run id to ensure each save uses a unique cache key
+          key: ${{ format('{0}-e2e-benchmark-{1}-{2}', matrix.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+          restore-keys: |
+            ${{ format('{0}-e2e-benchmark-{1}-', matrix.os, steps.benchmark-cache-key.outputs.suffix) }}
+            ${{ format('{0}-e2e-benchmark-main-', matrix.os) }}
+
+      # Run e2e benchmark tests using Nx task
+      - name: Run e2e benchmarks
+        run: |
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx benchmark workspace-e2e 2>&1 | sed -E 's/^[[:space:]]*//' | tee e2e-benchmark-${{ matrix.os }}.txt
+        shell: bash
+
+      # Run continuous benchmark with regression detection
+      - name: Continuous Benchmark
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: E2E Benchmarks (${{ matrix.os }})
+          tool: 'benchmarkjs'
+          output-file-path: e2e-benchmark-${{ matrix.os }}.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Store benchmark data in external JSON file per OS
+          external-data-json-path: ./benchmarks/workspace-e2e/${{ matrix.os }}/benchmark.json
+          # Disable GitHub Pages integration
+          save-data-file: true
+          skip-fetch-gh-pages: true
+          # Fail if performance drops by more than 20%
+          alert-threshold: '120%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true
+
+      # Save benchmark cache for PRs
+      - name: '[PR] Save benchmark cache'
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix != 'main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./benchmarks/workspace-e2e/${{ matrix.os }}
+          key: ${{ format('{0}-e2e-benchmark-{1}-{2}', matrix.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+
+      # Save benchmark cache for main branch
+      - name: '[Merge] Save benchmark cache'
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix == 'main' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./benchmarks/workspace-e2e/${{ matrix.os }}
+          key: ${{ format('{0}-e2e-benchmark-main-{1}', matrix.os, github.run_id) }}
