@@ -12,7 +12,16 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 let projectDirectory: string;
 let benchmarkLib1: string;
 let benchmarkLib2: string;
-let currentFileName: string;
+let smallFileName: string;
+let mediumFileName: string;
+let largeFileName: string;
+let multipleFile1: string;
+let multipleFile2: string;
+let multipleFile3: string;
+let commaFile1: string;
+let commaFile2: string;
+let manyImportsFileName: string;
+let earlyExitFileName: string;
 let currentBatchId: string;
 
 benchmarkSuite(
@@ -21,31 +30,17 @@ benchmarkSuite(
     'Small file move (< 1KB)': {
       fn: () => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${smallFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
         );
       },
-      setup() {
-        currentFileName = `small-file-${uniqueId()}.ts`;
-        const filePath = join(
-          projectDirectory,
-          benchmarkLib1,
-          'src',
-          'lib',
-          currentFileName,
-        );
-        writeFileSync(
-          filePath,
-          'export function smallFunction() { return "small"; }\n',
-        );
-      },
       teardown() {
         // Move file back to original location for next iteration
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${smallFileName} --project ${benchmarkLib1} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -57,28 +52,16 @@ benchmarkSuite(
     'Medium file move (~10KB)': {
       fn: () => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${mediumFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
         );
       },
-      setup() {
-        currentFileName = `medium-file-${uniqueId()}.ts`;
-        const filePath = join(
-          projectDirectory,
-          benchmarkLib1,
-          'src',
-          'lib',
-          currentFileName,
-        );
-        const content = generateLargeTypeScriptFile(200);
-        writeFileSync(filePath, content);
-      },
       teardown() {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${mediumFileName} --project ${benchmarkLib1} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -90,28 +73,16 @@ benchmarkSuite(
     'Large file move (~50KB)': {
       fn: () => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${largeFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
         );
       },
-      setup() {
-        currentFileName = `large-file-${uniqueId()}.ts`;
-        const filePath = join(
-          projectDirectory,
-          benchmarkLib1,
-          'src',
-          'lib',
-          currentFileName,
-        );
-        const content = generateLargeTypeScriptFile(1000);
-        writeFileSync(filePath, content);
-      },
       teardown() {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${currentFileName} --project ${benchmarkLib1} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib2}/src/lib/${largeFileName} --project ${benchmarkLib1} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'pipe',
@@ -129,18 +100,6 @@ benchmarkSuite(
             stdio: 'inherit',
           },
         );
-      },
-      setup() {
-        const fileCount = 10;
-        currentBatchId = uniqueId();
-
-        for (let i = 0; i < fileCount; i++) {
-          const fileName = `multi-small-${currentBatchId}-${i}.ts`;
-          writeFileSync(
-            join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-            `export function func${i}() { return ${i}; }\n`,
-          );
-        }
       },
       teardown() {
         execSync(
@@ -163,24 +122,6 @@ benchmarkSuite(
           },
         );
       },
-      setup() {
-        currentBatchId = uniqueId();
-
-        for (let i = 0; i < 5; i++) {
-          writeFileSync(
-            join(projectDirectory, benchmarkLib1, 'src', 'lib', `api-${currentBatchId}-${i}.ts`),
-            `export function api${i}() { return 'api${i}'; }\n`,
-          );
-          writeFileSync(
-            join(projectDirectory, benchmarkLib1, 'src', 'lib', `service-${currentBatchId}-${i}.ts`),
-            `export function service${i}() { return 'service${i}'; }\n`,
-          );
-          writeFileSync(
-            join(projectDirectory, benchmarkLib1, 'src', 'lib', `util-${currentBatchId}-${i}.ts`),
-            `export function util${i}() { return 'util${i}'; }\n`,
-          );
-        }
-      },
       teardown() {
         execSync(
           `npx nx generate @nxworker/workspace:move-file "${benchmarkLib2}/src/lib/api-${currentBatchId}-*.ts,${benchmarkLib2}/src/lib/service-${currentBatchId}-*.ts,${benchmarkLib2}/src/lib/util-${currentBatchId}-*.ts" --project ${benchmarkLib1} --no-interactive`,
@@ -195,40 +136,12 @@ benchmarkSuite(
     'File with many imports (20 consumers)': {
       fn: () => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${manyImportsFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
         );
-      },
-      setup() {
-        currentBatchId = uniqueId();
-        currentFileName = `source-with-imports-${currentBatchId}.ts`;
-        const sourceFilePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', currentFileName);
-        
-        writeFileSync(
-          sourceFilePath,
-          'export function source() { return "source"; }\n',
-        );
-
-        const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
-        const currentIndex = readFileSync(indexPath, 'utf-8');
-        writeFileSync(
-          indexPath,
-          currentIndex + `export * from './lib/${currentFileName.replace('.ts', '')}';\n`,
-        );
-
-        const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
-        const consumerCount = 20;
-
-        for (let i = 0; i < consumerCount; i++) {
-          const consumerFile = `consumer-${currentBatchId}-${i}.ts`;
-          writeFileSync(
-            join(projectDirectory, benchmarkLib1, 'src', 'lib', consumerFile),
-            `import { source } from '${lib1Alias}';\nexport const value${i} = source();\n`,
-          );
-        }
       },
       teardown() {
         execSync(
@@ -244,49 +157,11 @@ benchmarkSuite(
     'Early exit optimization (50 irrelevant files)': {
       fn: () => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${earlyExitFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
-        );
-      },
-      setup() {
-        currentBatchId = uniqueId();
-        currentFileName = `source-for-update-${currentBatchId}.ts`;
-        
-        writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', currentFileName),
-          'export function sourceForUpdate() { return "update"; }\n',
-        );
-
-        const irrelevantFileCount = 50;
-        for (let i = 0; i < irrelevantFileCount; i++) {
-          const fileName = `irrelevant-${currentBatchId}-${i}.ts`;
-          writeFileSync(
-            join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-            `// This file doesn't import the source\nexport function irrelevant${i}() { return ${i}; }\n`,
-          );
-        }
-
-        const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
-        const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
-        const currentIndex = readFileSync(indexPath, 'utf-8');
-        writeFileSync(
-          indexPath,
-          currentIndex + `export * from './lib/${currentFileName.replace('.ts', '')}';\n`,
-        );
-
-        const consumerPath = join(
-          projectDirectory,
-          benchmarkLib1,
-          'src',
-          'lib',
-          `actual-consumer-${currentBatchId}.ts`,
-        );
-        writeFileSync(
-          consumerPath,
-          `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
         );
       },
       teardown() {
@@ -326,6 +201,88 @@ benchmarkSuite(
           cwd: projectDirectory,
           stdio: 'inherit',
         },
+      );
+
+      // Create all test files once for all iterations
+      // Small file
+      smallFileName = `small-file-${uniqueId()}.ts`;
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', smallFileName),
+        'export function smallFunction() { return "small"; }\n',
+      );
+
+      // Medium file
+      mediumFileName = `medium-file-${uniqueId()}.ts`;
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', mediumFileName),
+        generateLargeTypeScriptFile(200),
+      );
+
+      // Large file
+      largeFileName = `large-file-${uniqueId()}.ts`;
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', largeFileName),
+        generateLargeTypeScriptFile(1000),
+      );
+
+      // Multiple files (10 files)
+      currentBatchId = uniqueId();
+      for (let i = 0; i < 10; i++) {
+        const fileName = `multi-small-${currentBatchId}-${i}.ts`;
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+          `export function func${i}() { return ${i}; }\n`,
+        );
+      }
+
+      // Comma-separated files (15 files)
+      for (let i = 0; i < 5; i++) {
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', `api-${currentBatchId}-${i}.ts`),
+          `export function api${i}() { return 'api${i}'; }\n`,
+        );
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', `service-${currentBatchId}-${i}.ts`),
+          `export function service${i}() { return 'service${i}'; }\n`,
+        );
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', `util-${currentBatchId}-${i}.ts`),
+          `export function util${i}() { return 'util${i}'; }\n`,
+        );
+      }
+
+      // File with many imports
+      manyImportsFileName = `source-with-imports-${currentBatchId}.ts`;
+      const sourceFilePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', manyImportsFileName);
+      writeFileSync(sourceFilePath, 'export function sourceForUpdate() { return "source"; }\n');
+      
+      const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
+      for (let i = 0; i < 20; i++) {
+        const consumerPath = join(projectDirectory, benchmarkLib1, 'src', 'lib', `consumer-${currentBatchId}-${i}.ts`);
+        writeFileSync(
+          consumerPath,
+          `import { sourceForUpdate } from './${manyImportsFileName.replace('.ts', '')}';\nexport const value${i} = sourceForUpdate();\n`,
+        );
+      }
+      
+      const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
+      const currentIndex = readFileSync(indexPath, 'utf-8');
+      writeFileSync(
+        indexPath,
+        currentIndex + `export * from './lib/${manyImportsFileName.replace('.ts', '')}';\n`,
+      );
+      
+      const actualConsumerPath = join(projectDirectory, benchmarkLib1, 'src', 'lib', `actual-consumer-${currentBatchId}.ts`);
+      writeFileSync(
+        actualConsumerPath,
+        `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
+      );
+
+      // Early exit optimization file (just a simple file)
+      earlyExitFileName = `early-exit-file-${uniqueId()}.ts`;
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', earlyExitFileName),
+        'export function earlyExitFunction() { return "test"; }\n',
       );
     },
     setupSuiteTimeout: 300000,
