@@ -78,6 +78,19 @@
       ],
       "outputs": ["{workspaceRoot}/benchmarks/result.txt"]
     },
+    "e2e-benchmark": {
+      "cache": false,
+      "inputs": [
+        "production",
+        "{projectRoot}/**/*.bench.ts",
+        "{workspaceRoot}/jest-e2e-bench.config.ts",
+        "{workspaceRoot}/jest.preset.js",
+        "{workspaceRoot}/tools/scripts/start-local-registry.ts",
+        "{workspaceRoot}/tools/scripts/stop-local-registry.ts",
+        "osPlatform"
+      ],
+      "outputs": ["{workspaceRoot}/benchmarks/e2e-result.txt"]
+    },
     "e2e-ci--**/*": {
       "dependsOn": ["^build"]
     },
