@@ -1,4 +1,4 @@
-import { benchmarkSuite } from '../../../../tools/tinybench-utils';
+import { benchmarkSuite } from '../utils/tinybench-utils';
 import { uniqueId } from 'lodash';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -11,7 +11,7 @@ import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
  */
 
 let projectDirectory: string;
-let libs: string[] = [];
+const libs: string[] = [];
 
 benchmarkSuite(
   'E2E Multi-Project Operations',
@@ -41,7 +41,6 @@ benchmarkSuite(
 
       // Get project aliases
       const sourceAlias = getProjectImportAlias(projectDirectory, libs[0]);
-      const targetAlias = getProjectImportAlias(projectDirectory, libs[1]);
 
       // Create consumer file in another project
       const consumerPath = join(

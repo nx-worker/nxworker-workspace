@@ -60,42 +60,47 @@ Make the following changes to the existing CI workflow:
 #### a. Update the e2e job (line ~220)
 
 **Before:**
+
 ```yaml
-      - name: Run e2e tests
-        shell: bash
-        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark'
+- name: Run e2e tests
+  shell: bash
+  run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark'
 ```
 
 **After:**
+
 ```yaml
-      - name: Run e2e tests
-        shell: bash
-        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark|performance-stress-test'
+- name: Run e2e tests
+  shell: bash
+  run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark|performance-stress-test'
 ```
 
 #### b. Update the benchmark job (line ~244)
 
 **Update the comment above the benchmark job:**
+
 ```yaml
-  # Benchmark job runs on PRs and pushes to main
-  # This job runs unit-level micro-benchmarks only (excludes e2e performance tests)
-  benchmark:
+# Benchmark job runs on PRs and pushes to main
+# This job runs unit-level micro-benchmarks only (excludes e2e performance tests)
+benchmark:
 ```
 
 **Update the "Run micro-benchmarks" step:**
+
 ```yaml
-      # Run all benchmark tests using Nx task (excludes workspace-e2e benchmarks)
-      - name: Run micro-benchmarks
-        run: |
-          # Skip cache to ensure fresh benchmark results and capture all output
-          npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee workspace-benchmark.txt
+# Run all benchmark tests using Nx task (excludes workspace-e2e benchmarks)
+- name: Run micro-benchmarks
+  run: |
+    # Skip cache to ensure fresh benchmark results and capture all output
+    npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee workspace-benchmark.txt
 ```
 
 **Remove the following step entirely (lines ~324-326):**
+
 ```yaml
-      - name: Run e2e performance benchmarks
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static
+- name: Run e2e performance benchmarks
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static
 ```
 
 ## Summary of Changes

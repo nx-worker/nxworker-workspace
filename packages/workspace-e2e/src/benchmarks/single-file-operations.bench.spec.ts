@@ -1,4 +1,4 @@
-import { benchmarkSuite } from '../../../../tools/tinybench-utils';
+import { benchmarkSuite } from '../utils/tinybench-utils';
 import { uniqueId } from 'lodash';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
