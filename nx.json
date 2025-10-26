@@ -76,7 +76,21 @@
         "{workspaceRoot}/jest.preset.js",
         "osPlatform"
       ],
-      "outputs": ["{workspaceRoot}/benchmarks/result.txt"]
+      "outputs": ["{workspaceRoot}/benchmarks/result.txt"],
+      "exclude": ["workspace-e2e:benchmark"]
+    },
+    "workspace-e2e:benchmark": {
+      "cache": false,
+      "inputs": [
+        "production",
+        "{projectRoot}/**/*.bench.spec.ts",
+        "{projectRoot}/jest-bench.config.ts",
+        "{workspaceRoot}/jest.preset.js",
+        "{workspaceRoot}/tools/scripts/*.ts",
+        "osPlatform"
+      ],
+      "outputs": ["{workspaceRoot}/benchmarks/result.txt"],
+      "dependsOn": ["^build"]
     },
     "e2e-ci--**/*": {
       "dependsOn": ["^build"]

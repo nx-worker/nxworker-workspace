@@ -1,0 +1,323 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read # default to read-only access for repository contents
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm # Linux arm64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      # Build all projects to create a complete build artifact for downstream e2e jobs.
+      # This ensures e2e jobs always have all required build outputs regardless of which projects are affected.
+      - run: npx nx run-many -t build --output-style=static
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  format:
+    runs-on: ubuntu-24.04-arm # Linux arm64
+    steps:
+      - uses: actions/checkout@v5
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+      - uses: ./.github/actions/set-nx-shas
+        if: ${{ github.event_name == 'pull_request' }}
+
+      - uses: ./.github/actions/setup-node-and-install
+        if: ${{ github.event_name == 'pull_request' }}
+
+      - name: '[PR] Check formatting'
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx nx format:check
+
+  lint:
+    runs-on: ubuntu-24.04-arm # Linux arm64
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
+      - run: npx nx affected -t lint --output-style=static
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node-version: 18
+          - os: ubuntu-latest
+            node-version: 20
+          - os: ubuntu-24.04-arm # Linux
+            node-version: 22
+          - os: windows-latest # Windows
+            node-version: 22
+          - os: macos-latest # macOS
+            node-version: 22
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
+      # Exclude benchmark tests (*.bench.spec.ts and performance-benchmark.spec.ts) from regular test runs
+      # Run with coverage on ubuntu-24.04-arm with Node 22 to enforce coverage thresholds
+      - name: Run tests
+        shell: bash
+        run: |
+          COVERAGE_FLAG=""
+          if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
+            COVERAGE_FLAG="--coverage"
+          fi
+          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+
+  # Summary check that aggregates all test matrix results for branch protection
+  check-test:
+    needs: test
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check test matrix results
+        run: |
+          # Check the overall result of the test job (which includes all matrix jobs)
+          result="${{ needs.test.result }}"
+          echo "Test job result: $result"
+          if [ "$result" == "success" ]; then
+            echo "All test matrix jobs succeeded"
+            exit 0
+          else
+            echo "One or more test matrix jobs failed or were cancelled"
+            exit 1
+          fi
+
+  # Determine the GitHub runner image matrix for the e2e job based on event type
+  # and branch.
+  # Merge to main and manual workflow_dispatch results in the full matrix while
+  # PRs and workflow_dispatch for chore/update-dependencies (dependency-update.yml)
+  # use the fast matrix
+  set-e2e-matrix:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      # `include` as in `matrix.strategy.include`
+      MATRIX_FAST: |
+        include:
+          - os: ubuntu-24.04-arm
+      MATRIX_FULL: |
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+          - os: ubuntu-24.04-arm
+          - os: windows-11-arm
+          - os: macos-15-intel
+          - os: macos-latest
+    steps:
+      - id: set-matrix
+        name: Set matrix output property
+        shell: bash
+        run: |
+          # Set the matrix output property
+
+          # Fail the step on the first error and propagate pipeline failures
+          set -eo pipefail
+
+          # Normalize the Git ref to a plain branch name so workflow_dispatch runs
+          # can opt into the fast matrix when launched against chore/update-dependencies
+          REF_NAME="$GITHUB_REF"
+
+          # Is branch name?
+          if [[ "$REF_NAME" == refs/heads/* ]]; then
+            REF_NAME="${REF_NAME#refs/heads/}"
+          fi
+
+          # Select the matrix YAML based on event type and branch
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$REF_NAME" == "chore/update-dependencies" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          else
+            printf '%s\n' "$MATRIX_FULL" > matrix.yml
+          fi
+
+          # Convert the chosen YAML matrix to JSON using js-yaml so the e2e job can consume it
+          MATRIX_JSON=$(npx --yes js-yaml matrix.yml | tr -d '\n')
+          # Publish the JSON matrix via step outputs for downstream jobs
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    needs:
+      - build
+      - set-e2e-matrix
+    strategy:
+      matrix: ${{ fromJson(needs.set-e2e-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # We need to fetch all branches and commits so that Nx affected has a base to compare against.
+          fetch-depth: 0
+          filter: tree:0 # Optional, but recommended: reduce the size of the checkout with tree filtering, see https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-artifacts
+          path: dist/
+
+      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
+      # Always exclude task dependencies (--exclude-task-dependencies) because the build job already built all projects
+      # and uploaded artifacts. This prevents rebuilding dependencies in each e2e matrix job, saving time
+      # and ensuring all e2e jobs use the exact same build artifacts for consistency.
+      # Exclude performance-benchmark.spec.ts and performance-stress-test.spec.ts from regular e2e runs (run separately in e2e-benchmark job)
+      - name: Run e2e tests
+        shell: bash
+        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark|performance-stress-test'
+
+  # Summary check that aggregates all e2e matrix results for branch protection
+  check-e2e:
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check e2e matrix results
+        run: |
+          # Check the overall result of the e2e job (which includes all matrix jobs)
+          result="${{ needs.e2e.result }}"
+          echo "E2E job result: $result"
+          if [ "$result" == "success" ]; then
+            echo "All e2e matrix jobs succeeded"
+            exit 0
+          else
+            echo "One or more e2e matrix jobs failed or were cancelled"
+            exit 1
+          fi
+
+  # Benchmark job runs on PRs and pushes to main
+  # This job runs unit-level micro-benchmarks only (excludes e2e performance tests)
+  benchmark:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Resolve benchmark cache key
+        id: benchmark-cache-key
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            suffix="${{ github.event.pull_request.id }}"
+          else
+            branch="${{ github.ref_name }}"
+            suffix="${branch//\//-}"
+          fi
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+
+      - name: Download previous benchmark data
+        id: benchmark-cache-restore
+        uses: actions/cache@v4
+        with:
+          path: ./benchmarks/workspace
+          # Include run id to ensure each save uses a unique cache key
+          key: ${{ format('{0}-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+          restore-keys: |
+            ${{ format('{0}-benchmark-{1}-', runner.os, steps.benchmark-cache-key.outputs.suffix) }}
+            ${{ format('{0}-benchmark-main-', runner.os) }}
+
+      # Run all benchmark tests using Nx task (excludes workspace-e2e benchmarks)
+      - name: Run micro-benchmarks
+        run: |
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx benchmark workspace --skip-nx-cache 2>&1 | sed -E 's/^[[:space:]]*//' | tee workspace-benchmark.txt
+
+      - name: Continuous Benchmark
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Move-File Generator Benchmarks
+          tool: 'benchmarkjs'
+          output-file-path: workspace-benchmark.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Store benchmark data in external JSON file
+          external-data-json-path: ./benchmarks/workspace/benchmark.json
+          # Disable GitHub Pages integration
+          save-data-file: true
+          skip-fetch-gh-pages: true
+          alert-threshold: '115%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true
+
+      - name: '[PR] Save benchmark cache'
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix != 'main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./benchmarks/workspace
+          key: ${{ format('{0}-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+
+      - name: '[Merge] Save benchmark cache'
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix == 'main' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./benchmarks/workspace
+          key: ${{ format('{0}-benchmark-main-{1}', runner.os, github.run_id) }}

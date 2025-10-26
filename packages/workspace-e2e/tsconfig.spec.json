@@ -7,10 +7,13 @@
   },
   "include": [
     "jest.config.ts",
+    "jest-bench.config.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
+    "src/**/*.bench.spec.ts",
     "src/**/*.d.ts",
     "../../tools/scripts/**/*.ts",
-    "../../tools/scripts/**/*.d.ts"
+    "../../tools/scripts/**/*.d.ts",
+    "../../tools/tinybench-utils.ts"
   ]
 }
