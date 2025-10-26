@@ -10,11 +10,12 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
  */
 
 let projectDirectory: string;
-let currentLibs: string[];
-let currentSourceLib: string;
-let currentTargetLib: string;
-let currentLib: string;
-let currentUtilFile: string;
+let crossProjectLibs: string[];
+let manyFilesSourceLib: string;
+let manyFilesTargetLib: string;
+let relativeDepsLib: string;
+let relativeDepsUtilFile: string;
+let combinedStressLibs: string[];
 
 benchmarkSuite(
   'Move-File E2E Stress Tests',
@@ -22,9 +23,9 @@ benchmarkSuite(
     'Cross-project move (10 projects with dependencies)': {
       fn: () => {
         const utilityFile = 'shared-utility.ts';
-        const projectCount = currentLibs.length;
+        const projectCount = crossProjectLibs.length;
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentLibs[0]}/src/lib/${utilityFile} --project ${currentLibs[projectCount - 1]} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${crossProjectLibs[0]}/src/lib/${utilityFile} --project ${crossProjectLibs[projectCount - 1]} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -34,64 +35,14 @@ benchmarkSuite(
       teardown() {
         // Move the file back to its original location for the next iteration
         const utilityFile = 'shared-utility.ts';
-        const projectCount = currentLibs.length;
+        const projectCount = crossProjectLibs.length;
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentLibs[projectCount - 1]}/src/lib/${utilityFile} --project ${currentLibs[0]} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${crossProjectLibs[projectCount - 1]}/src/lib/${utilityFile} --project ${crossProjectLibs[0]} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'inherit',
+            stdio: 'pipe',
           },
         );
-      },
-      setup() {
-        const projectCount = 10;
-        currentLibs = [];
-        const batchId = uniqueId();
-
-        for (let i = 0; i < projectCount; i++) {
-          const libName = `stress-lib${i}-${batchId}`;
-          currentLibs.push(libName);
-
-          execSync(
-            `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
-            {
-              cwd: projectDirectory,
-              stdio: 'inherit',
-            },
-          );
-        }
-
-        const utilityFile = 'shared-utility.ts';
-        const utilityPath = join(
-          projectDirectory,
-          currentLibs[0],
-          'src',
-          'lib',
-          utilityFile,
-        );
-        writeFileSync(utilityPath, generateUtilityModule('sharedUtil', 50));
-
-        const sourceIndexPath = join(projectDirectory, currentLibs[0], 'src', 'index.ts');
-        writeFileSync(
-          sourceIndexPath,
-          `export * from './lib/${utilityFile.replace('.ts', '')}';\n`,
-        );
-
-        const lib0Alias = getProjectImportAlias(projectDirectory, currentLibs[0]);
-
-        for (let i = 1; i < projectCount; i++) {
-          const consumerPath = join(
-            projectDirectory,
-            currentLibs[i],
-            'src',
-            'lib',
-            `consumer-from-lib0.ts`,
-          );
-          writeFileSync(
-            consumerPath,
-            `import { sharedUtil } from '${lib0Alias}';\nexport const value = sharedUtil();\n`,
-          );
-        }
       },
     },
 
@@ -99,7 +50,7 @@ benchmarkSuite(
       fn: () => {
         const targetFile = 'large-module.ts';
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentSourceLib}/src/lib/${targetFile} --project ${currentTargetLib} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${manyFilesSourceLib}/src/lib/${targetFile} --project ${manyFilesTargetLib} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -110,70 +61,19 @@ benchmarkSuite(
         // Move the file back to its original location for the next iteration
         const targetFile = 'large-module.ts';
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentTargetLib}/src/lib/${targetFile} --project ${currentSourceLib} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${manyFilesTargetLib}/src/lib/${targetFile} --project ${manyFilesSourceLib} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
         );
-      },
-      setup() {
-        const fileCount = 100;
-        const batchId = uniqueId();
-        currentSourceLib = `stress-source-${batchId}`;
-        currentTargetLib = `stress-target-${batchId}`;
-
-        for (const lib of [currentSourceLib, currentTargetLib]) {
-          execSync(
-            `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
-            {
-              cwd: projectDirectory,
-              stdio: 'inherit',
-            },
-          );
-        }
-
-        const targetFile = 'large-module.ts';
-        const targetFilePath = join(
-          projectDirectory,
-          currentSourceLib,
-          'src',
-          'lib',
-          targetFile,
-        );
-        writeFileSync(targetFilePath, generateLargeTypeScriptFile(500));
-
-        const sourceIndexPath = join(projectDirectory, currentSourceLib, 'src', 'index.ts');
-        writeFileSync(
-          sourceIndexPath,
-          `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
-        );
-
-        const sourceLibAlias = getProjectImportAlias(projectDirectory, currentSourceLib);
-        const filesWithImports = Math.floor(fileCount * 0.1);
-
-        for (let i = 0; i < fileCount; i++) {
-          const fileName = `large-file-${i}.ts`;
-          const filePath = join(projectDirectory, currentSourceLib, 'src', 'lib', fileName);
-
-          let content = generateLargeTypeScriptFile(200);
-
-          if (i < filesWithImports) {
-            content =
-              `import { func0 } from '${sourceLibAlias}';\n` +
-              `export const imported = func0();\n` +
-              content;
-          }
-
-          writeFileSync(filePath, content);
-        }
       },
     },
 
     'Many intra-project dependencies (50 relative imports)': {
       fn: () => {
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentLib}/src/lib/utils/${currentUtilFile} --project ${currentLib} --project-directory=helpers --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${relativeDepsLib}/src/lib/utils/${relativeDepsUtilFile} --project ${relativeDepsLib} --project-directory=helpers --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -183,56 +83,21 @@ benchmarkSuite(
       teardown() {
         // Move the file back to its original location for the next iteration
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentLib}/src/lib/helpers/${currentUtilFile} --project ${currentLib} --project-directory=utils --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${relativeDepsLib}/src/lib/helpers/${relativeDepsUtilFile} --project ${relativeDepsLib} --project-directory=utils --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
           },
         );
-      },
-      setup() {
-        const batchId = uniqueId();
-        currentLib = `stress-relative-${batchId}`;
-        const importerCount = 50;
-
-        execSync(
-          `npx nx generate @nx/js:library ${currentLib} --unitTestRunner=none --bundler=none --no-interactive`,
-          {
-            cwd: projectDirectory,
-            stdio: 'inherit',
-          },
-        );
-
-        const utilsDir = join(projectDirectory, currentLib, 'src', 'lib', 'utils');
-        mkdirSync(utilsDir, { recursive: true });
-
-        currentUtilFile = 'deep-util.ts';
-        const utilPath = join(utilsDir, currentUtilFile);
-        writeFileSync(
-          utilPath,
-          'export function deepUtil() { return "deep"; }\n',
-        );
-
-        for (let i = 0; i < importerCount; i++) {
-          const importerFile = `importer-${i}.ts`;
-          const importerPath = join(projectDirectory, currentLib, 'src', 'lib', importerFile);
-          writeFileSync(
-            importerPath,
-            `import { deepUtil } from './utils/${currentUtilFile.replace('.ts', '')}';\nexport const value${i} = deepUtil();\n`,
-          );
-        }
-
-        const newUtilsDir = join(projectDirectory, currentLib, 'src', 'lib', 'helpers');
-        mkdirSync(newUtilsDir, { recursive: true });
       },
     },
 
     'Combined stress (15 projects, 30 files each = 450 total files)': {
       fn: () => {
         const coreFile = 'core-api.ts';
-        const projectCount = currentLibs.length;
+        const projectCount = combinedStressLibs.length;
         execSync(
-          `npx nx generate @nxworker/workspace:move-file ${currentLibs[0]}/src/lib/${coreFile} --project ${currentLibs[projectCount - 1]} --no-interactive`,
+          `npx nx generate @nxworker/workspace:move-file ${combinedStressLibs[0]}/src/lib/${coreFile} --project ${combinedStressLibs[projectCount - 1]} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -251,57 +116,6 @@ benchmarkSuite(
           },
         );
       },
-      setup() {
-        const projectCount = 15;
-        const filesPerProject = 30;
-        currentLibs = [];
-        const batchId = uniqueId();
-
-        for (let i = 0; i < projectCount; i++) {
-          const libName = `mega-lib${i}-${batchId}`;
-          currentLibs.push(libName);
-
-          execSync(
-            `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
-            {
-              cwd: projectDirectory,
-              stdio: 'inherit',
-            },
-          );
-
-          for (let j = 0; j < filesPerProject; j++) {
-            const fileName = `module-${j}.ts`;
-            const filePath = join(projectDirectory, libName, 'src', 'lib', fileName);
-            writeFileSync(filePath, generateLargeTypeScriptFile(50));
-          }
-        }
-
-        const coreFile = 'core-api.ts';
-        const coreFilePath = join(projectDirectory, currentLibs[0], 'src', 'lib', coreFile);
-        writeFileSync(coreFilePath, generateUtilityModule('coreApi', 100));
-
-        const coreIndexPath = join(projectDirectory, currentLibs[0], 'src', 'index.ts');
-        writeFileSync(
-          coreIndexPath,
-          `export * from './lib/${coreFile.replace('.ts', '')}';\n`,
-        );
-
-        const coreAlias = getProjectImportAlias(projectDirectory, currentLibs[0]);
-
-        for (let i = 1; i < projectCount; i++) {
-          const consumerPath = join(
-            projectDirectory,
-            currentLibs[i],
-            'src',
-            'lib',
-            'uses-core.ts',
-          );
-          writeFileSync(
-            consumerPath,
-            `import { coreApi } from '${coreAlias}';\nexport const api = coreApi();\n`,
-          );
-        }
-      },
     },
   },
   {
@@ -313,6 +127,116 @@ benchmarkSuite(
         stdio: 'inherit',
         env: process.env,
       });
+
+      const batchId = uniqueId();
+
+      // Setup for Cross-project move benchmark (10 projects)
+      crossProjectLibs = [];
+      for (let i = 0; i < 10; i++) {
+        const libName = `stress-lib${i}-${batchId}`;
+        crossProjectLibs.push(libName);
+        execSync(
+          `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      }
+
+      const utilityFile = 'shared-utility.ts';
+      const utilityPath = join(projectDirectory, crossProjectLibs[0], 'src', 'lib', utilityFile);
+      writeFileSync(utilityPath, 'export function sharedUtil() { return "util"; }\n');
+
+      const utilityIndexPath = join(projectDirectory, crossProjectLibs[0], 'src', 'index.ts');
+      writeFileSync(utilityIndexPath, `export * from './lib/${utilityFile.replace('.ts', '')}';\n`);
+
+      const utilityAlias = getProjectImportAlias(projectDirectory, crossProjectLibs[0]);
+      for (let i = 1; i < 10; i++) {
+        const consumerPath = join(projectDirectory, crossProjectLibs[i], 'src', 'lib', 'consumer.ts');
+        writeFileSync(consumerPath, `import { sharedUtil } from '${utilityAlias}';\nexport const util = sharedUtil();\n`);
+      }
+
+      // Setup for Many large files benchmark (2 projects + 100 files)
+      manyFilesSourceLib = `stress-source-${batchId}`;
+      manyFilesTargetLib = `stress-target-${batchId}`;
+      
+      execSync(
+        `npx nx generate @nx/js:library ${manyFilesSourceLib} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+      
+      execSync(
+        `npx nx generate @nx/js:library ${manyFilesTargetLib} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+
+      for (let i = 0; i < 100; i++) {
+        const fileName = `large-module-${i}.ts`;
+        const filePath = join(projectDirectory, manyFilesSourceLib, 'src', 'lib', fileName);
+        writeFileSync(filePath, generateUtilityModule(`util${i}`, 50));
+      }
+
+      // Setup for Many intra-project dependencies benchmark (1 project + 50 files)
+      relativeDepsLib = `stress-relative-${batchId}`;
+      execSync(
+        `npx nx generate @nx/js:library ${relativeDepsLib} --unitTestRunner=none --bundler=none --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'pipe',
+        },
+      );
+
+      const utilsDir = join(projectDirectory, relativeDepsLib, 'src', 'lib', 'utils');
+      mkdirSync(utilsDir, { recursive: true });
+
+      relativeDepsUtilFile = 'deep-util.ts';
+      const deepUtilPath = join(utilsDir, relativeDepsUtilFile);
+      writeFileSync(deepUtilPath, 'export function deepUtil() { return "deep"; }\n');
+
+      for (let i = 0; i < 50; i++) {
+        const consumerPath = join(projectDirectory, relativeDepsLib, 'src', 'lib', `consumer-${i}.ts`);
+        writeFileSync(consumerPath, `import { deepUtil } from './utils/${relativeDepsUtilFile.replace('.ts', '')}';\nexport const val${i} = deepUtil();\n`);
+      }
+
+      // Setup for Combined stress benchmark (15 projects + 30 files each)
+      combinedStressLibs = [];
+      for (let i = 0; i < 15; i++) {
+        const libName = `mega-lib${i}-${batchId}`;
+        combinedStressLibs.push(libName);
+        execSync(
+          `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+
+        for (let j = 0; j < 30; j++) {
+          const fileName = `module-${j}.ts`;
+          const filePath = join(projectDirectory, libName, 'src', 'lib', fileName);
+          writeFileSync(filePath, `export function func${j}() { return ${j}; }\n`);
+        }
+      }
+
+      const coreFile = 'core-api.ts';
+      const coreFilePath = join(projectDirectory, combinedStressLibs[0], 'src', 'lib', coreFile);
+      writeFileSync(coreFilePath, generateUtilityModule('coreApi', 100));
+
+      const coreIndexPath = join(projectDirectory, combinedStressLibs[0], 'src', 'index.ts');
+      writeFileSync(coreIndexPath, `export * from './lib/${coreFile.replace('.ts', '')}';\n`);
+
+      const coreAlias = getProjectImportAlias(projectDirectory, combinedStressLibs[0]);
+      for (let i = 1; i < 15; i++) {
+        const consumerPath = join(projectDirectory, combinedStressLibs[i], 'src', 'lib', 'uses-core.ts');
+        writeFileSync(consumerPath, `import { coreApi } from '${coreAlias}';\nexport const api = coreApi();\n`);
+      }
     },
     setupSuiteTimeout: 300000,
     async teardownSuite() {
