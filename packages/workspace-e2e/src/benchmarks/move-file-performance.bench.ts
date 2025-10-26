@@ -24,7 +24,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -50,7 +50,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -74,7 +74,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -98,7 +98,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/multi-small-${currentBatchId}-*.ts" --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -122,7 +122,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/api-${currentBatchId}-*.ts,${benchmarkLib1}/src/lib/service-${currentBatchId}-*.ts,${benchmarkLib1}/src/lib/util-${currentBatchId}-*.ts" --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -152,7 +152,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -192,7 +192,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -244,7 +244,7 @@ benchmarkSuite(
 
       execSync(`npm install @nxworker/workspace@e2e`, {
         cwd: projectDirectory,
-        stdio: 'pipe',
+        stdio: 'inherit',
         env: process.env,
       });
 
@@ -252,7 +252,7 @@ benchmarkSuite(
         `npx nx generate @nx/js:library ${benchmarkLib1} --unitTestRunner=none --bundler=none --no-interactive`,
         {
           cwd: projectDirectory,
-          stdio: 'pipe',
+          stdio: 'inherit',
         },
       );
 
@@ -260,7 +260,7 @@ benchmarkSuite(
         `npx nx generate @nx/js:library ${benchmarkLib2} --unitTestRunner=none --bundler=none --no-interactive`,
         {
           cwd: projectDirectory,
-          stdio: 'pipe',
+          stdio: 'inherit',
         },
       );
     },
@@ -336,7 +336,7 @@ async function createTestProject(): Promise<string> {
     `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
       cwd: dirname(projectDirectory),
-      stdio: 'pipe',
+      stdio: 'inherit',
       env: process.env,
     },
   );

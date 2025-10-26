@@ -27,7 +27,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${currentLibs[0]}/src/lib/${utilityFile} --project ${currentLibs[projectCount - 1]} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -44,7 +44,7 @@ benchmarkSuite(
             `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
             {
               cwd: projectDirectory,
-              stdio: 'pipe',
+              stdio: 'inherit',
             },
           );
         }
@@ -90,7 +90,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${currentSourceLib}/src/lib/${targetFile} --project ${currentTargetLib} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -105,7 +105,7 @@ benchmarkSuite(
             `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
             {
               cwd: projectDirectory,
-              stdio: 'pipe',
+              stdio: 'inherit',
             },
           );
         }
@@ -153,7 +153,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${currentLib}/src/lib/utils/${currentUtilFile} --project ${currentLib} --project-directory=helpers --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -166,7 +166,7 @@ benchmarkSuite(
           `npx nx generate @nx/js:library ${currentLib} --unitTestRunner=none --bundler=none --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
 
@@ -202,7 +202,7 @@ benchmarkSuite(
           `npx nx generate @nxworker/workspace:move-file ${currentLibs[0]}/src/lib/${coreFile} --project ${currentLibs[projectCount - 1]} --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       },
@@ -220,7 +220,7 @@ benchmarkSuite(
             `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
             {
               cwd: projectDirectory,
-              stdio: 'pipe',
+              stdio: 'inherit',
             },
           );
 
@@ -265,7 +265,7 @@ benchmarkSuite(
 
       execSync(`npm install @nxworker/workspace@e2e`, {
         cwd: projectDirectory,
-        stdio: 'pipe',
+        stdio: 'inherit',
         env: process.env,
       });
     },
@@ -358,7 +358,7 @@ async function createTestProject(): Promise<string> {
     `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
       cwd: dirname(projectDirectory),
-      stdio: 'pipe',
+      stdio: 'inherit',
       env: process.env,
     },
   );

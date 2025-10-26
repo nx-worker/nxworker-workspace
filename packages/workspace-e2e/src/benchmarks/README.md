@@ -33,15 +33,14 @@ npx nx e2e-benchmark workspace-e2e --verbose
 
 ## CI Integration
 
-E2E benchmarks run in a separate CI workflow (`.github/workflows/e2e-benchmark.yml`) on:
-- macOS latest
-- Windows latest
-- Ubuntu 24.04 ARM
+E2E benchmarks run in a separate job in `.github/workflows/ci.yml`:
+- **Pull Requests**: Ubuntu 24.04 ARM only (fast feedback)
+- **Push to main / workflow_dispatch**: macOS latest, Windows latest, Ubuntu 24.04 ARM (full coverage)
 
 The workflow:
 - Runs on pull requests, pushes to main, and manual triggers
 - Stores benchmark results per OS in GitHub cache
-- **Fails if performance drops by more than 20%**
+- **Fails if performance drops by more than 50%**
 - Posts comments on PRs when performance regressions are detected
 
 ## Structure
