@@ -31,6 +31,18 @@ benchmarkSuite(
           },
         );
       },
+      teardown() {
+        // Move the file back to its original location for the next iteration
+        const utilityFile = 'shared-utility.ts';
+        const projectCount = currentLibs.length;
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${currentLibs[projectCount - 1]}/src/lib/${utilityFile} --project ${currentLibs[0]} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+      },
       setup() {
         const projectCount = 10;
         currentLibs = [];
@@ -88,6 +100,17 @@ benchmarkSuite(
         const targetFile = 'large-module.ts';
         execSync(
           `npx nx generate @nxworker/workspace:move-file ${currentSourceLib}/src/lib/${targetFile} --project ${currentTargetLib} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+      },
+      teardown() {
+        // Move the file back to its original location for the next iteration
+        const targetFile = 'large-module.ts';
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${currentTargetLib}/src/lib/${targetFile} --project ${currentSourceLib} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
@@ -157,6 +180,16 @@ benchmarkSuite(
           },
         );
       },
+      teardown() {
+        // Move the file back to its original location for the next iteration
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${currentLib}/src/lib/helpers/${currentUtilFile} --project ${currentLib} --project-directory=utils --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+      },
       setup() {
         const batchId = uniqueId();
         currentLib = `stress-relative-${batchId}`;
@@ -200,6 +233,18 @@ benchmarkSuite(
         const projectCount = currentLibs.length;
         execSync(
           `npx nx generate @nxworker/workspace:move-file ${currentLibs[0]}/src/lib/${coreFile} --project ${currentLibs[projectCount - 1]} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'inherit',
+          },
+        );
+      },
+      teardown() {
+        // Move the file back to its original location for the next iteration
+        const coreFile = 'core-api.ts';
+        const projectCount = currentLibs.length;
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${currentLibs[projectCount - 1]}/src/lib/${coreFile} --project ${currentLibs[0]} --no-interactive`,
           {
             cwd: projectDirectory,
             stdio: 'inherit',
