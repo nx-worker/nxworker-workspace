@@ -18,7 +18,7 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/benchmarks/workspace-e2e/result.txt"],
       "options": {
-        "command": "jest --projects jest-bench-e2e.config.ts",
+        "command": "jest --projects jest.config.e2e-benchmark.ts",
         "cwd": "{workspaceRoot}"
       },
       "dependsOn": ["^build"]

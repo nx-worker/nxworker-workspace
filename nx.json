@@ -72,8 +72,8 @@
       "inputs": [
         "production",
         "{projectRoot}/**/*.bench.ts",
-        "{workspaceRoot}/jest-bench.config.ts",
-        "{workspaceRoot}/jest-bench-e2e.config.ts",
+        "{workspaceRoot}/jest.config.benchmark.ts",
+        "{workspaceRoot}/jest.config.e2e-benchmark.ts",
         "{workspaceRoot}/jest.preset.js",
         "{workspaceRoot}/tools/scripts/start-local-registry.ts",
         "{workspaceRoot}/tools/scripts/stop-local-registry.ts",

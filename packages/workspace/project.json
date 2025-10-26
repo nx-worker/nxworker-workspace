@@ -61,7 +61,7 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/benchmarks/result.txt"],
       "options": {
-        "command": "jest --projects jest-bench.config.ts",
+        "command": "jest --projects jest.config.benchmark.ts",
         "cwd": "{workspaceRoot}"
       }
     }
