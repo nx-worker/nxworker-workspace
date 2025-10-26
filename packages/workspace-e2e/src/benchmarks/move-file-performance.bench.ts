@@ -1,16 +1,8 @@
 import { benchmarkSuite } from '../../../../tools/tinybench-utils';
-import { randomUUID } from 'node:crypto';
+import { uniqueId } from '../test-utils';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-
-/**
- * Generate a unique ID with optional prefix.
- * Uses crypto.randomUUID() for true uniqueness.
- */
-function uniqueId(prefix = ''): string {
-  return prefix + randomUUID();
-}
 
 /**
  * E2E performance benchmarks for the move-file generator.
