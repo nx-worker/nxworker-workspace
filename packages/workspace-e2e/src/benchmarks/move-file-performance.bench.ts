@@ -12,208 +12,228 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 let projectDirectory: string;
 let benchmarkLib1: string;
 let benchmarkLib2: string;
+let currentFileName: string;
+let currentBatchId: string;
 
 benchmarkSuite(
   'Move-File E2E Performance',
   {
-    'Small file move (< 1KB)': () => {
-      const fileName = `small-file-${uniqueId()}.ts`;
-      const filePath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        fileName,
-      );
-
-      writeFileSync(
-        filePath,
-        'export function smallFunction() { return "small"; }\n',
-      );
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
-    },
-
-    'Medium file move (~10KB)': () => {
-      const fileName = `medium-file-${uniqueId()}.ts`;
-      const filePath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        fileName,
-      );
-
-      const content = generateLargeTypeScriptFile(200);
-      writeFileSync(filePath, content);
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
-    },
-
-    'Large file move (~50KB)': () => {
-      const fileName = `large-file-${uniqueId()}.ts`;
-      const filePath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        fileName,
-      );
-
-      const content = generateLargeTypeScriptFile(1000);
-      writeFileSync(filePath, content);
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${fileName} --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
-    },
-
-    'Multiple small files (10 files)': () => {
-      const fileCount = 10;
-      const batchId = uniqueId();
-
-      for (let i = 0; i < fileCount; i++) {
-        const fileName = `multi-small-${batchId}-${i}.ts`;
-        writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-          `export function func${i}() { return ${i}; }\n`,
+    'Small file move (< 1KB)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
         );
-      }
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/multi-small-${batchId}-*.ts" --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
-    },
-
-    'Comma-separated glob patterns (15 files)': () => {
-      const batchId = uniqueId();
-
-      for (let i = 0; i < 5; i++) {
-        writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', `api-${batchId}-${i}.ts`),
-          `export function api${i}() { return 'api${i}'; }\n`,
+      },
+      setup() {
+        currentFileName = `small-file-${uniqueId()}.ts`;
+        const filePath = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          currentFileName,
         );
         writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', `service-${batchId}-${i}.ts`),
-          `export function service${i}() { return 'service${i}'; }\n`,
+          filePath,
+          'export function smallFunction() { return "small"; }\n',
         );
-        writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', `util-${batchId}-${i}.ts`),
-          `export function util${i}() { return 'util${i}'; }\n`,
-        );
-      }
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/api-${batchId}-*.ts,${benchmarkLib1}/src/lib/service-${batchId}-*.ts,${benchmarkLib1}/src/lib/util-${batchId}-*.ts" --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
+      },
     },
 
-    'File with many imports (20 consumers)': () => {
-      const batchId = uniqueId();
-      const sourceFile = `source-with-imports-${batchId}.ts`;
-      const sourceFilePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile);
-      
-      writeFileSync(
-        sourceFilePath,
-        'export function source() { return "source"; }\n',
-      );
-
-      const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
-      const currentIndex = readFileSync(indexPath, 'utf-8');
-      writeFileSync(
-        indexPath,
-        currentIndex + `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
-      );
-
-      const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
-      const consumerCount = 20;
-
-      for (let i = 0; i < consumerCount; i++) {
-        const consumerFile = `consumer-${batchId}-${i}.ts`;
-        writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', consumerFile),
-          `import { source } from '${lib1Alias}';\nexport const value${i} = source();\n`,
+    'Medium file move (~10KB)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
         );
-      }
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${sourceFile} --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
+      },
+      setup() {
+        currentFileName = `medium-file-${uniqueId()}.ts`;
+        const filePath = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          currentFileName,
+        );
+        const content = generateLargeTypeScriptFile(200);
+        writeFileSync(filePath, content);
+      },
     },
 
-    'Early exit optimization (50 irrelevant files)': () => {
-      const batchId = uniqueId();
-      const sourceFile = `source-for-update-${batchId}.ts`;
-      
-      writeFileSync(
-        join(projectDirectory, benchmarkLib1, 'src', 'lib', sourceFile),
-        'export function sourceForUpdate() { return "update"; }\n',
-      );
-
-      const irrelevantFileCount = 50;
-      for (let i = 0; i < irrelevantFileCount; i++) {
-        const fileName = `irrelevant-${batchId}-${i}.ts`;
-        writeFileSync(
-          join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-          `// This file doesn't import the source\nexport function irrelevant${i}() { return ${i}; }\n`,
+    'Large file move (~50KB)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
         );
-      }
+      },
+      setup() {
+        currentFileName = `large-file-${uniqueId()}.ts`;
+        const filePath = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          currentFileName,
+        );
+        const content = generateLargeTypeScriptFile(1000);
+        writeFileSync(filePath, content);
+      },
+    },
 
-      const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
-      const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
-      const currentIndex = readFileSync(indexPath, 'utf-8');
-      writeFileSync(
-        indexPath,
-        currentIndex + `export * from './lib/${sourceFile.replace('.ts', '')}';\n`,
-      );
+    'Multiple small files (10 files)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/multi-small-${currentBatchId}-*.ts" --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      },
+      setup() {
+        const fileCount = 10;
+        currentBatchId = uniqueId();
 
-      const consumerPath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        `actual-consumer-${batchId}.ts`,
-      );
-      writeFileSync(
-        consumerPath,
-        `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
-      );
+        for (let i = 0; i < fileCount; i++) {
+          const fileName = `multi-small-${currentBatchId}-${i}.ts`;
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+            `export function func${i}() { return ${i}; }\n`,
+          );
+        }
+      },
+    },
 
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${sourceFile} --project ${benchmarkLib2} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
+    'Comma-separated glob patterns (15 files)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/api-${currentBatchId}-*.ts,${benchmarkLib1}/src/lib/service-${currentBatchId}-*.ts,${benchmarkLib1}/src/lib/util-${currentBatchId}-*.ts" --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      },
+      setup() {
+        currentBatchId = uniqueId();
+
+        for (let i = 0; i < 5; i++) {
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', `api-${currentBatchId}-${i}.ts`),
+            `export function api${i}() { return 'api${i}'; }\n`,
+          );
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', `service-${currentBatchId}-${i}.ts`),
+            `export function service${i}() { return 'service${i}'; }\n`,
+          );
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', `util-${currentBatchId}-${i}.ts`),
+            `export function util${i}() { return 'util${i}'; }\n`,
+          );
+        }
+      },
+    },
+
+    'File with many imports (20 consumers)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      },
+      setup() {
+        currentBatchId = uniqueId();
+        currentFileName = `source-with-imports-${currentBatchId}.ts`;
+        const sourceFilePath = join(projectDirectory, benchmarkLib1, 'src', 'lib', currentFileName);
+        
+        writeFileSync(
+          sourceFilePath,
+          'export function source() { return "source"; }\n',
+        );
+
+        const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
+        const currentIndex = readFileSync(indexPath, 'utf-8');
+        writeFileSync(
+          indexPath,
+          currentIndex + `export * from './lib/${currentFileName.replace('.ts', '')}';\n`,
+        );
+
+        const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
+        const consumerCount = 20;
+
+        for (let i = 0; i < consumerCount; i++) {
+          const consumerFile = `consumer-${currentBatchId}-${i}.ts`;
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', consumerFile),
+            `import { source } from '${lib1Alias}';\nexport const value${i} = source();\n`,
+          );
+        }
+      },
+    },
+
+    'Early exit optimization (50 irrelevant files)': {
+      fn: () => {
+        execSync(
+          `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${currentFileName} --project ${benchmarkLib2} --no-interactive`,
+          {
+            cwd: projectDirectory,
+            stdio: 'pipe',
+          },
+        );
+      },
+      setup() {
+        currentBatchId = uniqueId();
+        currentFileName = `source-for-update-${currentBatchId}.ts`;
+        
+        writeFileSync(
+          join(projectDirectory, benchmarkLib1, 'src', 'lib', currentFileName),
+          'export function sourceForUpdate() { return "update"; }\n',
+        );
+
+        const irrelevantFileCount = 50;
+        for (let i = 0; i < irrelevantFileCount; i++) {
+          const fileName = `irrelevant-${currentBatchId}-${i}.ts`;
+          writeFileSync(
+            join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
+            `// This file doesn't import the source\nexport function irrelevant${i}() { return ${i}; }\n`,
+          );
+        }
+
+        const lib1Alias = getProjectImportAlias(projectDirectory, benchmarkLib1);
+        const indexPath = join(projectDirectory, benchmarkLib1, 'src', 'index.ts');
+        const currentIndex = readFileSync(indexPath, 'utf-8');
+        writeFileSync(
+          indexPath,
+          currentIndex + `export * from './lib/${currentFileName.replace('.ts', '')}';\n`,
+        );
+
+        const consumerPath = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          `actual-consumer-${currentBatchId}.ts`,
+        );
+        writeFileSync(
+          consumerPath,
+          `import { sourceForUpdate } from '${lib1Alias}';\nexport const value = sourceForUpdate();\n`,
+        );
+      },
     },
   },
   {

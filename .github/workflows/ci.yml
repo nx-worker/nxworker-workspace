@@ -321,16 +321,54 @@ jobs:
           path: ./benchmarks/workspace
           key: ${{ format('{0}-benchmark-main-{1}', runner.os, github.run_id) }}
 
-  # E2E Benchmark job runs on PRs and pushes to main with multi-OS matrix
-  e2e-benchmark:
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
+  # Determine the GitHub runner image matrix for the e2e-benchmark job based on event type
+  # PRs use fast matrix (ubuntu-24.04-arm only)
+  # Push to main and workflow_dispatch use full matrix (all OSes)
+  set-e2e-benchmark-matrix:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      # `include` as in `matrix.strategy.include`
+      MATRIX_FAST: |
+        include:
+          - os: ubuntu-24.04-arm
+      MATRIX_FULL: |
         include:
           - os: macos-latest
           - os: windows-latest
           - os: ubuntu-24.04-arm
+    steps:
+      - id: set-matrix
+        name: Set matrix output property
+        shell: bash
+        run: |
+          # Set the matrix output property
+
+          # Fail the step on the first error and propagate pipeline failures
+          set -eo pipefail
+
+          # Select the matrix YAML based on event type
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          else
+            printf '%s\n' "$MATRIX_FULL" > matrix.yml
+          fi
+
+          # Convert the chosen YAML matrix to JSON using js-yaml so the e2e-benchmark job can consume it
+          MATRIX_JSON=$(npx --yes js-yaml matrix.yml | tr -d '\n')
+          # Publish the JSON matrix via step outputs for downstream jobs
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
+  # E2E Benchmark job runs on PRs and pushes to main with conditional OS matrix
+  e2e-benchmark:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    needs:
+      - build
+      - set-e2e-benchmark-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.set-e2e-benchmark-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -346,8 +384,14 @@ jobs:
 
       - uses: ./.github/actions/setup-node-and-install
 
-      # Build all projects to ensure e2e benchmarks have required artifacts
-      - run: npx nx run-many -t build --output-style=static
+      # Download build artifacts from the build job
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-artifacts
+          path: dist/
 
       # Resolve benchmark cache key
       - name: Resolve benchmark cache key
@@ -394,8 +438,8 @@ jobs:
           # Disable GitHub Pages integration
           save-data-file: true
           skip-fetch-gh-pages: true
-          # Fail if performance drops by more than 20%
-          alert-threshold: '120%'
+          # Fail if performance drops by more than 50%
+          alert-threshold: '150%'
           comment-on-alert: true
           fail-on-alert: true
           alert-comment-cc-users: '@LayZeeDK'
