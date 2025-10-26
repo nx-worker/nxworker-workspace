@@ -2,7 +2,7 @@ export default {
   displayName: 'benchmarks',
   testEnvironment: 'node',
   reporters: ['default'],
-  testMatch: ['<rootDir>/packages/**/benchmarks/**/*.bench.ts'],
+  testMatch: ['<rootDir>/packages/workspace/src/benchmarks/**/*.bench.ts'],
   transform: {
     '^.+\\.[tj]s$': [
       '@swc/jest',
