@@ -155,9 +155,10 @@ jobs:
       - name: Build Claude prompt
         id: build_prompt
         run: |
-          # Build system prompt
+          # Build combined prompt (system instructions + user prompt)
+          # The Claude GitHub action doesn't support --system arg, so we combine them
           {
-            echo 'SYSTEM_PROMPT<<EOF'
+            echo 'CLAUDE_PROMPT<<EOF'
             echo 'You are an autonomous coding assistant running in a GitHub Actions workflow. Your role is to:'
             echo ''
             echo '1. **Work autonomously** - Complete the given task independently without asking for clarification'
@@ -185,12 +186,10 @@ jobs:
             echo '**Task:** <the specific task you were working on>'
             echo '**Context:** <additional context>'
             echo ''
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-
-          # Build user prompt
-          {
-            echo 'CLAUDE_PROMPT<<EOF'
+            echo '---'
+            echo ''
+            echo '## Task'
+            echo ''
             cat <<'PROMPT_END'
           ${{ steps.sanitize_prompt.outputs.sanitized_prompt }}
           PROMPT_END
@@ -206,7 +205,6 @@ jobs:
             actions: read
           prompt: ${{ steps.build_prompt.outputs.CLAUDE_PROMPT }}
           claude_args: |
-            --system '${{ steps.build_prompt.outputs.SYSTEM_PROMPT }}'
             --allowed-tools '
               Read,
               Grep,
