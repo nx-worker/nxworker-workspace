@@ -1,4 +1,192 @@
-# Glob Performance Benchmark Tool
+# Benchmark Tools
+
+This directory contains performance benchmarking utilities and tools for the nxworker-workspace project.
+
+## Contents
+
+- `tinybench-utils.ts` - Jest-compatible benchmark suite wrapper for tinybench
+- `benchmark-glob-performance.js` - Standalone glob pattern batching benchmark
+- `scripts/` - Build and testing scripts
+
+## benchmarkSuite API
+
+The `benchmarkSuite` function provides a Jest-compatible wrapper for [tinybench](https://github.com/tinylibs/tinybench), outputting results in jest-bench format compatible with [benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
+
+### Basic Usage (Original API)
+
+```typescript
+import { benchmarkSuite } from '../../../../../../tools/tinybench-utils';
+
+benchmarkSuite(
+  'My Benchmark Suite',
+  {
+    'Simple benchmark': () => {
+      // Benchmark code
+    },
+
+    'Benchmark with options': {
+      fn: () => {
+        // Benchmark code
+      },
+      fnOptions: {
+        beforeAll: () => {
+          // Setup before benchmark runs
+        },
+      },
+      warmup: true,
+      warmupIterations: 5,
+    },
+  },
+  {
+    setupSuite: () => {
+      // Run once before all benchmarks
+    },
+    teardownSuite: () => {
+      // Run once after all benchmarks
+    },
+  },
+);
+```
+
+### Factory Function API (New)
+
+The factory function API allows you to create a shared scope for benchmarks, avoiding module-level variables and enabling better encapsulation.
+
+#### Suite-Level Factory
+
+Create a shared scope for all benchmarks in the suite:
+
+```typescript
+benchmarkSuite('Suite with Factory', () => {
+  // Shared scope for all benchmarks - better than module-level variables
+  let projectDirectory: string;
+  let sharedCache: Map<string, unknown>;
+
+  return {
+    benchmarks: {
+      'Benchmark 1': () => {
+        // Can access projectDirectory and sharedCache
+      },
+
+      'Benchmark 2': {
+        fn: () => {
+          // Can access shared scope
+        },
+        fnOptions: {
+          beforeAll: () => {
+            // Setup with access to shared scope
+            sharedCache.clear();
+          },
+        },
+      },
+    },
+    setupSuite: () => {
+      projectDirectory = '/tmp/test';
+      sharedCache = new Map();
+    },
+    teardownSuite: () => {
+      // Cleanup with access to shared scope
+      sharedCache.clear();
+    },
+  };
+});
+```
+
+#### Benchmark-Level Factory
+
+Create a private scope for each individual benchmark:
+
+```typescript
+benchmarkSuite('Suite with Benchmark Factories', {
+  'Factory returning config': () => {
+    // Private scope for this benchmark only
+    let localCounter = 0;
+    let localData: string[] = [];
+
+    return {
+      fn: () => {
+        localCounter++;
+        localData.push('item');
+      },
+      fnOptions: {
+        beforeAll: () => {
+          localCounter = 0;
+          localData = [];
+        },
+      },
+    };
+  },
+
+  'Factory returning function': () => {
+    // Even simpler - just return the benchmark function
+    let items: number[] = [];
+
+    return () => {
+      items.push(Math.random());
+      items = items.slice(-100); // Keep last 100
+    };
+  },
+
+  'Regular benchmark': () => {
+    // Still works - backward compatible
+  },
+});
+```
+
+#### Nested Factories
+
+Combine both suite-level and benchmark-level factories:
+
+```typescript
+benchmarkSuite('Nested Factories', () => {
+  // Suite-level shared state
+  let suiteState: { initialized: boolean };
+
+  return {
+    benchmarks: {
+      'Nested factory benchmark': () => {
+        // Benchmark-level private state
+        let benchmarkLocal = 0;
+
+        return {
+          fn: () => {
+            // Access both scopes
+            if (suiteState.initialized) {
+              benchmarkLocal++;
+            }
+          },
+          fnOptions: {
+            beforeAll: () => {
+              benchmarkLocal = 0;
+            },
+          },
+        };
+      },
+    },
+    setupSuite: () => {
+      suiteState = { initialized: true };
+    },
+  };
+});
+```
+
+### Why Use Factory Functions?
+
+1. **Avoid module-level variables** - Better encapsulation and isolation
+2. **Clear scope boundaries** - Each factory defines its own closure
+3. **Easier testing** - State is contained within the factory
+4. **Better IDE support** - TypeScript can infer types within closures
+5. **Backward compatible** - Original API still works
+
+### Examples
+
+See the following files for real-world examples:
+
+- `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.ts` - Original API
+- `packages/workspace/src/generators/move-file/benchmarks/cache-operations-factory.bench.ts` - Suite-level factory
+- `packages/workspace/src/generators/move-file/benchmarks/factory-examples.bench.ts` - All factory patterns
+
+## Glob Performance Benchmark Tool
 
 ## Overview
 

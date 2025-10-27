@@ -7,12 +7,75 @@ interface FnWithOptions extends Omit<BenchOptions, 'name'> {
   readonly fnOptions?: FnOptions;
 }
 
+/**
+ * Suite configuration with hooks
+ */
+interface SuiteConfig {
+  readonly teardownSuite?: Parameters<typeof afterAll>[0];
+  readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
+  readonly setupSuite?: Parameters<typeof beforeAll>[0];
+  readonly setupSuiteTimeout?: Parameters<typeof beforeAll>[1];
+}
+
+/**
+ * Benchmark value that can be:
+ * - A simple function
+ * - A function with options (FnWithOptions)
+ * - A factory function that returns a simple function
+ * - A factory function that returns FnWithOptions
+ */
+type BenchmarkValue = Fn | FnWithOptions | BenchmarkFactory;
+
+/**
+ * Factory function for a single benchmark.
+ * Can return either a simple function or FnWithOptions.
+ */
+type BenchmarkFactory = () => Fn | FnWithOptions;
+
+/**
+ * Suite factory function that returns benchmark configuration.
+ */
+type SuiteFactory = () => {
+  readonly benchmarks: Record<string, BenchmarkValue>;
+} & Omit<BenchOptions, 'name'> &
+  SuiteConfig;
+
+/**
+ * Second parameter to benchmarkSuite can be either:
+ * - A record of benchmarks (original API)
+ * - A factory function that returns suite configuration
+ */
+type BenchmarksOrFactory = Record<string, BenchmarkValue> | SuiteFactory;
+
 function isFnWithOptions(value: unknown): value is FnWithOptions {
   return isObject(value) && 'fn' in value && typeof value['fn'] === 'function';
 }
 
 function isObject(value: unknown): value is Record<PropertyKey, unknown> {
   return value !== null && typeof value === 'object';
+}
+
+function isSuiteFactory(value: BenchmarksOrFactory): value is SuiteFactory {
+  return typeof value === 'function';
+}
+
+function isBenchmarkFactory(value: BenchmarkValue): value is BenchmarkFactory {
+  // A BenchmarkFactory is a function that's not already identified as Fn or FnWithOptions
+  // We distinguish it by checking if calling it returns another function or FnWithOptions
+  return typeof value === 'function' && !isFnWithOptions(value);
+}
+
+/**
+ * Resolves a BenchmarkValue to either Fn or FnWithOptions.
+ * If it's a factory, calls it and returns the result.
+ */
+function resolveBenchmarkValue(value: BenchmarkValue): Fn | FnWithOptions {
+  if (isBenchmarkFactory(value)) {
+    const result = value();
+    // The factory should return either Fn or FnWithOptions
+    return result;
+  }
+  return value;
 }
 
 /**
@@ -48,20 +111,61 @@ export function formatBenchmarkResult(
  * This wrapper provides Jest-compatible benchmark testing while outputting
  * results compatible with benchmark-action/github-action-benchmark.
  *
+ * Supports two main patterns:
+ *
+ * 1. Original API with benchmarks object:
+ * ```ts
+ * benchmarkSuite('Suite', {
+ *   'Benchmark': () => { ... },
+ * }, { setupSuite: ... });
+ * ```
+ *
+ * 2. Factory function API for shared scope:
+ * ```ts
+ * benchmarkSuite('Suite', () => {
+ *   let sharedState;
+ *   return {
+ *     benchmarks: {
+ *       'Benchmark': () => { ... },
+ *     },
+ *     setupSuite: () => { sharedState = ...; },
+ *   };
+ * });
+ * ```
+ *
+ * Individual benchmarks can also be factory functions:
+ * ```ts
+ * benchmarkSuite('Suite', {
+ *   'Benchmark': () => {
+ *     let localState;
+ *     return () => { localState++; };
+ *   },
+ * });
+ * ```
+ *
  * @param suiteName - The name of the benchmark suite
- * @param benchmarks - Object mapping benchmark names to functions to benchmark
- * @param suiteOptions - Optional tinybench configuration
+ * @param benchmarksOrFactory - Benchmarks object or factory function
+ * @param suiteOptions - Optional tinybench configuration (ignored if using factory)
  */
 export function benchmarkSuite(
   suiteName: string,
-  benchmarks: Record<string, Fn | FnWithOptions>,
-  suiteOptions: Omit<BenchOptions, 'name'> & {
-    readonly teardownSuite?: Parameters<typeof afterAll>[0];
-    readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
-    readonly setupSuite?: Parameters<typeof beforeAll>[0];
-    readonly setupSuiteTimeout?: Parameters<typeof beforeAll>[1];
-  } = {},
+  benchmarksOrFactory: BenchmarksOrFactory,
+  suiteOptions: Omit<BenchOptions, 'name'> & SuiteConfig = {},
 ): void {
+  // Resolve factory if provided
+  let benchmarks: Record<string, BenchmarkValue>;
+  let resolvedSuiteOptions: Omit<BenchOptions, 'name'> & SuiteConfig;
+
+  if (isSuiteFactory(benchmarksOrFactory)) {
+    const config = benchmarksOrFactory();
+    const { benchmarks: factoryBenchmarks, ...factoryOptions } = config;
+    benchmarks = factoryBenchmarks;
+    resolvedSuiteOptions = factoryOptions;
+  } else {
+    benchmarks = benchmarksOrFactory;
+    resolvedSuiteOptions = suiteOptions;
+  }
+
   describe(suiteName, () => {
     let summary: string;
 
@@ -69,12 +173,18 @@ export function benchmarkSuite(
       summary = '';
     });
 
-    if (suiteOptions.setupSuite) {
-      beforeAll(suiteOptions.setupSuite, suiteOptions.setupSuiteTimeout);
+    if (resolvedSuiteOptions.setupSuite) {
+      beforeAll(
+        resolvedSuiteOptions.setupSuite,
+        resolvedSuiteOptions.setupSuiteTimeout,
+      );
     }
 
-    if (suiteOptions.teardownSuite) {
-      afterAll(suiteOptions.teardownSuite, suiteOptions.teardownSuiteTimeout);
+    if (resolvedSuiteOptions.teardownSuite) {
+      afterAll(
+        resolvedSuiteOptions.teardownSuite,
+        resolvedSuiteOptions.teardownSuiteTimeout,
+      );
     }
 
     afterAll(() => {
@@ -83,11 +193,14 @@ export function benchmarkSuite(
 
     it.each(Object.entries(benchmarks))(
       '%s',
-      async (benchmarkName, benchmark) => {
+      async (benchmarkName, benchmarkValue) => {
+        // Resolve benchmark factory if needed
+        const benchmark = resolveBenchmarkValue(benchmarkValue);
+
         const benchmarkFn = isFnWithOptions(benchmark)
           ? benchmark.fn
           : benchmark;
-        let options = { ...suiteOptions };
+        let options = { ...resolvedSuiteOptions };
         let fnOptions: FnOptions | undefined;
 
         if (isFnWithOptions(benchmark)) {
