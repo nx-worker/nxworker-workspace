@@ -1,10 +1,10 @@
-import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
-import {
-  describe as jestDescribe,
-  it as jestIt,
-  beforeAll as jestBeforeAll,
-  afterAll as jestAfterAll,
-} from '@jest/globals';
+import { Bench, BenchOptions, Fn, FnOptions, Task } from 'tinybench';
+
+// Access Jest functions dynamically so tests can mock them
+const getJestDescribe = () => globalThis.describe;
+const getJestIt = () => globalThis.it;
+const getJestBeforeAll = () => globalThis.beforeAll;
+const getJestAfterAll = () => globalThis.afterAll;
 
 /**
  * Internal representation of a registered benchmark
@@ -687,93 +687,120 @@ export function describe(name: string, callback: () => void): void {
  * Runs a describe block as a Jest describe with its benchmarks and nested describes
  */
 function runDescribeBlock(block: DescribeBlock): void {
-  jestDescribe(block.name, () => {
+  getJestDescribe()(block.name, () => {
     let summary: string;
+    let bench: Bench;
+    let taskResults: Map<string, Task>;
 
-    jestBeforeAll(() => {
-      summary = '';
-    });
-
-    // Run setupSuite hooks with timeout validation
+    // Run setupSuite hooks with timeout validation (registered FIRST)
     for (const hook of block.setupSuiteHooks) {
       const timeout = hook.timeout;
       if (timeout !== undefined) {
         validateTimeout(timeout, 'setupSuite');
-        jestBeforeAll(hook.fn, timeout);
+        getJestBeforeAll()(hook.fn, timeout);
       } else {
-        jestBeforeAll(hook.fn);
+        getJestBeforeAll()(hook.fn);
       }
     }
 
-    // Run teardownSuite hooks with timeout validation
+    // Run benchmarks in a beforeAll hook (registered AFTER setupSuite hooks)
+    getJestBeforeAll()(async () => {
+      summary = '';
+
+      // Create ONE Bench instance for all benchmarks in this describe block
+      if (block.benchmarks.length > 0) {
+        const benchOptions: BenchOptions = {
+          name: block.name,
+          // Use the common benchOptions if they exist on the first benchmark
+          // (in practice, per-benchmark options will be merged into each task)
+          ...block.benchmarks[0].benchOptions,
+        };
+
+        bench = new Bench(benchOptions);
+
+        // Add ALL benchmarks as tasks to the same Bench instance
+        for (const benchmark of block.benchmarks) {
+          // Merge fnOptions and benchmark-specific benchOptions for each task
+          bench.add(benchmark.name, benchmark.fn, {
+            ...benchmark.fnOptions,
+            ...benchmark.benchOptions,
+          });
+        }
+
+        // Run the Bench ONCE with all tasks
+        const tasks = await bench.run();
+        taskResults = new Map(tasks.map((task) => [task.name, task]));
+      }
+    });
+
+    // Run teardownSuite hooks with timeout validation (registered AFTER benchmark hook)
     for (const hook of block.teardownSuiteHooks) {
       const timeout = hook.timeout;
       if (timeout !== undefined) {
         validateTimeout(timeout, 'teardownSuite');
-        jestAfterAll(hook.fn, timeout);
+        getJestAfterAll()(hook.fn, timeout);
       } else {
-        jestAfterAll(hook.fn);
+        getJestAfterAll()(hook.fn);
       }
     }
 
-    jestAfterAll(() => {
+    // Print summary and cleanup (registered LAST)
+    getJestAfterAll()(() => {
       if (summary) {
         console.log(summary);
       }
-    });
 
-    // Run benchmarks defined directly in this describe block
-    for (const benchmark of block.benchmarks) {
-      const testFn = async () => {
-        const benchOptions: BenchOptions = {
-          name: `${block.name}/${benchmark.name}`,
-          ...benchmark.benchOptions,
-        };
-
-        const bench = new Bench(benchOptions);
-        try {
-          bench.add(benchmark.name, benchmark.fn, benchmark.fnOptions);
-
-          const tasks = await bench.run();
-
-          for (const task of tasks) {
-            const taskResult = task.result;
-
-            if (!taskResult) {
-              throw new Error(
-                `[${block.name}] ${task.name} did not produce a result`,
-              );
-            }
-
-            if (taskResult.error) {
-              const error = new Error(
-                `[${block.name}] ${task.name} failed: ${taskResult.error.message}`,
-              );
-              (error as any).cause = taskResult.error;
-              throw error;
-            }
-
-            summary +=
-              formatBenchmarkResult(
-                `[${block.name}] ${task.name}`,
-                taskResult.throughput.mean,
-                taskResult.latency.rme,
-                taskResult.latency.samples.length,
-              ) + '\n';
-          }
-        } finally {
-          // Explicitly remove task to help with memory cleanup
+      // Cleanup: remove all tasks from the Bench instance
+      if (bench) {
+        for (const benchmark of block.benchmarks) {
           bench.remove(benchmark.name);
         }
+      }
+    });
+
+    // Each benchmark gets its own Jest it() that reports pre-computed results
+    for (const benchmark of block.benchmarks) {
+      const testFn = () => {
+        const task = taskResults.get(benchmark.name);
+
+        if (!task) {
+          throw new Error(
+            `[${block.name}] ${benchmark.name} task not found in results`,
+          );
+        }
+
+        const taskResult = task.result;
+
+        if (!taskResult) {
+          throw new Error(
+            `[${block.name}] ${benchmark.name} did not produce a result`,
+          );
+        }
+
+        if (taskResult.error) {
+          const error = new Error(
+            `[${block.name}] ${benchmark.name} failed: ${taskResult.error.message}`,
+          );
+          (error as any).cause = taskResult.error;
+          throw error;
+        }
+
+        summary +=
+          formatBenchmarkResult(
+            `[${block.name}] ${benchmark.name}`,
+            taskResult.throughput.mean,
+            taskResult.latency.rme,
+            taskResult.latency.samples.length,
+          ) + '\n';
       };
 
-      // Pass itTimeout to Jest if defined
+      // Still supports per-benchmark itTimeout for test runner
       const itTimeout = benchmark.itTimeout;
       if (itTimeout !== undefined) {
         validateTimeout(itTimeout, 'it');
-        jestIt(benchmark.name, testFn, itTimeout);
+        getJestIt()(benchmark.name, testFn, itTimeout);
       } else {
-        jestIt(benchmark.name, testFn);
+        getJestIt()(benchmark.name, testFn);
       }
     }
 
