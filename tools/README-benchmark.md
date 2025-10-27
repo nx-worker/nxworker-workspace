@@ -94,11 +94,21 @@ benchmarkSuite('Suite with Factory', () => {
 
 #### Benchmark-Level Factory
 
-Create a private scope for each individual benchmark:
+Create a private scope for each individual benchmark using the `benchmark()` wrapper:
 
 ```typescript
+import {
+  benchmark,
+  benchmarkSuite,
+} from '../../../../../../tools/tinybench-utils';
+
 benchmarkSuite('Suite with Benchmark Factories', {
-  'Factory returning config': () => {
+  'Regular benchmark': () => {
+    // Regular benchmark - just executes directly
+    doWork();
+  },
+
+  'Factory returning config': benchmark(() => {
     // Private scope for this benchmark only
     let localCounter = 0;
     let localData: string[] = [];
@@ -115,9 +125,9 @@ benchmarkSuite('Suite with Benchmark Factories', {
         },
       },
     };
-  },
+  }),
 
-  'Factory returning function': () => {
+  'Factory returning function': benchmark(() => {
     // Even simpler - just return the benchmark function
     let items: number[] = [];
 
@@ -125,26 +135,29 @@ benchmarkSuite('Suite with Benchmark Factories', {
       items.push(Math.random());
       items = items.slice(-100); // Keep last 100
     };
-  },
-
-  'Regular benchmark': () => {
-    // Still works - backward compatible
-  },
+  }),
 });
 ```
+
+**Important**: Use the `benchmark()` wrapper to mark factory functions. Without it, the function will be treated as a regular benchmark and executed directly.
 
 #### Nested Factories
 
 Combine both suite-level and benchmark-level factories:
 
 ```typescript
+import {
+  benchmark,
+  benchmarkSuite,
+} from '../../../../../../tools/tinybench-utils';
+
 benchmarkSuite('Nested Factories', () => {
   // Suite-level shared state
   let suiteState: { initialized: boolean };
 
   return {
     benchmarks: {
-      'Nested factory benchmark': () => {
+      'Nested factory benchmark': benchmark(() => {
         // Benchmark-level private state
         let benchmarkLocal = 0;
 
@@ -161,7 +174,7 @@ benchmarkSuite('Nested Factories', () => {
             },
           },
         };
-      },
+      }),
     },
     setupSuite: () => {
       suiteState = { initialized: true };

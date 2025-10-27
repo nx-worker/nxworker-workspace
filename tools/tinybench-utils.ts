@@ -18,19 +18,20 @@ interface SuiteConfig {
 }
 
 /**
+ * Marker interface for wrapped benchmark factories
+ */
+interface WrappedBenchmarkFactory {
+  readonly __isBenchmarkFactory: true;
+  readonly factory: () => Fn | FnWithOptions;
+}
+
+/**
  * Benchmark value that can be:
  * - A simple function
  * - A function with options (FnWithOptions)
- * - A factory function that returns a simple function
- * - A factory function that returns FnWithOptions
+ * - A wrapped factory (created via `benchmark()` helper)
  */
-type BenchmarkValue = Fn | FnWithOptions | BenchmarkFactory;
-
-/**
- * Factory function for a single benchmark.
- * Can return either a simple function or FnWithOptions.
- */
-type BenchmarkFactory = () => Fn | FnWithOptions;
+type BenchmarkValue = Fn | FnWithOptions | WrappedBenchmarkFactory;
 
 /**
  * Suite factory function that returns benchmark configuration.
@@ -59,37 +60,59 @@ function isSuiteFactory(value: BenchmarksOrFactory): value is SuiteFactory {
   return typeof value === 'function';
 }
 
+function isWrappedBenchmarkFactory(
+  value: unknown,
+): value is WrappedBenchmarkFactory {
+  return (
+    isObject(value) &&
+    '__isBenchmarkFactory' in value &&
+    value.__isBenchmarkFactory === true
+  );
+}
+
+/**
+ * Wraps a factory function to create a benchmark with its own scope.
+ * Use this to avoid module-level variables for benchmark state.
+ *
+ * @example
+ * ```ts
+ * benchmarkSuite('Suite', {
+ *   'Regular': () => { doWork(); },
+ *   'With factory': benchmark(() => {
+ *     let state = 0;
+ *     return () => { state++; };
+ *   })
+ * });
+ * ```
+ *
+ * @param factory - Factory function that returns a benchmark function or FnWithOptions
+ * @returns Wrapped factory that can be used as a benchmark value
+ */
+export function benchmark(
+  factory: () => Fn | FnWithOptions,
+): WrappedBenchmarkFactory {
+  return {
+    __isBenchmarkFactory: true,
+    factory,
+  };
+}
+
 /**
  * Resolves a BenchmarkValue to either Fn or FnWithOptions.
- *
- * The challenge: we cannot distinguish between a regular benchmark function
- * and a factory function by type alone. Both are `() => T`.
- *
- * Strategy: If the value is a function (not FnWithOptions object), we tentatively
- * call it to check what it returns:
- * - If it returns a function or FnWithOptions object → it was a factory
- * - If it returns undefined/void → it was a regular benchmark function
- *
- * This means factories MUST return something (a function or config object).
- * Regular benchmarks should not return anything meaningful.
+ * If it's a wrapped factory, calls the factory and returns the result.
  */
 function resolveBenchmarkValue(value: BenchmarkValue): Fn | FnWithOptions {
-  // If it's already a FnWithOptions object, return as-is
+  // If it's a wrapped factory, call it
+  if (isWrappedBenchmarkFactory(value)) {
+    return value.factory();
+  }
+
+  // If it's FnWithOptions, return as-is
   if (isFnWithOptions(value)) {
     return value;
   }
 
-  // It's a function - could be either a regular benchmark or a factory
-  // Call it and check what it returns
-  const result = (value as Function)();
-
-  // If result is a function or FnWithOptions, the original value was a factory
-  if (typeof result === 'function' || isFnWithOptions(result)) {
-    return result;
-  }
-
-  // Otherwise, the original value was a regular benchmark function
-  // (it executed and returned undefined/void)
+  // Otherwise, it's a regular benchmark function
   return value as Fn;
 }
 
@@ -148,13 +171,14 @@ export function formatBenchmarkResult(
  * });
  * ```
  *
- * Individual benchmarks can also be factory functions:
+ * Individual benchmarks can use the `benchmark()` wrapper for factories:
  * ```ts
  * benchmarkSuite('Suite', {
- *   'Benchmark': () => {
+ *   'Regular': () => { doWork(); },
+ *   'With factory': benchmark(() => {
  *     let localState;
  *     return () => { localState++; };
- *   },
+ *   }),
  * });
  * ```
  *

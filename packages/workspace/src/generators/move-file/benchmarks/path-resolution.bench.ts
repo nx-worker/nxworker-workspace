@@ -1,4 +1,7 @@
-import { benchmarkSuite } from '../../../../../../tools/tinybench-utils';
+import {
+  benchmark,
+  benchmarkSuite,
+} from '../../../../../../tools/tinybench-utils';
 import { buildFileNames } from '../path-utils/build-file-names';
 import { buildPatterns } from '../path-utils/build-patterns';
 import { getRelativeImportSpecifier } from '../path-utils/get-relative-import-specifier';
@@ -11,7 +14,7 @@ benchmarkSuite('Path Resolution', {
     buildFileNames(baseNames);
   },
 
-  'buildPatterns (100 files)': () => {
+  'buildPatterns (100 files)': benchmark(() => {
     // Benchmark-level factory for local state
     let buildPatternsPrefixes: readonly string[];
 
@@ -29,7 +32,7 @@ benchmarkSuite('Path Resolution', {
         },
       },
     };
-  },
+  }),
 
   getRelativeImportSpecifier: () => {
     const fromPath = 'libs/lib-a/src/lib/component-a.ts';
