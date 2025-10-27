@@ -358,18 +358,28 @@ benchmarkSuite(
     },
   },
   {
-    async setupSuite(context) {
+    async setupSuite() {
+      const context: Record<string, unknown> = {};
       context.projectDirectory = await createTestProject();
 
       execSync(`npm install @nxworker/workspace@e2e`, {
-        cwd: context.projectDirectory,
+        cwd: context.projectDirectory as string,
         stdio: 'inherit',
         env: process.env,
       });
+
+      return context;
     },
-    async teardownSuite(context) {
-      rmSync(context.projectDirectory, { recursive: true, force: true });
+    teardownSuite() {
+      const context = this as unknown as Record<string, unknown>;
+      if (context.projectDirectory) {
+        rmSync(context.projectDirectory as string, {
+          recursive: true,
+          force: true,
+        });
+      }
     },
+    teardownSuiteTimeout: 60_000,
     iterations: 10,
     time: 60_000,
   },

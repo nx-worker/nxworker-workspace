@@ -349,13 +349,14 @@ benchmarkSuite(
     },
   },
   {
-    async setupSuite(context) {
+    async setupSuite() {
+      const context: Record<string, unknown> = {};
       context.projectDirectory = await createTestProject();
       context.benchmarkLib1 = uniqueId('bench-lib1-');
       context.benchmarkLib2 = uniqueId('bench-lib2-');
 
       execSync(`npm install @nxworker/workspace@e2e`, {
-        cwd: context.projectDirectory,
+        cwd: context.projectDirectory as string,
         stdio: 'inherit',
         env: process.env,
       });
@@ -363,7 +364,7 @@ benchmarkSuite(
       execSync(
         `npx nx generate @nx/js:library ${context.benchmarkLib1} --unitTestRunner=none --bundler=none --no-interactive`,
         {
-          cwd: context.projectDirectory,
+          cwd: context.projectDirectory as string,
           stdio: 'inherit',
         },
       );
@@ -371,14 +372,23 @@ benchmarkSuite(
       execSync(
         `npx nx generate @nx/js:library ${context.benchmarkLib2} --unitTestRunner=none --bundler=none --no-interactive`,
         {
-          cwd: context.projectDirectory,
+          cwd: context.projectDirectory as string,
           stdio: 'inherit',
         },
       );
+
+      return context;
     },
-    async teardownSuite(context) {
-      rmSync(context.projectDirectory, { recursive: true, force: true });
+    teardownSuite() {
+      const context = this as unknown as Record<string, unknown>;
+      if (context.projectDirectory) {
+        rmSync(context.projectDirectory as string, {
+          recursive: true,
+          force: true,
+        });
+      }
     },
+    teardownSuiteTimeout: 60_000,
     iterations: 10,
     time: 30_000,
   },
