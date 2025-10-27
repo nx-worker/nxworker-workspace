@@ -2,9 +2,23 @@
 /* eslint-env jest */
 import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
 
+// Custom types that extend tinybench to support context passing
+type FnWithContext = (context: any) => any;
+type FnHookWithContext = (
+  context: any,
+  mode?: 'run' | 'warmup',
+) => Promise<void> | void;
+
+interface FnOptionsWithContext {
+  beforeAll?: FnHookWithContext;
+  beforeEach?: FnHookWithContext;
+  afterEach?: FnHookWithContext;
+  afterAll?: FnHookWithContext;
+}
+
 interface FnWithOptions extends Omit<BenchOptions, 'name'> {
-  readonly fn: Fn;
-  readonly fnOptions?: FnOptions;
+  readonly fn: Fn | FnWithContext;
+  readonly fnOptions?: FnOptions | FnOptionsWithContext;
 }
 
 function isFnWithOptions(value: unknown): value is FnWithOptions {
@@ -54,7 +68,7 @@ export function formatBenchmarkResult(
  */
 export function benchmarkSuite(
   suiteName: string,
-  benchmarks: Record<string, Fn | FnWithOptions>,
+  benchmarks: Record<string, Fn | FnWithContext | FnWithOptions>,
   suiteOptions: Omit<BenchOptions, 'name'> & {
     readonly teardownSuite?: Parameters<typeof afterAll>[0];
     readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
@@ -64,13 +78,16 @@ export function benchmarkSuite(
 ): void {
   describe(suiteName, () => {
     let summary: string;
+    let context: unknown;
 
     beforeAll(() => {
       summary = '';
     });
 
     if (suiteOptions.setupSuite) {
-      beforeAll(suiteOptions.setupSuite, suiteOptions.setupSuiteTimeout);
+      beforeAll(async () => {
+        context = await suiteOptions.setupSuite!.call(undefined);
+      }, suiteOptions.setupSuiteTimeout);
     }
 
     if (suiteOptions.teardownSuite) {
@@ -99,7 +116,52 @@ export function benchmarkSuite(
 
         const bench = new Bench({ name: suiteName, ...options });
 
-        bench.add(benchmarkName, benchmarkFn, fnOptions);
+        // Wrap the benchmark function to pass context
+        const wrappedFn = () => (benchmarkFn as any).call(context, context);
+
+        // Wrap fnOptions hooks to pass context
+        const wrappedFnOptions: FnOptions | undefined = fnOptions
+          ? {
+              beforeAll: fnOptions.beforeAll
+                ? function (this: unknown, mode?: 'run' | 'warmup') {
+                    return (fnOptions.beforeAll as any)!.call(
+                      context,
+                      context,
+                      mode,
+                    );
+                  }
+                : undefined,
+              beforeEach: fnOptions.beforeEach
+                ? function (this: unknown, mode?: 'run' | 'warmup') {
+                    return (fnOptions.beforeEach as any)!.call(
+                      context,
+                      context,
+                      mode,
+                    );
+                  }
+                : undefined,
+              afterEach: fnOptions.afterEach
+                ? function (this: unknown, mode?: 'run' | 'warmup') {
+                    return (fnOptions.afterEach as any)!.call(
+                      context,
+                      context,
+                      mode,
+                    );
+                  }
+                : undefined,
+              afterAll: fnOptions.afterAll
+                ? function (this: unknown, mode?: 'run' | 'warmup') {
+                    return (fnOptions.afterAll as any)!.call(
+                      context,
+                      context,
+                      mode,
+                    );
+                  }
+                : undefined,
+            }
+          : undefined;
+
+        bench.add(benchmarkName, wrappedFn, wrappedFnOptions);
 
         const tasks = await bench.run();
 
