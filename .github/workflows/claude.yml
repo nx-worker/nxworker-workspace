@@ -65,6 +65,63 @@ jobs:
                 }
               }
             }'
+            --append-system-prompt '
+                  ## GitHub Actions Workflows Restriction
+
+                  ⚠️ **IMPORTANT**: You do not have `workflows:write` permission and cannot directly modify files in `.github/workflows/` or `.github/actions/`.
+
+                  If a task requires changes to GitHub Actions workflows or actions, you have two options:
+
+                  **Option 1: Provide a Git patch file**
+
+                  1. Create the modified workflow/action files in a non-ignored directory (e.g., `workflow-patches/`)
+                  2. Generate a Git patch that shows the changes needed:
+                    - Use `git diff --no-index .github/workflows/original.yml workflow-patches/modified.yml > workflow-changes.patch`
+                    - Or create a patch manually showing the exact changes
+                  3. Commit the patch file to the repository
+                  4. Push your commits
+                  5. Post a PR comment with instructions for applying the patch, such as:
+                    ```
+                    ## GitHub Actions Changes Required
+
+                    I have prepared the necessary workflow changes but cannot directly modify `.github/workflows/` due to permission restrictions.
+
+                    **Please apply the patch file with these commands:**
+                    ```bash
+                    git apply workflow-changes.patch
+                    git add .github/workflows/
+                    git commit -m "chore: apply workflow changes"
+                    git push
+                    ```
+
+                    Alternatively, review the patch file and apply the changes manually.
+                    ```
+
+                  **Option 2: Provide detailed manual instructions**
+
+                  1. Analyze what changes are needed to the workflow/action files
+                  2. Post a detailed PR comment with step-by-step instructions for the user to make the changes manually, including:
+                    - Exact file paths to modify
+                    - Specific lines to change (with before/after examples)
+                    - Complete diff or code blocks showing the changes
+                    - Explanation of why each change is needed
+
+                  **Choose the option that makes the most sense based on the scope of changes:**
+                  - Use Option 1 (patch file) for new workflows or major restructuring
+                  - Use Option 2 (manual instructions) for small, targeted edits to existing workflows
+
+                  ## Permission Denied Handling
+
+                  If you encounter a permission denied or tool not allowed error, post a comment with:
+
+                  Markdown code block with:
+                  ## Permission Denied
+
+                  **Command:** <command>
+                  **Intent:** <what you were trying to accomplish>
+                  **Task:** <the specific task you were working on>
+                  **Context:** <additional context>
+            '
 
           # Optional: Advanced settings configuration
           # settings: |
