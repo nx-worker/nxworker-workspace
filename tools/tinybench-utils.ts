@@ -731,34 +731,39 @@ function runDescribeBlock(block: DescribeBlock): void {
         };
 
         const bench = new Bench(benchOptions);
-        bench.add(benchmark.name, benchmark.fn, benchmark.fnOptions);
+        try {
+          bench.add(benchmark.name, benchmark.fn, benchmark.fnOptions);
 
-        const tasks = await bench.run();
+          const tasks = await bench.run();
 
-        for (const task of tasks) {
-          const taskResult = task.result;
+          for (const task of tasks) {
+            const taskResult = task.result;
 
-          if (!taskResult) {
-            throw new Error(
-              `[${block.name}] ${task.name} did not produce a result`,
-            );
+            if (!taskResult) {
+              throw new Error(
+                `[${block.name}] ${task.name} did not produce a result`,
+              );
+            }
+
+            if (taskResult.error) {
+              const error = new Error(
+                `[${block.name}] ${task.name} failed: ${taskResult.error.message}`,
+              );
+              (error as any).cause = taskResult.error;
+              throw error;
+            }
+
+            summary +=
+              formatBenchmarkResult(
+                `[${block.name}] ${task.name}`,
+                taskResult.throughput.mean,
+                taskResult.latency.rme,
+                taskResult.latency.samples.length,
+              ) + '\n';
           }
-
-          if (taskResult.error) {
-            const error = new Error(
-              `[${block.name}] ${task.name} failed: ${taskResult.error.message}`,
-            );
-            (error as any).cause = taskResult.error;
-            throw error;
-          }
-
-          summary +=
-            formatBenchmarkResult(
-              `[${block.name}] ${task.name}`,
-              taskResult.throughput.mean,
-              taskResult.latency.rme,
-              taskResult.latency.samples.length,
-            ) + '\n';
+        } finally {
+          // Explicitly remove task to help with memory cleanup
+          bench.remove(benchmark.name);
         }
       };
 
