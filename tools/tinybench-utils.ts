@@ -465,9 +465,49 @@ export function it(
     }
   }
 
+  /**
+   * CRITICAL FIX: Wrap the benchmark function to track execution context
+   *
+   * This wrapper sets the `insideItCallback` flag to true when the benchmark
+   * function executes, preventing hooks (beforeAll, afterAll, etc.) from being
+   * called inside the benchmark. Without this wrapper, the validation in hook
+   * functions would never trigger because the flag would never be set to true.
+   *
+   * This prevents users from accidentally calling hooks inside it() callbacks,
+   * which would cause those hooks to execute during every benchmark iteration
+   * instead of once per benchmark, producing incorrect benchmark results.
+   *
+   * The wrapper handles both synchronous and asynchronous benchmark functions:
+   * - For sync functions: Sets flag → executes → resets flag → returns result
+   * - For async functions: Sets flag → executes → returns Promise with finally() to reset flag
+   * - For errors: Always resets flag before re-throwing to prevent flag leakage
+   */
+  const wrappedFn: Fn = () => {
+    insideItCallback = true;
+    try {
+      const result = fn();
+      // If it's a promise, chain the cleanup
+      if (
+        result &&
+        typeof result === 'object' &&
+        typeof (result as any).then === 'function'
+      ) {
+        return (result as Promise<any>).finally(() => {
+          insideItCallback = false;
+        });
+      }
+      // Otherwise, clean up immediately
+      insideItCallback = false;
+      return result;
+    } catch (error) {
+      insideItCallback = false;
+      throw error;
+    }
+  };
+
   currentDescribeBlock.benchmarks.push({
     name,
-    fn,
+    fn: wrappedFn,
     fnOptions,
     benchOptions,
   });
