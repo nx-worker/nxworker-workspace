@@ -30,8 +30,19 @@ async function createTestProject(): Promise<string> {
   mkdirSync(tempDir, { recursive: true });
   const projectDirectory = join(tempDir, projectName);
 
+  // Use workspace Nx version
+  const rootPackageJsonPath = join(process.cwd(), 'package.json');
+  const rootPackageJson = JSON.parse(
+    readFileSync(rootPackageJsonPath, 'utf-8'),
+  );
+  const workspaceNxVersion =
+    rootPackageJson.devDependencies?.nx || rootPackageJson.dependencies?.nx;
+  if (!workspaceNxVersion) {
+    throw new Error('Could not determine workspace Nx version');
+  }
+
   execSync(
-    `npx create-nx-workspace@latest ${projectName} --preset=ts --workspaceType=integrated --packageManager=npm --nx-cloud=skip --no-interactive`,
+    `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset=ts --workspaceType=integrated --packageManager=npm --nx-cloud=skip --no-interactive`,
     {
       cwd: tempDir,
       stdio: 'pipe',
@@ -115,7 +126,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           const utilityFile = 'shared-utility.ts';
           const projectCount = context.crossProjectLibs.length;
           execSync(
@@ -184,7 +195,7 @@ benchmarkSuite(
           );
           writeFileSync(targetFilePath, generateUtilityModule('largeModule', 200));
         },
-        afterAll(context) {
+        afterEach(context) {
           const targetFile = 'large-module.ts';
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.manyFilesTargetLib}/src/lib/${targetFile} --project ${context.manyFilesSourceLib} --no-interactive`,
@@ -250,7 +261,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.relativeImportsLib}/src/lib/helpers/${context.relativeImportsUtilFile} --project ${context.relativeImportsLib} --project-directory=utils --no-interactive`,
             {
@@ -343,7 +354,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           const coreFile = 'core-api.ts';
           const projectCount = context.combinedStressLibs.length;
           execSync(

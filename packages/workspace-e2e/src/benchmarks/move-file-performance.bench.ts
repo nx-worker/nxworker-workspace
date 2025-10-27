@@ -2,7 +2,7 @@ import { benchmarkSuite } from '../../../../tools/tinybench-utils';
 import { uniqueId } from '../test-utils';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 
 /**
  * E2E performance benchmarks for the move-file generator.
@@ -23,8 +23,19 @@ async function createTestProject(): Promise<string> {
   mkdirSync(tempDir, { recursive: true });
   const projectDirectory = join(tempDir, projectName);
 
+  // Use workspace Nx version
+  const rootPackageJsonPath = join(process.cwd(), 'package.json');
+  const rootPackageJson = JSON.parse(
+    readFileSync(rootPackageJsonPath, 'utf-8'),
+  );
+  const workspaceNxVersion =
+    rootPackageJson.devDependencies?.nx || rootPackageJson.dependencies?.nx;
+  if (!workspaceNxVersion) {
+    throw new Error('Could not determine workspace Nx version');
+  }
+
   execSync(
-    `npx create-nx-workspace@latest ${projectName} --preset=ts --workspaceType=integrated --packageManager=npm --nx-cloud=skip --no-interactive`,
+    `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset=ts --workspaceType=integrated --packageManager=npm --nx-cloud=skip --no-interactive`,
     {
       cwd: tempDir,
       stdio: 'pipe',
@@ -61,7 +72,7 @@ benchmarkSuite(
             'export function smallFunction() { return "small"; }\n',
           );
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.smallFileName} --project ${context.benchmarkLib1} --no-interactive`,
             {
@@ -97,7 +108,7 @@ benchmarkSuite(
             generateLargeTypeScriptFile(200),
           );
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.mediumFileName} --project ${context.benchmarkLib1} --no-interactive`,
             {
@@ -133,7 +144,7 @@ benchmarkSuite(
             generateLargeTypeScriptFile(1000),
           );
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.largeFileName} --project ${context.benchmarkLib1} --no-interactive`,
             {
@@ -172,7 +183,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file "${context.benchmarkLib2}/src/lib/multi-small-${context.batchId}-*.ts" --project ${context.benchmarkLib1} --no-interactive`,
             {
@@ -230,7 +241,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file "${context.benchmarkLib2}/src/lib/api-${context.batchId}-*.ts,${context.benchmarkLib2}/src/lib/service-${context.batchId}-*.ts,${context.benchmarkLib2}/src/lib/util-${context.batchId}-*.ts" --project ${context.benchmarkLib1} --no-interactive`,
             {
@@ -283,7 +294,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.manyImportsFileName} --project ${context.benchmarkLib1} --no-interactive`,
             {
@@ -336,7 +347,7 @@ benchmarkSuite(
             );
           }
         },
-        afterAll(context) {
+        afterEach(context) {
           execSync(
             `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.earlyExitFileName} --project ${context.benchmarkLib1} --no-interactive`,
             {
