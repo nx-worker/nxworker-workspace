@@ -623,7 +623,7 @@ function runDescribeBlock(block: DescribeBlock): void {
     for (const benchmark of block.benchmarks) {
       (globalThis.it as any)(benchmark.name, async () => {
         const benchOptions: BenchOptions = {
-          name: block.name,
+          name: `${block.name}/${benchmark.name}`,
           ...benchmark.benchOptions,
         };
 
