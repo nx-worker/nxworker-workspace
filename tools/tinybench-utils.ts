@@ -35,6 +35,7 @@ interface DescribeBlock {
  */
 let currentDescribeBlock: DescribeBlock | null = null;
 let rootDescribeBlock: DescribeBlock | null = null;
+let insideItCallback = false;
 
 /**
  * Hook that runs once before all benchmarks in the current describe block
@@ -42,6 +43,9 @@ let rootDescribeBlock: DescribeBlock | null = null;
 export function beforeAll(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('beforeAll() must be called inside a describe() block');
+  }
+  if (insideItCallback) {
+    throw new Error('beforeAll() cannot be called inside an it() callback');
   }
   currentDescribeBlock.beforeAllHooks.push(fn);
 }
@@ -53,6 +57,9 @@ export function afterAll(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('afterAll() must be called inside a describe() block');
   }
+  if (insideItCallback) {
+    throw new Error('afterAll() cannot be called inside an it() callback');
+  }
   currentDescribeBlock.afterAllHooks.push(fn);
 }
 
@@ -62,6 +69,9 @@ export function afterAll(fn: () => void | Promise<void>): void {
 export function beforeEach(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('beforeEach() must be called inside a describe() block');
+  }
+  if (insideItCallback) {
+    throw new Error('beforeEach() cannot be called inside an it() callback');
   }
   currentDescribeBlock.beforeEachHooks.push(fn);
 }
@@ -73,6 +83,9 @@ export function afterEach(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('afterEach() must be called inside a describe() block');
   }
+  if (insideItCallback) {
+    throw new Error('afterEach() cannot be called inside an it() callback');
+  }
   currentDescribeBlock.afterEachHooks.push(fn);
 }
 
@@ -82,6 +95,9 @@ export function afterEach(fn: () => void | Promise<void>): void {
 export function setup(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('setup() must be called inside a describe() block');
+  }
+  if (insideItCallback) {
+    throw new Error('setup() cannot be called inside an it() callback');
   }
   currentDescribeBlock.setupHooks.push(fn);
 }
@@ -93,6 +109,9 @@ export function teardown(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('teardown() must be called inside a describe() block');
   }
+  if (insideItCallback) {
+    throw new Error('teardown() cannot be called inside an it() callback');
+  }
   currentDescribeBlock.teardownHooks.push(fn);
 }
 
@@ -103,6 +122,9 @@ export function setupSuite(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('setupSuite() must be called inside a describe() block');
   }
+  if (insideItCallback) {
+    throw new Error('setupSuite() cannot be called inside an it() callback');
+  }
   currentDescribeBlock.setupSuiteHooks.push(fn);
 }
 
@@ -112,6 +134,9 @@ export function setupSuite(fn: () => void | Promise<void>): void {
 export function teardownSuite(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
     throw new Error('teardownSuite() must be called inside a describe() block');
+  }
+  if (insideItCallback) {
+    throw new Error('teardownSuite() cannot be called inside an it() callback');
   }
   currentDescribeBlock.teardownSuiteHooks.push(fn);
 }
@@ -139,6 +164,9 @@ export function it(
 ): void {
   if (!currentDescribeBlock) {
     throw new Error('it() must be called inside a describe() block');
+  }
+  if (insideItCallback) {
+    throw new Error('it() cannot be called inside an it() callback');
   }
 
   // Collect hooks from current block and all ancestors
