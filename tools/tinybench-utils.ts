@@ -273,28 +273,9 @@ export function describe(
 }
 
 /**
- * Recursively collects all benchmarks from a describe block and its children
- */
-function collectBenchmarks(block: DescribeBlock): RegisteredBenchmark[] {
-  const benchmarks: RegisteredBenchmark[] = [];
-
-  // Add benchmarks from this block
-  benchmarks.push(...block.benchmarks);
-
-  // Recursively add benchmarks from children
-  for (const child of block.children) {
-    benchmarks.push(...collectBenchmarks(child));
-  }
-
-  return benchmarks;
-}
-
-/**
- * Runs a describe block as a Jest describe with all its benchmarks
+ * Runs a describe block as a Jest describe with its benchmarks and nested describes
  */
 function runDescribeBlock(block: DescribeBlock): void {
-  const benchmarks = collectBenchmarks(block);
-
   (globalThis.describe as any)(block.name, () => {
     let summary: string;
 
@@ -311,10 +292,13 @@ function runDescribeBlock(block: DescribeBlock): void {
     }
 
     (globalThis.afterAll as any)(() => {
-      console.log(summary);
+      if (summary) {
+        console.log(summary);
+      }
     });
 
-    for (const benchmark of benchmarks) {
+    // Run benchmarks defined directly in this describe block
+    for (const benchmark of block.benchmarks) {
       (globalThis.it as any)(benchmark.name, async () => {
         const benchOptions: BenchOptions = {
           name: block.name,
@@ -353,6 +337,11 @@ function runDescribeBlock(block: DescribeBlock): void {
             ) + '\n';
         }
       });
+    }
+
+    // Recursively run nested describe blocks
+    for (const child of block.children) {
+      runDescribeBlock(child);
     }
   });
 }

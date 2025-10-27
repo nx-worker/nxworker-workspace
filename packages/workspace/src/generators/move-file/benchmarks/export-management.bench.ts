@@ -1,4 +1,10 @@
-import { benchmarkSuite } from '../../../../../../tools/tinybench-utils';
+import {
+  beforeAll,
+  describe,
+  it,
+  setup,
+  teardown,
+} from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
 import { isFileExported } from '../export-management/is-file-exported';
@@ -7,8 +13,7 @@ import { removeFileExport } from '../export-management/remove-file-export';
 import { TreeReadCache } from '../tree-cache';
 import { cachedTreeExists as cachedTreeExistsImpl } from '../cache/cached-tree-exists';
 
-benchmarkSuite('Export Management', () => {
-  // Shared scope for all benchmarks - replaces module-level variables
+describe('Export Management', () => {
   let cachedTreeExists: (tree: Tree, filePath: string) => boolean;
   let entryPoint: string;
   let fileExistenceCache: Map<string, boolean>;
@@ -16,76 +21,67 @@ benchmarkSuite('Export Management', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  return {
-    benchmarks: {
-      'Export detection': {
-        fn: () => {
-          isFileExported(tree, project, 'lib/file2.ts', cachedTreeExists);
-        },
-        fnOptions: {
-          beforeAll() {
-            tree.write(
-              entryPoint,
-              `export * from './lib/file1';
+  beforeAll(() => {
+    cachedTreeExists = (tree, filePath) =>
+      cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
+    entryPoint = 'libs/my-lib/src/index.ts';
+    fileExistenceCache = new Map<string, boolean>();
+    project = {
+      root: 'libs/my-lib',
+      sourceRoot: 'libs/my-lib/src',
+      name: 'my-lib',
+    };
+    treeReadCache = new TreeReadCache();
+  });
+
+  setup(() => {
+    tree = createTreeWithEmptyWorkspace();
+  });
+
+  teardown(() => {
+    fileExistenceCache.clear();
+    treeReadCache.clear();
+  });
+
+  describe('Export detection', () => {
+    beforeAll(() => {
+      tree.write(
+        entryPoint,
+        `export * from './lib/file1';
             export * from './lib/file2';
             export * from './lib/file3';`,
-            );
-          },
-        },
-      },
+      );
+    });
 
-      'Export addition': {
-        fn: () => {
-          ensureFileExported(
-            tree,
-            project,
-            'lib/new-file.ts',
-            cachedTreeExists,
-          );
-        },
-        fnOptions: {
-          beforeAll() {
-            const initialContent = `export * from './lib/file1';
+    it('should detect exports', () => {
+      isFileExported(tree, project, 'lib/file2.ts', cachedTreeExists);
+    });
+  });
+
+  describe('Export addition', () => {
+    beforeAll(() => {
+      const initialContent = `export * from './lib/file1';
             export * from './lib/file2';`;
-            tree.write(entryPoint, initialContent);
-          },
-        },
-      },
+      tree.write(entryPoint, initialContent);
+    });
 
-      'Export removal': {
-        fn: () => {
-          removeFileExport(tree, project, 'lib/to-remove.ts', cachedTreeExists);
-        },
-        fnOptions: {
-          beforeAll() {
-            tree.write(
-              entryPoint,
-              `export * from './lib/file1';
+    it('should add exports', () => {
+      ensureFileExported(tree, project, 'lib/new-file.ts', cachedTreeExists);
+    });
+  });
+
+  describe('Export removal', () => {
+    beforeAll(() => {
+      tree.write(
+        entryPoint,
+        `export * from './lib/file1';
             export * from './lib/to-remove';
             export * from './lib/file2';`,
-            );
-          },
-        },
-      },
-    },
-    setupSuite() {
-      cachedTreeExists = (tree, filePath) =>
-        cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
-      entryPoint = 'libs/my-lib/src/index.ts';
-      fileExistenceCache = new Map<string, boolean>();
-      project = {
-        root: 'libs/my-lib',
-        sourceRoot: 'libs/my-lib/src',
-        name: 'my-lib',
-      };
-      treeReadCache = new TreeReadCache();
-    },
-    setup() {
-      tree = createTreeWithEmptyWorkspace();
-    },
-    teardown() {
-      fileExistenceCache.clear();
-      treeReadCache.clear();
-    },
-  };
+      );
+    });
+
+    it('should remove exports', () => {
+      removeFileExport(tree, project, 'lib/to-remove.ts', cachedTreeExists);
+    });
+  });
 });
