@@ -13,6 +13,14 @@ interface RegisteredBenchmark {
 }
 
 /**
+ * Hook with optional timeout configuration
+ */
+interface HookWithTimeout {
+  fn: () => void | Promise<void>;
+  timeout?: number;
+}
+
+/**
  * Represents a describe block with its benchmarks and hooks
  */
 interface DescribeBlock {
@@ -24,8 +32,8 @@ interface DescribeBlock {
   afterEachHooks: Array<() => void | Promise<void>>;
   setupHooks: Array<() => void | Promise<void>>;
   teardownHooks: Array<() => void | Promise<void>>;
-  setupSuiteHooks: Array<() => void | Promise<void>>;
-  teardownSuiteHooks: Array<() => void | Promise<void>>;
+  setupSuiteHooks: HookWithTimeout[];
+  teardownSuiteHooks: HookWithTimeout[];
   children: DescribeBlock[];
   parent?: DescribeBlock;
 }
@@ -36,6 +44,33 @@ interface DescribeBlock {
 let currentDescribeBlock: DescribeBlock | undefined = undefined;
 let rootDescribeBlock: DescribeBlock | undefined = undefined;
 let insideItCallback = false;
+
+/**
+ * Validates a timeout value for Jest hooks.
+ *
+ * @param timeout - The timeout value to validate
+ * @param hookName - The name of the hook (for error messages)
+ * @throws {Error} If timeout is not a positive number
+ */
+function validateTimeout(timeout: number | undefined, hookName: string): void {
+  if (timeout !== undefined) {
+    if (typeof timeout !== 'number') {
+      throw new Error(
+        `${hookName} timeout must be a number, got: ${typeof timeout}`,
+      );
+    }
+    if (timeout < 0) {
+      throw new Error(
+        `${hookName} timeout must be a positive number, got: ${timeout}`,
+      );
+    }
+    if (!Number.isFinite(timeout)) {
+      throw new Error(
+        `${hookName} timeout must be a finite number, got: ${timeout}`,
+      );
+    }
+  }
+}
 
 /**
  * Registers a hook that runs once before all iterations of benchmarks in the current describe block.
@@ -269,9 +304,11 @@ export function teardown(fn: () => void | Promise<void>): void {
  * that should be shared across all benchmarks in the suite.
  *
  * @param fn - The function to run before all benchmarks in the suite
+ * @param timeout - Optional timeout in milliseconds for the hook (must be positive)
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
+ * @throws {Error} If timeout is not a positive number
  *
  * @example
  * ```ts
@@ -281,6 +318,11 @@ export function teardown(fn: () => void | Promise<void>): void {
  *   setupSuite(() => {
  *     sharedState = initializeSharedState();
  *   });
+ *
+ *   // With timeout for long-running setup
+ *   setupSuite(async () => {
+ *     sharedState = await initializeExpensiveResource();
+ *   }, 30000); // 30 second timeout
  *
  *   describe('Group 1', () => {
  *     it('should use shared state', () => {
@@ -296,14 +338,18 @@ export function teardown(fn: () => void | Promise<void>): void {
  * });
  * ```
  */
-export function setupSuite(fn: () => void | Promise<void>): void {
+export function setupSuite(
+  fn: () => void | Promise<void>,
+  timeout?: number,
+): void {
   if (!currentDescribeBlock) {
     throw new Error('setupSuite() must be called inside a describe() block');
   }
   if (insideItCallback) {
     throw new Error('setupSuite() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.setupSuiteHooks.push(fn);
+  validateTimeout(timeout, 'setupSuite');
+  currentDescribeBlock.setupSuiteHooks.push({ fn, timeout });
 }
 
 /**
@@ -313,9 +359,11 @@ export function setupSuite(fn: () => void | Promise<void>): void {
  * initialized in setupSuite().
  *
  * @param fn - The function to run after all benchmarks in the suite
+ * @param timeout - Optional timeout in milliseconds for the hook (must be positive)
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
+ * @throws {Error} If timeout is not a positive number
  *
  * @example
  * ```ts
@@ -330,20 +378,29 @@ export function setupSuite(fn: () => void | Promise<void>): void {
  *     cleanupSharedState(sharedState);
  *   });
  *
+ *   // With timeout for long-running cleanup
+ *   teardownSuite(async () => {
+ *     await cleanupExpensiveResource(sharedState);
+ *   }, 15000); // 15 second timeout
+ *
  *   it('should use shared state', () => {
  *     processSharedState(sharedState);
  *   });
  * });
  * ```
  */
-export function teardownSuite(fn: () => void | Promise<void>): void {
+export function teardownSuite(
+  fn: () => void | Promise<void>,
+  timeout?: number,
+): void {
   if (!currentDescribeBlock) {
     throw new Error('teardownSuite() must be called inside a describe() block');
   }
   if (insideItCallback) {
     throw new Error('teardownSuite() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.teardownSuiteHooks.push(fn);
+  validateTimeout(timeout, 'teardownSuite');
+  currentDescribeBlock.teardownSuiteHooks.push({ fn, timeout });
 }
 
 /**
@@ -603,14 +660,26 @@ function runDescribeBlock(block: DescribeBlock): void {
       summary = '';
     });
 
-    // Run setupSuite hooks
+    // Run setupSuite hooks with timeout validation
     for (const hook of block.setupSuiteHooks) {
-      (globalThis.beforeAll as any)(hook);
+      const timeout = hook.timeout;
+      if (timeout !== undefined) {
+        validateTimeout(timeout, 'setupSuite');
+        (globalThis.beforeAll as any)(hook.fn, timeout);
+      } else {
+        (globalThis.beforeAll as any)(hook.fn);
+      }
     }
 
-    // Run teardownSuite hooks
+    // Run teardownSuite hooks with timeout validation
     for (const hook of block.teardownSuiteHooks) {
-      (globalThis.afterAll as any)(hook);
+      const timeout = hook.timeout;
+      if (timeout !== undefined) {
+        validateTimeout(timeout, 'teardownSuite');
+        (globalThis.afterAll as any)(hook.fn, timeout);
+      } else {
+        (globalThis.afterAll as any)(hook.fn);
+      }
     }
 
     (globalThis.afterAll as any)(() => {
