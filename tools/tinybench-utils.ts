@@ -2,118 +2,102 @@
 /* eslint-env jest */
 import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
 
-interface FnWithOptions extends Omit<BenchOptions, 'name'> {
-  readonly fn: Fn;
-  readonly fnOptions?: FnOptions;
-}
-
 /**
- * Suite configuration with hooks
+ * Context object passed to each benchmark callback
  */
-interface SuiteConfig {
-  readonly teardownSuite?: Parameters<typeof afterAll>[0];
-  readonly teardownSuiteTimeout?: Parameters<typeof afterAll>[1];
-  readonly setupSuite?: Parameters<typeof beforeAll>[0];
-  readonly setupSuiteTimeout?: Parameters<typeof beforeAll>[1];
+interface BenchmarkContext {
+  /**
+   * Define the benchmark function. Must be called exactly once.
+   */
+  bench: (fn: Fn) => void;
+  /**
+   * Hook that runs once before all iterations of this benchmark
+   */
+  beforeAll: (fn: () => void | Promise<void>) => void;
+  /**
+   * Hook that runs once after all iterations of this benchmark
+   */
+  afterAll: (fn: () => void | Promise<void>) => void;
+  /**
+   * Hook that runs before each iteration of this benchmark
+   */
+  beforeEach: (fn: () => void | Promise<void>) => void;
+  /**
+   * Hook that runs after each iteration of this benchmark
+   */
+  afterEach: (fn: () => void | Promise<void>) => void;
+  /**
+   * Benchmark-level setup hook (runs once before benchmark)
+   */
+  setup: (fn: () => void | Promise<void>) => void;
+  /**
+   * Benchmark-level teardown hook (runs once after benchmark)
+   */
+  teardown: (fn: () => void | Promise<void>) => void;
 }
 
 /**
- * Marker interface for wrapped benchmark factories
+ * Callback function for defining a benchmark
  */
-interface WrappedBenchmarkFactory {
-  readonly __isBenchmarkFactory: true;
-  readonly factory: () => Fn | FnWithOptions;
-}
+type BenchmarkCallback = (context: BenchmarkContext) => void;
 
 /**
- * Benchmark value that can be:
- * - A simple function
- * - A function with options (FnWithOptions)
- * - A wrapped factory (created via `benchmark()` helper)
+ * Internal representation of a registered benchmark
  */
-type BenchmarkValue = Fn | FnWithOptions | WrappedBenchmarkFactory;
+interface RegisteredBenchmark {
+  name: string;
+  callback: BenchmarkCallback;
+  options?: Omit<BenchOptions, 'name'>;
+}
 
 /**
- * Suite factory function that returns benchmark configuration.
+ * Global registry for benchmarks (scoped to current suite)
  */
-type SuiteFactory = () => {
-  readonly benchmarks: Record<string, BenchmarkValue>;
-} & Omit<BenchOptions, 'name'> &
-  SuiteConfig;
+let currentSuiteBenchmarks: RegisteredBenchmark[] = [];
 
 /**
- * Second parameter to benchmarkSuite can be either:
- * - A record of benchmarks (original API)
- * - A factory function that returns suite configuration
- */
-type BenchmarksOrFactory = Record<string, BenchmarkValue> | SuiteFactory;
-
-function isFnWithOptions(value: unknown): value is FnWithOptions {
-  return isObject(value) && 'fn' in value && typeof value['fn'] === 'function';
-}
-
-function isObject(value: unknown): value is Record<PropertyKey, unknown> {
-  return value !== null && typeof value === 'object';
-}
-
-function isSuiteFactory(value: BenchmarksOrFactory): value is SuiteFactory {
-  return typeof value === 'function';
-}
-
-function isWrappedBenchmarkFactory(
-  value: unknown,
-): value is WrappedBenchmarkFactory {
-  return (
-    isObject(value) &&
-    '__isBenchmarkFactory' in value &&
-    value.__isBenchmarkFactory === true
-  );
-}
-
-/**
- * Wraps a factory function to create a benchmark with its own scope.
- * Use this to avoid module-level variables for benchmark state.
+ * Registers a benchmark within a benchmark suite.
+ * Must be called inside a benchmarkSuite factory function.
  *
  * @example
  * ```ts
- * benchmarkSuite('Suite', {
- *   'Regular': () => { doWork(); },
- *   'With factory': benchmark(() => {
- *     let state = 0;
- *     return () => { state++; };
- *   })
+ * benchmarkSuite('My Suite', () => {
+ *   let suiteScoped: string;
+ *
+ *   benchmark('Simple benchmark', ({ bench }) => {
+ *     bench(() => {
+ *       doWork(suiteScoped);
+ *     });
+ *   });
+ *
+ *   benchmark('With hooks', ({ bench, beforeAll, beforeEach }) => {
+ *     let benchmarkScoped: number;
+ *
+ *     beforeAll(() => {
+ *       benchmarkScoped = 0;
+ *     });
+ *
+ *     beforeEach(() => {
+ *       benchmarkScoped++;
+ *     });
+ *
+ *     bench(() => {
+ *       doWork(benchmarkScoped);
+ *     });
+ *   }, { iterations: 10, warmup: true });
  * });
  * ```
  *
- * @param factory - Factory function that returns a benchmark function or FnWithOptions
- * @returns Wrapped factory that can be used as a benchmark value
+ * @param name - The name of the benchmark
+ * @param callback - Callback function that receives the benchmark context
+ * @param options - Optional BenchOptions for this benchmark (iterations, warmup, etc.)
  */
 export function benchmark(
-  factory: () => Fn | FnWithOptions,
-): WrappedBenchmarkFactory {
-  return {
-    __isBenchmarkFactory: true,
-    factory,
-  };
-}
-
-/**
- * Resolves a BenchmarkValue to either Fn or FnWithOptions.
- * If it's a wrapped factory, calls the factory and returns the result.
- */
-function resolveBenchmarkValue(value: BenchmarkValue): Fn | FnWithOptions {
-  // If it's a wrapped factory, call it
-  if (isWrappedBenchmarkFactory(value)) {
-    return value.factory();
-  }
-
-  // If it's FnWithOptions, return as-is
-  if (isFnWithOptions(value)) {
-    return value;
-  }
-
-  // Otherwise, it's a regular benchmark function
-  return value as Fn;
+  name: string,
+  callback: BenchmarkCallback,
+  options?: Omit<BenchOptions, 'name'>,
+): void {
+  currentSuiteBenchmarks.push({ name, callback, options });
 }
 
 /**
@@ -149,61 +133,48 @@ export function formatBenchmarkResult(
  * This wrapper provides Jest-compatible benchmark testing while outputting
  * results compatible with benchmark-action/github-action-benchmark.
  *
- * Supports two main patterns:
- *
- * 1. Original API with benchmarks object:
+ * @example
  * ```ts
- * benchmarkSuite('Suite', {
- *   'Benchmark': () => { ... },
- * }, { setupSuite: ... });
- * ```
+ * benchmarkSuite('My Suite', () => {
+ *   let suiteScoped: string;
  *
- * 2. Factory function API for shared scope:
- * ```ts
- * benchmarkSuite('Suite', () => {
- *   let sharedState;
- *   return {
- *     benchmarks: {
- *       'Benchmark': () => { ... },
- *     },
- *     setupSuite: () => { sharedState = ...; },
- *   };
- * });
- * ```
+ *   benchmark('Benchmark', ({ bench }) => {
+ *     bench(() => {
+ *       doWork(suiteScoped);
+ *     });
+ *   });
  *
- * Individual benchmarks can use the `benchmark()` wrapper for factories:
- * ```ts
- * benchmarkSuite('Suite', {
- *   'Regular': () => { doWork(); },
- *   'With factory': benchmark(() => {
- *     let localState;
- *     return () => { localState++; };
- *   }),
+ *   benchmark('With hooks', ({ bench, beforeAll, setup }) => {
+ *     let benchmarkScoped: string;
+ *
+ *     beforeAll(() => { benchmarkScoped = 'foo'; });
+ *     setup(() => { benchmarkScoped = 'bar'; });
+ *
+ *     bench(() => {
+ *       doWork(suiteScoped, benchmarkScoped);
+ *     });
+ *   }, { iterations: 10, warmup: true });
  * });
  * ```
  *
  * @param suiteName - The name of the benchmark suite
- * @param benchmarksOrFactory - Benchmarks object or factory function
- * @param suiteOptions - Optional tinybench configuration (ignored if using factory)
+ * @param suiteFactory - Factory function that registers benchmarks using the `benchmark()` function
  */
 export function benchmarkSuite(
   suiteName: string,
-  benchmarksOrFactory: BenchmarksOrFactory,
-  suiteOptions: Omit<BenchOptions, 'name'> & SuiteConfig = {},
+  suiteFactory: () => void,
 ): void {
-  // Resolve factory if provided
-  let benchmarks: Record<string, BenchmarkValue>;
-  let resolvedSuiteOptions: Omit<BenchOptions, 'name'> & SuiteConfig;
+  // Clear the benchmark registry for this suite
+  currentSuiteBenchmarks = [];
 
-  if (isSuiteFactory(benchmarksOrFactory)) {
-    const config = benchmarksOrFactory();
-    const { benchmarks: factoryBenchmarks, ...factoryOptions } = config;
-    benchmarks = factoryBenchmarks;
-    resolvedSuiteOptions = factoryOptions;
-  } else {
-    benchmarks = benchmarksOrFactory;
-    resolvedSuiteOptions = suiteOptions;
-  }
+  // Execute the factory to register benchmarks
+  suiteFactory();
+
+  // Get the registered benchmarks
+  const benchmarksToRun = [...currentSuiteBenchmarks];
+
+  // Clear registry after capturing
+  currentSuiteBenchmarks = [];
 
   describe(suiteName, () => {
     let summary: string;
@@ -212,46 +183,107 @@ export function benchmarkSuite(
       summary = '';
     });
 
-    if (resolvedSuiteOptions.setupSuite) {
-      beforeAll(
-        resolvedSuiteOptions.setupSuite,
-        resolvedSuiteOptions.setupSuiteTimeout,
-      );
-    }
-
-    if (resolvedSuiteOptions.teardownSuite) {
-      afterAll(
-        resolvedSuiteOptions.teardownSuite,
-        resolvedSuiteOptions.teardownSuiteTimeout,
-      );
-    }
-
     afterAll(() => {
       console.log(summary);
     });
 
-    it.each(Object.entries(benchmarks))(
-      '%s',
-      async (benchmarkName, benchmarkValue) => {
-        // Resolve benchmark factory if needed
-        const benchmark = resolveBenchmarkValue(benchmarkValue);
+    for (const registered of benchmarksToRun) {
+      it(registered.name, async () => {
+        let benchFn: Fn | undefined;
+        const beforeAllCallbacks: Array<() => void | Promise<void>> = [];
+        const afterAllCallbacks: Array<() => void | Promise<void>> = [];
+        const beforeEachCallbacks: Array<() => void | Promise<void>> = [];
+        const afterEachCallbacks: Array<() => void | Promise<void>> = [];
+        const setupCallbacks: Array<() => void | Promise<void>> = [];
+        const teardownCallbacks: Array<() => void | Promise<void>> = [];
 
-        const benchmarkFn = isFnWithOptions(benchmark)
-          ? benchmark.fn
-          : benchmark;
-        let options = { ...resolvedSuiteOptions };
-        let fnOptions: FnOptions | undefined;
+        const context: BenchmarkContext = {
+          bench: (fn: Fn) => {
+            if (benchFn !== undefined) {
+              throw new Error(
+                `bench() can only be called once in benchmark "${registered.name}"`,
+              );
+            }
+            benchFn = fn;
+          },
+          beforeAll: (fn) => beforeAllCallbacks.push(fn),
+          afterAll: (fn) => afterAllCallbacks.push(fn),
+          beforeEach: (fn) => beforeEachCallbacks.push(fn),
+          afterEach: (fn) => afterEachCallbacks.push(fn),
+          setup: (fn) => setupCallbacks.push(fn),
+          teardown: (fn) => teardownCallbacks.push(fn),
+        };
 
-        if (isFnWithOptions(benchmark)) {
-          const { fn, ...benchmarkOptions } = benchmark;
-          // Override suite options with benchmark-specific options
-          options = { ...options, ...benchmarkOptions };
-          fnOptions = benchmark.fnOptions;
+        // Execute the benchmark callback to collect the bench function and hooks
+        registered.callback(context);
+
+        // Validate that bench() was called
+        if (benchFn === undefined) {
+          throw new Error(
+            `bench() must be called in benchmark "${registered.name}"`,
+          );
         }
 
-        const bench = new Bench({ name: suiteName, ...options });
+        // Build FnOptions from collected hooks
+        const fnOptions: FnOptions = {};
 
-        bench.add(benchmarkName, benchmarkFn, fnOptions);
+        if (beforeAllCallbacks.length > 0) {
+          fnOptions.beforeAll = async () => {
+            for (const cb of beforeAllCallbacks) {
+              await cb();
+            }
+          };
+        }
+
+        if (afterAllCallbacks.length > 0) {
+          fnOptions.afterAll = async () => {
+            for (const cb of afterAllCallbacks) {
+              await cb();
+            }
+          };
+        }
+
+        if (beforeEachCallbacks.length > 0) {
+          fnOptions.beforeEach = async () => {
+            for (const cb of beforeEachCallbacks) {
+              await cb();
+            }
+          };
+        }
+
+        if (afterEachCallbacks.length > 0) {
+          fnOptions.afterEach = async () => {
+            for (const cb of afterEachCallbacks) {
+              await cb();
+            }
+          };
+        }
+
+        // Build BenchOptions from setup/teardown and registered options
+        const benchOptions: BenchOptions = {
+          name: suiteName,
+          ...registered.options,
+        };
+
+        if (setupCallbacks.length > 0) {
+          benchOptions.setup = async (task, mode) => {
+            for (const cb of setupCallbacks) {
+              await cb();
+            }
+          };
+        }
+
+        if (teardownCallbacks.length > 0) {
+          benchOptions.teardown = async (task, mode) => {
+            for (const cb of teardownCallbacks) {
+              await cb();
+            }
+          };
+        }
+
+        // Create and run the benchmark
+        const bench = new Bench(benchOptions);
+        bench.add(registered.name, benchFn, fnOptions);
 
         const tasks = await bench.run();
 
@@ -281,7 +313,7 @@ export function benchmarkSuite(
               taskResult.latency.samples.length,
             ) + '\n';
         }
-      },
-    );
+      });
+    }
   });
 }

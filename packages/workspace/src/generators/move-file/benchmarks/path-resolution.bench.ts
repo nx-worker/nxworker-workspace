@@ -8,45 +8,49 @@ import { getRelativeImportSpecifier } from '../path-utils/get-relative-import-sp
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
 import { toAbsoluteWorkspacePath } from '../path-utils/to-absolute-workspace-path';
 
-benchmarkSuite('Path Resolution', {
-  buildFileNames: () => {
-    const baseNames = ['index', 'main'];
-    buildFileNames(baseNames);
-  },
+benchmarkSuite('Path Resolution', () => {
+  benchmark('buildFileNames', ({ bench }) => {
+    bench(() => {
+      const baseNames = ['index', 'main'];
+      buildFileNames(baseNames);
+    });
+  });
 
-  'buildPatterns (100 files)': benchmark(() => {
-    // Benchmark-level factory for local state
+  benchmark('buildPatterns (100 files)', ({ bench, beforeAll }) => {
     let buildPatternsPrefixes: readonly string[];
 
-    return {
-      fn: () => {
-        const fileNames = ['index.ts', 'main.ts'];
-        buildPatterns(buildPatternsPrefixes, fileNames);
-      },
-      fnOptions: {
-        beforeAll() {
-          buildPatternsPrefixes = Array.from(
-            { length: 100 },
-            (_, i) => `libs/lib-${i}/`,
-          );
-        },
-      },
-    };
-  }),
+    beforeAll(() => {
+      buildPatternsPrefixes = Array.from(
+        { length: 100 },
+        (_, i) => `libs/lib-${i}/`,
+      );
+    });
 
-  getRelativeImportSpecifier: () => {
-    const fromPath = 'libs/lib-a/src/lib/component-a.ts';
-    const toPath = 'libs/lib-b/src/lib/service-b.ts';
-    getRelativeImportSpecifier(fromPath, toPath);
-  },
+    bench(() => {
+      const fileNames = ['index.ts', 'main.ts'];
+      buildPatterns(buildPatternsPrefixes, fileNames);
+    });
+  });
 
-  toAbsoluteWorkspacePath: () => {
-    const relativePath = './libs/my-lib/src/lib/file.ts';
-    toAbsoluteWorkspacePath(relativePath);
-  },
+  benchmark('getRelativeImportSpecifier', ({ bench }) => {
+    bench(() => {
+      const fromPath = 'libs/lib-a/src/lib/component-a.ts';
+      const toPath = 'libs/lib-b/src/lib/service-b.ts';
+      getRelativeImportSpecifier(fromPath, toPath);
+    });
+  });
 
-  removeSourceFileExtension: () => {
-    const filePath = 'libs/my-lib/src/lib/my-file.ts';
-    removeSourceFileExtension(filePath);
-  },
+  benchmark('toAbsoluteWorkspacePath', ({ bench }) => {
+    bench(() => {
+      const relativePath = './libs/my-lib/src/lib/file.ts';
+      toAbsoluteWorkspacePath(relativePath);
+    });
+  });
+
+  benchmark('removeSourceFileExtension', ({ bench }) => {
+    bench(() => {
+      const filePath = 'libs/my-lib/src/lib/my-file.ts';
+      removeSourceFileExtension(filePath);
+    });
+  });
 });
