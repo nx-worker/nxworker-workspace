@@ -59,23 +59,38 @@ function isSuiteFactory(value: BenchmarksOrFactory): value is SuiteFactory {
   return typeof value === 'function';
 }
 
-function isBenchmarkFactory(value: BenchmarkValue): value is BenchmarkFactory {
-  // A BenchmarkFactory is a function that's not already identified as Fn or FnWithOptions
-  // We distinguish it by checking if calling it returns another function or FnWithOptions
-  return typeof value === 'function' && !isFnWithOptions(value);
-}
-
 /**
  * Resolves a BenchmarkValue to either Fn or FnWithOptions.
- * If it's a factory, calls it and returns the result.
+ *
+ * The challenge: we cannot distinguish between a regular benchmark function
+ * and a factory function by type alone. Both are `() => T`.
+ *
+ * Strategy: If the value is a function (not FnWithOptions object), we tentatively
+ * call it to check what it returns:
+ * - If it returns a function or FnWithOptions object → it was a factory
+ * - If it returns undefined/void → it was a regular benchmark function
+ *
+ * This means factories MUST return something (a function or config object).
+ * Regular benchmarks should not return anything meaningful.
  */
 function resolveBenchmarkValue(value: BenchmarkValue): Fn | FnWithOptions {
-  if (isBenchmarkFactory(value)) {
-    const result = value();
-    // The factory should return either Fn or FnWithOptions
+  // If it's already a FnWithOptions object, return as-is
+  if (isFnWithOptions(value)) {
+    return value;
+  }
+
+  // It's a function - could be either a regular benchmark or a factory
+  // Call it and check what it returns
+  const result = (value as Function)();
+
+  // If result is a function or FnWithOptions, the original value was a factory
+  if (typeof result === 'function' || isFnWithOptions(result)) {
     return result;
   }
-  return value;
+
+  // Otherwise, the original value was a regular benchmark function
+  // (it executed and returned undefined/void)
+  return value as Fn;
 }
 
 /**

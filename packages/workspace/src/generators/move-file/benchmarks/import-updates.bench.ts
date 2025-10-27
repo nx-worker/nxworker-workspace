@@ -5,31 +5,31 @@ import { updateMovedFileImportsIfNeeded } from '../import-updates/update-moved-f
 import { cachedTreeExists } from '../cache/cached-tree-exists';
 import { MoveContext } from '../types/move-context';
 
-let fileExistenceCache: Map<string, boolean>;
-let sourceFile: string;
-let targetFile: string;
-let projects: Map<string, ProjectConfiguration>;
-let tree: Tree;
+benchmarkSuite('Import Updates', () => {
+  // Shared scope for all benchmarks - replaces module-level variables
+  let fileExistenceCache: Map<string, boolean>;
+  let sourceFile: string;
+  let targetFile: string;
+  let projects: Map<string, ProjectConfiguration>;
+  let tree: Tree;
 
-benchmarkSuite(
-  'Import Updates',
-  {
-    'Import update': () => {
-      updateMovedFileImportsIfNeeded(
-        tree,
-        {
-          isSameProject: false,
-          normalizedSource: sourceFile,
-          normalizedTarget: targetFile,
-          sourceProject: projects.get('lib-a'),
-          sourceImportPath: '@my/lib-a',
-        } satisfies Partial<MoveContext> as MoveContext,
-        (tree, filePath) =>
-          cachedTreeExists(tree, filePath, fileExistenceCache),
-      );
+  return {
+    benchmarks: {
+      'Import update': () => {
+        updateMovedFileImportsIfNeeded(
+          tree,
+          {
+            isSameProject: false,
+            normalizedSource: sourceFile,
+            normalizedTarget: targetFile,
+            sourceProject: projects.get('lib-a'),
+            sourceImportPath: '@my/lib-a',
+          } satisfies Partial<MoveContext> as MoveContext,
+          (tree, filePath) =>
+            cachedTreeExists(tree, filePath, fileExistenceCache),
+        );
+      },
     },
-  },
-  {
     setupSuite() {
       tree = createTreeWithEmptyWorkspace();
       projects = new Map();
@@ -72,5 +72,5 @@ benchmarkSuite(
 
       fileExistenceCache.clear();
     },
-  },
-);
+  };
+});
