@@ -3,14 +3,6 @@
 import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
 
 /**
- * Options for describe blocks (suite configuration)
- */
-interface DescribeOptions {
-  setupSuite?: () => void | Promise<void>;
-  teardownSuite?: () => void | Promise<void>;
-}
-
-/**
  * Internal representation of a registered benchmark
  */
 interface RegisteredBenchmark {
@@ -32,7 +24,8 @@ interface DescribeBlock {
   afterEachHooks: Array<() => void | Promise<void>>;
   setupHooks: Array<() => void | Promise<void>>;
   teardownHooks: Array<() => void | Promise<void>>;
-  options?: DescribeOptions;
+  setupSuiteHooks: Array<() => void | Promise<void>>;
+  teardownSuiteHooks: Array<() => void | Promise<void>>;
   children: DescribeBlock[];
   parent?: DescribeBlock;
 }
@@ -101,6 +94,26 @@ export function teardown(fn: () => void | Promise<void>): void {
     throw new Error('teardown() must be called inside a describe() block');
   }
   currentDescribeBlock.teardownHooks.push(fn);
+}
+
+/**
+ * Suite-level setup hook (runs once before all benchmarks in the suite)
+ */
+export function setupSuite(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('setupSuite() must be called inside a describe() block');
+  }
+  currentDescribeBlock.setupSuiteHooks.push(fn);
+}
+
+/**
+ * Suite-level teardown hook (runs once after all benchmarks in the suite)
+ */
+export function teardownSuite(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('teardownSuite() must be called inside a describe() block');
+  }
+  currentDescribeBlock.teardownSuiteHooks.push(fn);
 }
 
 /**
@@ -231,11 +244,7 @@ export function it(
  * });
  * ```
  */
-export function describe(
-  name: string,
-  callback: () => void,
-  options?: DescribeOptions,
-): void {
+export function describe(name: string, callback: () => void): void {
   const block: DescribeBlock = {
     name,
     benchmarks: [],
@@ -245,7 +254,8 @@ export function describe(
     afterEachHooks: [],
     setupHooks: [],
     teardownHooks: [],
-    options,
+    setupSuiteHooks: [],
+    teardownSuiteHooks: [],
     children: [],
     parent: currentDescribeBlock,
   };
@@ -283,12 +293,14 @@ function runDescribeBlock(block: DescribeBlock): void {
       summary = '';
     });
 
-    if (block.options?.setupSuite) {
-      (globalThis.beforeAll as any)(block.options.setupSuite);
+    // Run setupSuite hooks
+    for (const hook of block.setupSuiteHooks) {
+      (globalThis.beforeAll as any)(hook);
     }
 
-    if (block.options?.teardownSuite) {
-      (globalThis.afterAll as any)(block.options.teardownSuite);
+    // Run teardownSuite hooks
+    for (const hook of block.teardownSuiteHooks) {
+      (globalThis.afterAll as any)(hook);
     }
 
     (globalThis.afterAll as any)(() => {
