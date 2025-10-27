@@ -2,54 +2,27 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [labeled]
-  issue_comment:
-    types: [created]
+    types: [opened, synchronize]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+    #   - "src/**/*.js"
+    #   - "src/**/*.jsx"
 
 jobs:
   claude-review:
-    # Security: Only trigger when invoked by a trusted user via label or /review command
-    #
-    # Trigger methods:
-    #   1. Apply 'claude-review' label to a PR
-    #   2. Comment '/review' on a PR (must be at the start of the comment)
-    #
-    # Security checks (all triggers):
-    #   1. Sender is a User (not a bot)
-    #   2. Commenter/labeler is trusted (MEMBER, OWNER, or COLLABORATOR)
-    #   3. For comments: Must be on a pull request (not a standalone issue)
-    #   4. Command matching: '/review' must be at the start of the comment (prevents false positives)
-    if: |
-      github.event.sender.type == 'User' &&
-      (
-        (
-          github.event_name == 'pull_request' &&
-          github.event.action == 'labeled' &&
-          github.event.label.name == 'claude-review' &&
-          (github.event.pull_request.author_association == 'MEMBER' ||
-           github.event.pull_request.author_association == 'OWNER' ||
-           github.event.pull_request.author_association == 'COLLABORATOR')
-        ) ||
-        (
-          github.event_name == 'issue_comment' &&
-          github.event.action == 'created' &&
-          github.event.issue.pull_request &&
-          startsWith(github.event.comment.body, '/review') &&
-          (github.event.comment.author_association == 'MEMBER' ||
-           github.event.comment.author_association == 'OWNER' ||
-           github.event.comment.author_association == 'COLLABORATOR')
-        )
-      )
-    concurrency:
-      # Only one code review per PR at a time
-      # Re-triggering (label or /review command) cancels in-progress reviews to provide fresh feedback
-      group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
-      cancel-in-progress: true
+    # Optional: Filter by PR author
+    # if: |
+    #   github.event.pull_request.user.login == 'external-contributor' ||
+    #   github.event.pull_request.user.login == 'new-developer' ||
+    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write # Required for Claude to create PR reviews and comments
-      issues: write # Required for PR comments (GitHub treats PR comments as issue comments in the API)
+      pull-requests: read
+      issues: read
       id-token: write
 
     steps:
@@ -62,11 +35,10 @@ jobs:
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
             Please review this pull request and provide feedback on:
             - Code quality and best practices
@@ -75,34 +47,10 @@ jobs:
             - Security concerns
             - Test coverage
 
-            Use the repository's @AGENTS.md for guidance on style and conventions. Be constructive and helpful in your feedback.
-
-            Add the *eyes* emoji (👀) reaction to the comment containing `/review` to indicate *in progress*.
+            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
 
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
-          claude_args: |
-            --allowed-tools '
-              Bash(gh issue view:*),
-              Bash(gh search:*),
-              Bash(gh issue list:*),
-              Bash(gh pr comment:*),
-              Bash(gh pr diff:*),
-              Bash(gh pr view:*),
-              Bash(gh pr list:*)
-            '
-            --mcp-config '{
-              "mcpServers": {
-                "github": {
-                  "type": "http",
-                  "url": "https://api.githubcopilot.com/mcp/"
-                },
-                "nx": {
-                  "type": "stdio",
-                  "command": "npx",
-                  "args": ["-y", "nx-mcp@latest"]
-                }
-              }
-            }'
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
