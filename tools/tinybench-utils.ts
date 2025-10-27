@@ -14,6 +14,7 @@ interface RegisteredBenchmark {
   fn: Fn;
   fnOptions: FnOptions;
   benchOptions?: Omit<BenchOptions, 'name'>;
+  itTimeout?: number;
 }
 
 /**
@@ -408,6 +409,24 @@ export function teardownSuite(
 }
 
 /**
+ * Options for the it() function, extending tinybench's BenchOptions
+ * with test runner timeout control.
+ */
+interface ItOptions extends Omit<BenchOptions, 'name'> {
+  /**
+   * Optional timeout in milliseconds for the test runner (Jest/Vitest).
+   * This controls how long the test runner waits before marking the test as failed.
+   *
+   * Note: This is different from tinybench's `time` option:
+   * - `time`: Controls how long tinybench runs the benchmark
+   * - `itTimeout`: Controls the maximum time before the test runner fails
+   *
+   * Must be a positive, finite number.
+   */
+  itTimeout?: number;
+}
+
+/**
  * Defines a benchmark task within a describe block.
  *
  * Each `it()` call creates a benchmark task that will be measured. The function provided
@@ -415,10 +434,11 @@ export function teardownSuite(
  *
  * @param name - The name of the benchmark task
  * @param fn - The function to benchmark (will be executed many times)
- * @param options - Optional benchmark options (iterations, warmup, etc.)
+ * @param options - Optional benchmark options (iterations, warmup, itTimeout, etc.)
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
+ * @throws {Error} If itTimeout is not a positive number
  *
  * @example
  * ```ts
@@ -430,20 +450,29 @@ export function teardownSuite(
  *   it('should do more work with options', () => {
  *     doMoreWork();
  *   }, { iterations: 100, warmup: true });
+ *
+ *   // With custom timeout for long-running benchmarks
+ *   it('expensive benchmark', () => {
+ *     expensiveWork();
+ *   }, {
+ *     time: 10000,      // Run benchmark for 10 seconds
+ *     iterations: 1000, // Run 1000 iterations
+ *     itTimeout: 60000  // Allow 60 seconds before test fails
+ *   });
  * });
  * ```
  */
-export function it(
-  name: string,
-  fn: Fn,
-  options?: Omit<BenchOptions, 'name'>,
-): void {
+export function it(name: string, fn: Fn, options?: ItOptions): void {
   if (!currentDescribeBlock) {
     throw new Error('it() must be called inside a describe() block');
   }
   if (insideItCallback) {
     throw new Error('it() cannot be called inside an it() callback');
   }
+
+  // Extract and validate itTimeout
+  const { itTimeout, ...benchOptionsWithoutTimeout } = options || {};
+  validateTimeout(itTimeout, 'it');
 
   // Collect hooks from current block and all ancestors
   const beforeAllHooks: Array<() => void | Promise<void>> = [];
@@ -507,9 +536,9 @@ export function it(
   }
 
   // Add setup/teardown as bench options if present
-  let benchOptions = options;
+  let benchOptions = benchOptionsWithoutTimeout;
   if (setupHooks.length > 0 || teardownHooks.length > 0) {
-    benchOptions = { ...options };
+    benchOptions = { ...benchOptionsWithoutTimeout };
     if (setupHooks.length > 0) {
       benchOptions.setup = async () => {
         for (const hook of setupHooks) {
@@ -571,6 +600,7 @@ export function it(
     fn: wrappedFn,
     fnOptions,
     benchOptions,
+    itTimeout,
   });
 }
 
@@ -694,7 +724,7 @@ function runDescribeBlock(block: DescribeBlock): void {
 
     // Run benchmarks defined directly in this describe block
     for (const benchmark of block.benchmarks) {
-      jestIt(benchmark.name, async () => {
+      const testFn = async () => {
         const benchOptions: BenchOptions = {
           name: `${block.name}/${benchmark.name}`,
           ...benchmark.benchOptions,
@@ -730,7 +760,16 @@ function runDescribeBlock(block: DescribeBlock): void {
               taskResult.latency.samples.length,
             ) + '\n';
         }
-      });
+      };
+
+      // Pass itTimeout to Jest if defined
+      const itTimeout = benchmark.itTimeout;
+      if (itTimeout !== undefined) {
+        validateTimeout(itTimeout, 'it');
+        jestIt(benchmark.name, testFn, itTimeout);
+      } else {
+        jestIt(benchmark.name, testFn);
+      }
     }
 
     // Recursively run nested describe blocks

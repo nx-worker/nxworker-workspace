@@ -1068,4 +1068,133 @@ describe('tinybench-utils', () => {
       });
     });
   });
+
+  describe('itTimeout validation', () => {
+    describe('valid itTimeout values', () => {
+      it('should accept valid positive timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing itTimeout with minimal benchmark
+            benchIt('test', () => {}, { itTimeout: 10000 });
+          });
+        }).not.toThrow();
+      });
+
+      it('should accept zero timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing itTimeout with minimal benchmark
+            benchIt('test', () => {}, { itTimeout: 0 });
+          });
+        }).not.toThrow();
+      });
+
+      it('should accept undefined timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing itTimeout with minimal benchmark
+            benchIt('test', () => {}, { itTimeout: undefined });
+          });
+        }).not.toThrow();
+      });
+
+      it('should accept benchmark without options', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing itTimeout with minimal benchmark
+            benchIt('test', () => {});
+          });
+        }).not.toThrow();
+      });
+
+      it('should accept itTimeout with other options', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing itTimeout with other options
+            benchIt('test', () => {}, {
+              iterations: 100,
+              warmup: true,
+              itTimeout: 30000,
+            });
+          });
+        }).not.toThrow();
+      });
+    });
+
+    describe('invalid itTimeout values', () => {
+      it('should reject negative timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing invalid timeout
+            benchIt('test', () => {}, { itTimeout: -5000 });
+          });
+        }).toThrow('it timeout must be a positive number, got: -5000');
+      });
+
+      it('should reject non-number timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-function -- Testing invalid timeout type
+            benchIt('test', () => {}, { itTimeout: 'not a number' as any });
+          });
+        }).toThrow('it timeout must be a number, got: string');
+      });
+
+      it('should reject Infinity timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing invalid timeout
+            benchIt('test', () => {}, { itTimeout: Infinity });
+          });
+        }).toThrow('it timeout must be a finite number, got: Infinity');
+      });
+
+      it('should reject NaN timeout', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing invalid timeout
+            benchIt('test', () => {}, { itTimeout: NaN });
+          });
+        }).toThrow('it timeout must be a finite number, got: NaN');
+      });
+    });
+
+    describe('integration with test runner', () => {
+      it('should register benchmark with itTimeout without errors', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with timeout
+            benchIt('test', () => {}, { itTimeout: 60000 });
+          });
+        }).not.toThrow();
+      });
+
+      it('should register multiple benchmarks with different timeouts', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple benchmarks with various timeouts
+            benchIt('test1', () => {}, { itTimeout: 5000 });
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple benchmarks with various timeouts
+            benchIt('test2', () => {}, { itTimeout: 10000 });
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple benchmarks with various timeouts
+            benchIt('test3', () => {}); // no timeout
+          });
+        }).not.toThrow();
+      });
+
+      it('should allow itTimeout alongside tinybench options', () => {
+        expect(() => {
+          benchDescribe('Suite', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing itTimeout with tinybench options
+            benchIt('test', () => {}, {
+              time: 5000, // tinybench option
+              iterations: 100, // tinybench option
+              warmup: true, // tinybench option
+              itTimeout: 30000, // test runner timeout
+            });
+          });
+        }).not.toThrow();
+      });
+    });
+  });
 });
