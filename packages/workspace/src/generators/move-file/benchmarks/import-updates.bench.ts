@@ -1,5 +1,4 @@
 import {
-  beforeAll,
   describe,
   it,
   setup,
@@ -18,7 +17,8 @@ describe('Import Updates', () => {
   let projects: Map<string, ProjectConfiguration>;
   let tree: Tree;
 
-  beforeAll(() => {
+  setup(() => {
+    // Initialize tree and project data
     tree = createTreeWithEmptyWorkspace();
     projects = new Map();
     projects.set('lib-a', {
@@ -36,9 +36,8 @@ describe('Import Updates', () => {
     sourceFile = 'libs/lib-a/src/lib/source.ts';
     targetFile = 'libs/lib-b/src/lib/target.ts';
     fileExistenceCache = new Map<string, boolean>();
-  });
 
-  setup(() => {
+    // Write source file
     const fileContent = `
         import { service1 } from './services/service1';
         import { service2 } from './services/service2';
