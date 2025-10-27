@@ -1,6 +1,10 @@
-/// <reference types="jest" />
-/* eslint-env jest */
 import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
+import {
+  describe as jestDescribe,
+  it as jestIt,
+  beforeAll as jestBeforeAll,
+  afterAll as jestAfterAll,
+} from '@jest/globals';
 
 /**
  * Internal representation of a registered benchmark
@@ -653,10 +657,10 @@ export function describe(name: string, callback: () => void): void {
  * Runs a describe block as a Jest describe with its benchmarks and nested describes
  */
 function runDescribeBlock(block: DescribeBlock): void {
-  (globalThis.describe as any)(block.name, () => {
+  jestDescribe(block.name, () => {
     let summary: string;
 
-    (globalThis.beforeAll as any)(() => {
+    jestBeforeAll(() => {
       summary = '';
     });
 
@@ -665,9 +669,9 @@ function runDescribeBlock(block: DescribeBlock): void {
       const timeout = hook.timeout;
       if (timeout !== undefined) {
         validateTimeout(timeout, 'setupSuite');
-        (globalThis.beforeAll as any)(hook.fn, timeout);
+        jestBeforeAll(hook.fn, timeout);
       } else {
-        (globalThis.beforeAll as any)(hook.fn);
+        jestBeforeAll(hook.fn);
       }
     }
 
@@ -676,13 +680,13 @@ function runDescribeBlock(block: DescribeBlock): void {
       const timeout = hook.timeout;
       if (timeout !== undefined) {
         validateTimeout(timeout, 'teardownSuite');
-        (globalThis.afterAll as any)(hook.fn, timeout);
+        jestAfterAll(hook.fn, timeout);
       } else {
-        (globalThis.afterAll as any)(hook.fn);
+        jestAfterAll(hook.fn);
       }
     }
 
-    (globalThis.afterAll as any)(() => {
+    jestAfterAll(() => {
       if (summary) {
         console.log(summary);
       }
@@ -690,7 +694,7 @@ function runDescribeBlock(block: DescribeBlock): void {
 
     // Run benchmarks defined directly in this describe block
     for (const benchmark of block.benchmarks) {
-      (globalThis.it as any)(benchmark.name, async () => {
+      jestIt(benchmark.name, async () => {
         const benchOptions: BenchOptions = {
           name: `${block.name}/${benchmark.name}`,
           ...benchmark.benchOptions,
