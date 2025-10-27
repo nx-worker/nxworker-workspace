@@ -3,101 +3,358 @@
 import { Bench, BenchOptions, Fn, FnOptions } from 'tinybench';
 
 /**
- * Context object passed to each benchmark callback
+ * Options for describe blocks (suite configuration)
  */
-interface BenchmarkContext {
-  /**
-   * Define the benchmark function. Must be called exactly once.
-   */
-  bench: (fn: Fn) => void;
-  /**
-   * Hook that runs once before all iterations of this benchmark
-   */
-  beforeAll: (fn: () => void | Promise<void>) => void;
-  /**
-   * Hook that runs once after all iterations of this benchmark
-   */
-  afterAll: (fn: () => void | Promise<void>) => void;
-  /**
-   * Hook that runs before each iteration of this benchmark
-   */
-  beforeEach: (fn: () => void | Promise<void>) => void;
-  /**
-   * Hook that runs after each iteration of this benchmark
-   */
-  afterEach: (fn: () => void | Promise<void>) => void;
-  /**
-   * Benchmark-level setup hook (runs once before benchmark)
-   */
-  setup: (fn: () => void | Promise<void>) => void;
-  /**
-   * Benchmark-level teardown hook (runs once after benchmark)
-   */
-  teardown: (fn: () => void | Promise<void>) => void;
+interface DescribeOptions {
+  setupSuite?: () => void | Promise<void>;
+  teardownSuite?: () => void | Promise<void>;
 }
-
-/**
- * Callback function for defining a benchmark
- */
-type BenchmarkCallback = (context: BenchmarkContext) => void;
 
 /**
  * Internal representation of a registered benchmark
  */
 interface RegisteredBenchmark {
   name: string;
-  callback: BenchmarkCallback;
-  options?: Omit<BenchOptions, 'name'>;
+  fn: Fn;
+  fnOptions: FnOptions;
+  benchOptions?: Omit<BenchOptions, 'name'>;
 }
 
 /**
- * Global registry for benchmarks (scoped to current suite)
+ * Represents a describe block with its benchmarks and hooks
  */
-let currentSuiteBenchmarks: RegisteredBenchmark[] = [];
+interface DescribeBlock {
+  name: string;
+  benchmarks: RegisteredBenchmark[];
+  beforeAllHooks: Array<() => void | Promise<void>>;
+  afterAllHooks: Array<() => void | Promise<void>>;
+  beforeEachHooks: Array<() => void | Promise<void>>;
+  afterEachHooks: Array<() => void | Promise<void>>;
+  setupHooks: Array<() => void | Promise<void>>;
+  teardownHooks: Array<() => void | Promise<void>>;
+  options?: DescribeOptions;
+  children: DescribeBlock[];
+  parent?: DescribeBlock;
+}
 
 /**
- * Registers a benchmark within a benchmark suite.
- * Must be called inside a benchmarkSuite factory function.
+ * Global state for tracking current describe block
+ */
+let currentDescribeBlock: DescribeBlock | null = null;
+let rootDescribeBlock: DescribeBlock | null = null;
+
+/**
+ * Hook that runs once before all benchmarks in the current describe block
+ */
+export function beforeAll(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('beforeAll() must be called inside a describe() block');
+  }
+  currentDescribeBlock.beforeAllHooks.push(fn);
+}
+
+/**
+ * Hook that runs once after all benchmarks in the current describe block
+ */
+export function afterAll(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('afterAll() must be called inside a describe() block');
+  }
+  currentDescribeBlock.afterAllHooks.push(fn);
+}
+
+/**
+ * Hook that runs before each benchmark iteration in the current describe block
+ */
+export function beforeEach(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('beforeEach() must be called inside a describe() block');
+  }
+  currentDescribeBlock.beforeEachHooks.push(fn);
+}
+
+/**
+ * Hook that runs after each benchmark iteration in the current describe block
+ */
+export function afterEach(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('afterEach() must be called inside a describe() block');
+  }
+  currentDescribeBlock.afterEachHooks.push(fn);
+}
+
+/**
+ * Benchmark-level setup hook (runs once before benchmark)
+ */
+export function setup(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('setup() must be called inside a describe() block');
+  }
+  currentDescribeBlock.setupHooks.push(fn);
+}
+
+/**
+ * Benchmark-level teardown hook (runs once after benchmark)
+ */
+export function teardown(fn: () => void | Promise<void>): void {
+  if (!currentDescribeBlock) {
+    throw new Error('teardown() must be called inside a describe() block');
+  }
+  currentDescribeBlock.teardownHooks.push(fn);
+}
+
+/**
+ * Defines a benchmark task
  *
  * @example
  * ```ts
- * benchmarkSuite('My Suite', () => {
- *   let suiteScoped: string;
- *
- *   benchmark('Simple benchmark', ({ bench }) => {
- *     bench(() => {
- *       doWork(suiteScoped);
- *     });
+ * describe('My Suite', () => {
+ *   it('should do work', () => {
+ *     doWork();
  *   });
  *
- *   benchmark('With hooks', ({ bench, beforeAll, beforeEach }) => {
- *     let benchmarkScoped: number;
- *
- *     beforeAll(() => {
- *       benchmarkScoped = 0;
- *     });
- *
- *     beforeEach(() => {
- *       benchmarkScoped++;
- *     });
- *
- *     bench(() => {
- *       doWork(benchmarkScoped);
- *     });
- *   }, { iterations: 10, warmup: true });
+ *   it('should do more work', () => {
+ *     doMoreWork();
+ *   }, { iterations: 100, warmup: true });
  * });
  * ```
- *
- * @param name - The name of the benchmark
- * @param callback - Callback function that receives the benchmark context
- * @param options - Optional BenchOptions for this benchmark (iterations, warmup, etc.)
  */
-export function benchmark(
+export function it(
   name: string,
-  callback: BenchmarkCallback,
+  fn: Fn,
   options?: Omit<BenchOptions, 'name'>,
 ): void {
-  currentSuiteBenchmarks.push({ name, callback, options });
+  if (!currentDescribeBlock) {
+    throw new Error('it() must be called inside a describe() block');
+  }
+
+  // Collect hooks from current block and all ancestors
+  const beforeAllHooks: Array<() => void | Promise<void>> = [];
+  const afterAllHooks: Array<() => void | Promise<void>> = [];
+  const beforeEachHooks: Array<() => void | Promise<void>> = [];
+  const afterEachHooks: Array<() => void | Promise<void>> = [];
+  const setupHooks: Array<() => void | Promise<void>> = [];
+  const teardownHooks: Array<() => void | Promise<void>> = [];
+
+  let block: DescribeBlock | undefined = currentDescribeBlock;
+  const blocks: DescribeBlock[] = [];
+
+  // Collect all blocks from current to root
+  while (block) {
+    blocks.unshift(block);
+    block = block.parent;
+  }
+
+  // Collect hooks in order from root to current
+  for (const b of blocks) {
+    beforeAllHooks.push(...b.beforeAllHooks);
+    afterAllHooks.push(...b.afterAllHooks);
+    beforeEachHooks.push(...b.beforeEachHooks);
+    afterEachHooks.push(...b.afterEachHooks);
+    setupHooks.push(...b.setupHooks);
+    teardownHooks.push(...b.teardownHooks);
+  }
+
+  const fnOptions: FnOptions = {};
+
+  if (beforeAllHooks.length > 0) {
+    fnOptions.beforeAll = async () => {
+      for (const hook of beforeAllHooks) {
+        await hook();
+      }
+    };
+  }
+
+  if (afterAllHooks.length > 0) {
+    fnOptions.afterAll = async () => {
+      for (const hook of afterAllHooks) {
+        await hook();
+      }
+    };
+  }
+
+  if (beforeEachHooks.length > 0) {
+    fnOptions.beforeEach = async () => {
+      for (const hook of beforeEachHooks) {
+        await hook();
+      }
+    };
+  }
+
+  if (afterEachHooks.length > 0) {
+    fnOptions.afterEach = async () => {
+      for (const hook of afterEachHooks) {
+        await hook();
+      }
+    };
+  }
+
+  // Add setup/teardown as bench options if present
+  let benchOptions = options;
+  if (setupHooks.length > 0 || teardownHooks.length > 0) {
+    benchOptions = { ...options };
+    if (setupHooks.length > 0) {
+      benchOptions.setup = async () => {
+        for (const hook of setupHooks) {
+          await hook();
+        }
+      };
+    }
+    if (teardownHooks.length > 0) {
+      benchOptions.teardown = async () => {
+        for (const hook of teardownHooks) {
+          await hook();
+        }
+      };
+    }
+  }
+
+  currentDescribeBlock.benchmarks.push({
+    name,
+    fn,
+    fnOptions,
+    benchOptions,
+  });
+}
+
+/**
+ * Defines a benchmark suite or group of benchmarks
+ *
+ * @example
+ * ```ts
+ * describe('Path Resolution', () => {
+ *   describe('buildFileNames', () => {
+ *     it('should build file names correctly', () => {
+ *       buildFileNames(['index', 'main']);
+ *     });
+ *   });
+ * });
+ * ```
+ */
+export function describe(
+  name: string,
+  callback: () => void,
+  options?: DescribeOptions,
+): void {
+  const block: DescribeBlock = {
+    name,
+    benchmarks: [],
+    beforeAllHooks: [],
+    afterAllHooks: [],
+    beforeEachHooks: [],
+    afterEachHooks: [],
+    setupHooks: [],
+    teardownHooks: [],
+    options,
+    children: [],
+    parent: currentDescribeBlock,
+  };
+
+  if (currentDescribeBlock) {
+    currentDescribeBlock.children.push(block);
+  } else {
+    // This is the root describe block
+    rootDescribeBlock = block;
+  }
+
+  const previousBlock = currentDescribeBlock;
+  currentDescribeBlock = block;
+
+  // Execute the callback to register benchmarks and nested describes
+  callback();
+
+  currentDescribeBlock = previousBlock;
+
+  // If this was the root describe, run the benchmarks
+  if (!currentDescribeBlock && rootDescribeBlock === block) {
+    runDescribeBlock(block);
+    rootDescribeBlock = null;
+  }
+}
+
+/**
+ * Recursively collects all benchmarks from a describe block and its children
+ */
+function collectBenchmarks(block: DescribeBlock): RegisteredBenchmark[] {
+  const benchmarks: RegisteredBenchmark[] = [];
+
+  // Add benchmarks from this block
+  benchmarks.push(...block.benchmarks);
+
+  // Recursively add benchmarks from children
+  for (const child of block.children) {
+    benchmarks.push(...collectBenchmarks(child));
+  }
+
+  return benchmarks;
+}
+
+/**
+ * Runs a describe block as a Jest describe with all its benchmarks
+ */
+function runDescribeBlock(block: DescribeBlock): void {
+  const benchmarks = collectBenchmarks(block);
+
+  (globalThis.describe as any)(block.name, () => {
+    let summary: string;
+
+    (globalThis.beforeAll as any)(() => {
+      summary = '';
+    });
+
+    if (block.options?.setupSuite) {
+      (globalThis.beforeAll as any)(block.options.setupSuite);
+    }
+
+    if (block.options?.teardownSuite) {
+      (globalThis.afterAll as any)(block.options.teardownSuite);
+    }
+
+    (globalThis.afterAll as any)(() => {
+      console.log(summary);
+    });
+
+    for (const benchmark of benchmarks) {
+      (globalThis.it as any)(benchmark.name, async () => {
+        const benchOptions: BenchOptions = {
+          name: block.name,
+          ...benchmark.benchOptions,
+        };
+
+        const bench = new Bench(benchOptions);
+        bench.add(benchmark.name, benchmark.fn, benchmark.fnOptions);
+
+        const tasks = await bench.run();
+
+        for (const task of tasks) {
+          const taskResult = task.result;
+
+          if (!taskResult) {
+            throw new Error(
+              `[${block.name}] ${task.name} did not produce a result`,
+            );
+          }
+
+          if (taskResult.error) {
+            throw new Error(
+              `[${block.name}] ${task.name} failed: ${taskResult.error.message}`,
+              {
+                cause: taskResult.error,
+              },
+            );
+          }
+
+          summary +=
+            formatBenchmarkResult(
+              `[${block.name}] ${task.name}`,
+              taskResult.throughput.mean,
+              taskResult.latency.rme,
+              taskResult.latency.samples.length,
+            ) + '\n';
+        }
+      });
+    }
+  });
 }
 
 /**
@@ -126,194 +383,4 @@ export function formatBenchmarkResult(
   // Example:
   // RegExp.test x 1,234,567 ops/sec ±1.23% (89 runs sampled)
   return `${name} x ${formattedOpsPerSec} ops/sec ±${formattedRme}% (${formattedRunsSampled})`;
-}
-
-/**
- * Runs a benchmark suite using tinybench and outputs results in jest-bench format.
- * This wrapper provides Jest-compatible benchmark testing while outputting
- * results compatible with benchmark-action/github-action-benchmark.
- *
- * @example
- * ```ts
- * benchmarkSuite('My Suite', () => {
- *   let suiteScoped: string;
- *
- *   benchmark('Benchmark', ({ bench }) => {
- *     bench(() => {
- *       doWork(suiteScoped);
- *     });
- *   });
- *
- *   benchmark('With hooks', ({ bench, beforeAll, setup }) => {
- *     let benchmarkScoped: string;
- *
- *     beforeAll(() => { benchmarkScoped = 'foo'; });
- *     setup(() => { benchmarkScoped = 'bar'; });
- *
- *     bench(() => {
- *       doWork(suiteScoped, benchmarkScoped);
- *     });
- *   }, { iterations: 10, warmup: true });
- * });
- * ```
- *
- * @param suiteName - The name of the benchmark suite
- * @param suiteFactory - Factory function that registers benchmarks using the `benchmark()` function
- */
-export function benchmarkSuite(
-  suiteName: string,
-  suiteFactory: () => void,
-): void {
-  // Clear the benchmark registry for this suite
-  currentSuiteBenchmarks = [];
-
-  // Execute the factory to register benchmarks
-  suiteFactory();
-
-  // Get the registered benchmarks
-  const benchmarksToRun = [...currentSuiteBenchmarks];
-
-  // Clear registry after capturing
-  currentSuiteBenchmarks = [];
-
-  describe(suiteName, () => {
-    let summary: string;
-
-    beforeAll(() => {
-      summary = '';
-    });
-
-    afterAll(() => {
-      console.log(summary);
-    });
-
-    for (const registered of benchmarksToRun) {
-      it(registered.name, async () => {
-        let benchFn: Fn | undefined;
-        const beforeAllCallbacks: Array<() => void | Promise<void>> = [];
-        const afterAllCallbacks: Array<() => void | Promise<void>> = [];
-        const beforeEachCallbacks: Array<() => void | Promise<void>> = [];
-        const afterEachCallbacks: Array<() => void | Promise<void>> = [];
-        const setupCallbacks: Array<() => void | Promise<void>> = [];
-        const teardownCallbacks: Array<() => void | Promise<void>> = [];
-
-        const context: BenchmarkContext = {
-          bench: (fn: Fn) => {
-            if (benchFn !== undefined) {
-              throw new Error(
-                `bench() can only be called once in benchmark "${registered.name}"`,
-              );
-            }
-            benchFn = fn;
-          },
-          beforeAll: (fn) => beforeAllCallbacks.push(fn),
-          afterAll: (fn) => afterAllCallbacks.push(fn),
-          beforeEach: (fn) => beforeEachCallbacks.push(fn),
-          afterEach: (fn) => afterEachCallbacks.push(fn),
-          setup: (fn) => setupCallbacks.push(fn),
-          teardown: (fn) => teardownCallbacks.push(fn),
-        };
-
-        // Execute the benchmark callback to collect the bench function and hooks
-        registered.callback(context);
-
-        // Validate that bench() was called
-        if (benchFn === undefined) {
-          throw new Error(
-            `bench() must be called in benchmark "${registered.name}"`,
-          );
-        }
-
-        // Build FnOptions from collected hooks
-        const fnOptions: FnOptions = {};
-
-        if (beforeAllCallbacks.length > 0) {
-          fnOptions.beforeAll = async () => {
-            for (const cb of beforeAllCallbacks) {
-              await cb();
-            }
-          };
-        }
-
-        if (afterAllCallbacks.length > 0) {
-          fnOptions.afterAll = async () => {
-            for (const cb of afterAllCallbacks) {
-              await cb();
-            }
-          };
-        }
-
-        if (beforeEachCallbacks.length > 0) {
-          fnOptions.beforeEach = async () => {
-            for (const cb of beforeEachCallbacks) {
-              await cb();
-            }
-          };
-        }
-
-        if (afterEachCallbacks.length > 0) {
-          fnOptions.afterEach = async () => {
-            for (const cb of afterEachCallbacks) {
-              await cb();
-            }
-          };
-        }
-
-        // Build BenchOptions from setup/teardown and registered options
-        const benchOptions: BenchOptions = {
-          name: suiteName,
-          ...registered.options,
-        };
-
-        if (setupCallbacks.length > 0) {
-          benchOptions.setup = async (task, mode) => {
-            for (const cb of setupCallbacks) {
-              await cb();
-            }
-          };
-        }
-
-        if (teardownCallbacks.length > 0) {
-          benchOptions.teardown = async (task, mode) => {
-            for (const cb of teardownCallbacks) {
-              await cb();
-            }
-          };
-        }
-
-        // Create and run the benchmark
-        const bench = new Bench(benchOptions);
-        bench.add(registered.name, benchFn, fnOptions);
-
-        const tasks = await bench.run();
-
-        for (const task of tasks) {
-          const taskResult = task.result;
-
-          if (!taskResult) {
-            throw new Error(
-              `[${suiteName}] ${task.name} did not produce a result`,
-            );
-          }
-
-          if (taskResult.error) {
-            throw new Error(
-              `[${suiteName}] ${task.name} failed: ${taskResult.error.message}`,
-              {
-                cause: taskResult.error,
-              },
-            );
-          }
-
-          summary +=
-            formatBenchmarkResult(
-              `[${suiteName}] ${task.name}`,
-              taskResult.throughput.mean,
-              taskResult.latency.rme,
-              taskResult.latency.samples.length,
-            ) + '\n';
-        }
-      });
-    }
-  });
 }
