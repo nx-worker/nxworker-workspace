@@ -38,7 +38,30 @@ let rootDescribeBlock: DescribeBlock | null = null;
 let insideItCallback = false;
 
 /**
- * Hook that runs once before all benchmarks in the current describe block
+ * Registers a hook that runs once before all iterations of benchmarks in the current describe block.
+ *
+ * This corresponds to tinybench's FnOptions.beforeAll - a function that runs once before all
+ * benchmark iterations.
+ *
+ * @param fn - The function to run before all benchmark iterations
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   let expensiveData;
+ *
+ *   beforeAll(() => {
+ *     expensiveData = loadExpensiveData();
+ *   });
+ *
+ *   it('should process data', () => {
+ *     processData(expensiveData);
+ *   });
+ * });
+ * ```
  */
 export function beforeAll(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -51,7 +74,28 @@ export function beforeAll(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Hook that runs once after all benchmarks in the current describe block
+ * Registers a hook that runs once after all iterations of benchmarks in the current describe block.
+ *
+ * This corresponds to tinybench's FnOptions.afterAll - a function that runs once after all
+ * benchmark iterations complete.
+ *
+ * @param fn - The function to run after all benchmark iterations
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   afterAll(() => {
+ *     cleanupResources();
+ *   });
+ *
+ *   it('should use resources', () => {
+ *     useResources();
+ *   });
+ * });
+ * ```
  */
 export function afterAll(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -64,7 +108,30 @@ export function afterAll(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Hook that runs before each benchmark iteration in the current describe block
+ * Registers a hook that runs before each benchmark iteration in the current describe block.
+ *
+ * This corresponds to tinybench's FnOptions.beforeEach - a function that runs before each
+ * iteration of the benchmark.
+ *
+ * @param fn - The function to run before each iteration
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   let testData;
+ *
+ *   beforeEach(() => {
+ *     testData = createFreshData();
+ *   });
+ *
+ *   it('should process data', () => {
+ *     processData(testData);
+ *   });
+ * });
+ * ```
  */
 export function beforeEach(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -77,7 +144,28 @@ export function beforeEach(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Hook that runs after each benchmark iteration in the current describe block
+ * Registers a hook that runs after each benchmark iteration in the current describe block.
+ *
+ * This corresponds to tinybench's FnOptions.afterEach - a function that runs after each
+ * iteration of the benchmark.
+ *
+ * @param fn - The function to run after each iteration
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   afterEach(() => {
+ *     cleanupIterationData();
+ *   });
+ *
+ *   it('should process data', () => {
+ *     processData();
+ *   });
+ * });
+ * ```
  */
 export function afterEach(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -90,7 +178,39 @@ export function afterEach(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Benchmark-level setup hook (runs once before benchmark)
+ * Registers a benchmark-level setup hook that runs once before the benchmark starts.
+ *
+ * This corresponds to tinybench's BenchOptions.setup - a function that runs before the
+ * benchmark starts (before warmup). Use this for expensive initialization that other hooks
+ * depend on.
+ *
+ * **Note:** In tinybench, `setup` runs before `beforeAll`. If you have initialization that
+ * other hooks need, put it in `setup`, not `beforeAll`.
+ *
+ * @param fn - The function to run before the benchmark starts
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   let expensiveResource;
+ *
+ *   setup(() => {
+ *     expensiveResource = initializeExpensiveResource();
+ *   });
+ *
+ *   beforeAll(() => {
+ *     // Can use expensiveResource here since setup runs first
+ *     configureResource(expensiveResource);
+ *   });
+ *
+ *   it('should use resource', () => {
+ *     useResource(expensiveResource);
+ *   });
+ * });
+ * ```
  */
 export function setup(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -103,7 +223,34 @@ export function setup(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Benchmark-level teardown hook (runs once after benchmark)
+ * Registers a benchmark-level teardown hook that runs once after the benchmark completes.
+ *
+ * This corresponds to tinybench's BenchOptions.teardown - a function that runs after the
+ * benchmark completes. Use this to clean up resources created in setup().
+ *
+ * @param fn - The function to run after the benchmark completes
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   let tempFile;
+ *
+ *   setup(() => {
+ *     tempFile = createTempFile();
+ *   });
+ *
+ *   teardown(() => {
+ *     deleteTempFile(tempFile);
+ *   });
+ *
+ *   it('should use temp file', () => {
+ *     writeToFile(tempFile);
+ *   });
+ * });
+ * ```
  */
 export function teardown(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -116,7 +263,38 @@ export function teardown(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Suite-level setup hook (runs once before all benchmarks in the suite)
+ * Registers a suite-level setup hook that runs once before all benchmarks in the describe block.
+ *
+ * This runs before any benchmark tasks are created. Use this for one-time initialization
+ * that should be shared across all benchmarks in the suite.
+ *
+ * @param fn - The function to run before all benchmarks in the suite
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   let sharedState;
+ *
+ *   setupSuite(() => {
+ *     sharedState = initializeSharedState();
+ *   });
+ *
+ *   describe('Group 1', () => {
+ *     it('should use shared state', () => {
+ *       processSharedState(sharedState);
+ *     });
+ *   });
+ *
+ *   describe('Group 2', () => {
+ *     it('should also use shared state', () => {
+ *       processSharedState(sharedState);
+ *     });
+ *   });
+ * });
+ * ```
  */
 export function setupSuite(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -129,7 +307,34 @@ export function setupSuite(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Suite-level teardown hook (runs once after all benchmarks in the suite)
+ * Registers a suite-level teardown hook that runs once after all benchmarks in the describe block.
+ *
+ * This runs after all benchmark tasks have completed. Use this for cleanup of resources
+ * initialized in setupSuite().
+ *
+ * @param fn - The function to run after all benchmarks in the suite
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
+ *
+ * @example
+ * ```ts
+ * describe('My Suite', () => {
+ *   let sharedState;
+ *
+ *   setupSuite(() => {
+ *     sharedState = initializeSharedState();
+ *   });
+ *
+ *   teardownSuite(() => {
+ *     cleanupSharedState(sharedState);
+ *   });
+ *
+ *   it('should use shared state', () => {
+ *     processSharedState(sharedState);
+ *   });
+ * });
+ * ```
  */
 export function teardownSuite(fn: () => void | Promise<void>): void {
   if (!currentDescribeBlock) {
@@ -142,7 +347,17 @@ export function teardownSuite(fn: () => void | Promise<void>): void {
 }
 
 /**
- * Defines a benchmark task
+ * Defines a benchmark task within a describe block.
+ *
+ * Each `it()` call creates a benchmark task that will be measured. The function provided
+ * will be executed thousands of times to measure its performance.
+ *
+ * @param name - The name of the benchmark task
+ * @param fn - The function to benchmark (will be executed many times)
+ * @param options - Optional benchmark options (iterations, warmup, etc.)
+ *
+ * @throws {Error} If called outside a describe() block
+ * @throws {Error} If called inside an it() callback
  *
  * @example
  * ```ts
@@ -151,7 +366,7 @@ export function teardownSuite(fn: () => void | Promise<void>): void {
  *     doWork();
  *   });
  *
- *   it('should do more work', () => {
+ *   it('should do more work with options', () => {
  *     doMoreWork();
  *   }, { iterations: 100, warmup: true });
  * });
@@ -259,14 +474,41 @@ export function it(
 }
 
 /**
- * Defines a benchmark suite or group of benchmarks
+ * Defines a benchmark suite or group of benchmarks.
+ *
+ * `describe()` blocks can be nested to create hierarchical organization. Each inner describe
+ * creates its own Bench instance with hooks and options inherited from parent describes.
+ *
+ * Variables declared in a describe block's scope are shared across all benchmarks and nested
+ * describes within that block, providing a clean alternative to module-level variables.
+ *
+ * @param name - The name of the benchmark suite
+ * @param callback - The function that registers benchmarks and nested describes
  *
  * @example
  * ```ts
  * describe('Path Resolution', () => {
+ *   let sharedState;
+ *
+ *   setupSuite(() => {
+ *     sharedState = initialize();
+ *   });
+ *
  *   describe('buildFileNames', () => {
  *     it('should build file names correctly', () => {
- *       buildFileNames(['index', 'main']);
+ *       buildFileNames(['index', 'main'], sharedState);
+ *     });
+ *   });
+ *
+ *   describe('buildPatterns', () => {
+ *     let patterns;
+ *
+ *     beforeAll(() => {
+ *       patterns = ['*.ts', '*.js'];
+ *     });
+ *
+ *     it('should build patterns correctly', () => {
+ *       buildPatterns(patterns, sharedState);
  *     });
  *   });
  * });
