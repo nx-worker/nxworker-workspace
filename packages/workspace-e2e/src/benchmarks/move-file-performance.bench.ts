@@ -61,15 +61,15 @@ benchmarkSuite(
             'export function smallFunction() { return "small"; }\n',
           );
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.smallFileName} --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.smallFileName} --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -97,15 +97,15 @@ benchmarkSuite(
             generateLargeTypeScriptFile(200),
           );
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.mediumFileName} --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.mediumFileName} --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -133,15 +133,15 @@ benchmarkSuite(
             generateLargeTypeScriptFile(1000),
           );
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.largeFileName} --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.largeFileName} --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -172,15 +172,15 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file "${context.benchmarkLib2}/src/lib/multi-small-${context.batchId}-*.ts" --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file "${context.benchmarkLib2}/src/lib/multi-small-${context.batchId}-*.ts" --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -230,15 +230,15 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file "${context.benchmarkLib2}/src/lib/api-${context.batchId}-*.ts,${context.benchmarkLib2}/src/lib/service-${context.batchId}-*.ts,${context.benchmarkLib2}/src/lib/util-${context.batchId}-*.ts" --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file "${context.benchmarkLib2}/src/lib/api-${context.batchId}-*.ts,${context.benchmarkLib2}/src/lib/service-${context.batchId}-*.ts,${context.benchmarkLib2}/src/lib/util-${context.batchId}-*.ts" --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -283,15 +283,15 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.manyImportsFileName} --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.manyImportsFileName} --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -336,15 +336,15 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.earlyExitFileName} --project ${context.benchmarkLib1} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.benchmarkLib2}/src/lib/${context.earlyExitFileName} --project ${context.benchmarkLib1} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
   },

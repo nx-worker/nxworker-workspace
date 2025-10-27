@@ -115,17 +115,17 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        const utilityFile = 'shared-utility.ts';
-        const projectCount = context.crossProjectLibs.length;
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.crossProjectLibs[projectCount - 1]}/src/lib/${utilityFile} --project ${context.crossProjectLibs[0]} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          const utilityFile = 'shared-utility.ts';
+          const projectCount = context.crossProjectLibs.length;
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.crossProjectLibs[projectCount - 1]}/src/lib/${utilityFile} --project ${context.crossProjectLibs[0]} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -184,16 +184,16 @@ benchmarkSuite(
           );
           writeFileSync(targetFilePath, generateUtilityModule('largeModule', 200));
         },
-      },
-      teardown(context) {
-        const targetFile = 'large-module.ts';
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.manyFilesTargetLib}/src/lib/${targetFile} --project ${context.manyFilesSourceLib} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          const targetFile = 'large-module.ts';
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.manyFilesTargetLib}/src/lib/${targetFile} --project ${context.manyFilesSourceLib} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -250,15 +250,15 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.relativeImportsLib}/src/lib/helpers/${context.relativeImportsUtilFile} --project ${context.relativeImportsLib} --project-directory=utils --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.relativeImportsLib}/src/lib/helpers/${context.relativeImportsUtilFile} --project ${context.relativeImportsLib} --project-directory=utils --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
 
@@ -343,17 +343,17 @@ benchmarkSuite(
             );
           }
         },
-      },
-      teardown(context) {
-        const coreFile = 'core-api.ts';
-        const projectCount = context.combinedStressLibs.length;
-        execSync(
-          `npx nx generate @nxworker/workspace:move-file ${context.combinedStressLibs[projectCount - 1]}/src/lib/${coreFile} --project ${context.combinedStressLibs[0]} --no-interactive`,
-          {
-            cwd: context.projectDirectory,
-            stdio: 'pipe',
-          },
-        );
+        afterAll(context) {
+          const coreFile = 'core-api.ts';
+          const projectCount = context.combinedStressLibs.length;
+          execSync(
+            `npx nx generate @nxworker/workspace:move-file ${context.combinedStressLibs[projectCount - 1]}/src/lib/${coreFile} --project ${context.combinedStressLibs[0]} --no-interactive`,
+            {
+              cwd: context.projectDirectory,
+              stdio: 'pipe',
+            },
+          );
+        },
       },
     },
   },
