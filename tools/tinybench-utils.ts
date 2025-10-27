@@ -33,8 +33,8 @@ interface DescribeBlock {
 /**
  * Global state for tracking current describe block
  */
-let currentDescribeBlock: DescribeBlock | null = null;
-let rootDescribeBlock: DescribeBlock | null = null;
+let currentDescribeBlock: DescribeBlock | undefined = undefined;
+let rootDescribeBlock: DescribeBlock | undefined = undefined;
 let insideItCallback = false;
 
 /**
@@ -588,7 +588,7 @@ export function describe(name: string, callback: () => void): void {
   // If this was the root describe, run the benchmarks
   if (!currentDescribeBlock && rootDescribeBlock === block) {
     runDescribeBlock(block);
-    rootDescribeBlock = null;
+    rootDescribeBlock = undefined;
   }
 }
 
@@ -642,12 +642,11 @@ function runDescribeBlock(block: DescribeBlock): void {
           }
 
           if (taskResult.error) {
-            throw new Error(
+            const error = new Error(
               `[${block.name}] ${task.name} failed: ${taskResult.error.message}`,
-              {
-                cause: taskResult.error,
-              },
             );
+            (error as any).cause = taskResult.error;
+            throw error;
           }
 
           summary +=
