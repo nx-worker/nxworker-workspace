@@ -41,7 +41,7 @@ The CI system:
 1. Runs all benchmark tests using tinybench via Jest
 2. Parses benchmark results (ops/sec) in benchmark.js format
 3. Compares against historical baseline data
-4. Fails the PR if regressions exceed 150% threshold
+4. Fails the PR if regressions exceed 130% threshold
 5. Posts a comment showing which benchmarks regressed
 6. Provides a job summary with visual comparison
 
