@@ -111,7 +111,7 @@ npx nx benchmark workspace
 - Benchmarks run automatically on all PRs and pushes to `main`
 - Always compare against the last successful benchmark from `main` branch
 - Alert on performance regressions exceeding 115% (15% degradation)
-- To accept a known regression, add the `accept-performance-degradation` label to your PR
+- To accept a known regression, add the `override-benchmark-threshold` label to your PR
 
 See [packages/workspace/src/generators/move-file/benchmarks/README.md](./packages/workspace/src/generators/move-file/benchmarks/README.md) for details.
 

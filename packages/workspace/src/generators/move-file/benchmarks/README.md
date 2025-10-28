@@ -68,7 +68,7 @@ The github-action-benchmark will automatically:
 
 If you need to accept a performance regression (e.g., trading performance for correctness, maintainability, or new features):
 
-1. Add the `accept-performance-degradation` label to your PR
+1. Add the `override-benchmark-threshold` label to your PR
 2. Document the trade-off in the PR description
 3. The benchmark check will still run and comment, but won't fail the PR
 4. Reviewers can see the impact and approve the change

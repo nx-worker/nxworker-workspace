@@ -292,17 +292,17 @@ jobs:
           # Skip cache to ensure fresh benchmark results and capture all output
           npx nx benchmark workspace 2>&1 | sed -E 's/^[[:space:]]*//' | tee workspace-benchmark.txt
 
-      # Check if PR has the 'accept-performance-degradation' label
-      - name: Check for accept-performance-degradation label
+      # Check if PR has the 'override-benchmark-threshold' label
+      - name: Check for override-benchmark-threshold label
         id: check-label
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
           # Check if PR has the label (default to false if check fails)
           if labels=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' 2>/dev/null); then
-            if echo "$labels" | grep -q "accept-performance-degradation"; then
+            if echo "$labels" | grep -q "override-benchmark-threshold"; then
               echo "has_label=true" >> "$GITHUB_OUTPUT"
-              echo "PR has accept-performance-degradation label - will not fail on performance degradation"
+              echo "PR has override-benchmark-threshold label - will not fail on performance degradation"
             else
               echo "has_label=false" >> "$GITHUB_OUTPUT"
             fi
@@ -329,7 +329,7 @@ jobs:
           skip-fetch-gh-pages: true
           alert-threshold: '115%'
           comment-on-alert: true
-          # Only fail on alert if PR doesn't have the accept-performance-degradation label
+          # Only fail on alert if PR doesn't have the override-benchmark-threshold label
           # For non-PR events (push to main), always fail on alert
           # If check-label step is skipped (non-PR) or fails, the expression evaluates to true (fail on alert)
           fail-on-alert: ${{ github.event_name != 'pull_request' || (steps.check-label.outputs.has_label || 'false') != 'true' }}
