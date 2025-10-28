@@ -1306,4 +1306,264 @@ describe('tinybench-utils', () => {
       });
     });
   });
+
+  describe('describe options', () => {
+    it('should support quiet option on describe block', () => {
+      expect(() => {
+        benchDescribe(
+          'Quiet Suite',
+          () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+            benchIt('test', () => {});
+          },
+          { quiet: true },
+        );
+      }).not.toThrow();
+    });
+
+    it('should support quiet option set to false', () => {
+      expect(() => {
+        benchDescribe(
+          'Verbose Suite',
+          () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+            benchIt('test', () => {});
+          },
+          { quiet: false },
+        );
+      }).not.toThrow();
+    });
+
+    it('should support nested describe blocks with different quiet settings', () => {
+      expect(() => {
+        benchDescribe(
+          'Outer Suite',
+          () => {
+            benchDescribe(
+              'Inner Quiet Suite',
+              () => {
+                // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+                benchIt('test', () => {});
+              },
+              { quiet: true },
+            );
+          },
+          { quiet: false },
+        );
+      }).not.toThrow();
+    });
+  });
+
+  describe('benchmark with quiet option', () => {
+    it('should support quiet option on individual benchmark', () => {
+      expect(() => {
+        benchDescribe('Suite', () => {
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing quiet option
+          benchIt('quiet benchmark', () => {}, { quiet: true });
+        });
+      }).not.toThrow();
+    });
+
+    it('should support quiet option set to false on individual benchmark', () => {
+      expect(() => {
+        benchDescribe('Suite', () => {
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing quiet option
+          benchIt('verbose benchmark', () => {}, { quiet: false });
+        });
+      }).not.toThrow();
+    });
+
+    it('should allow benchmark to override describe quiet setting', () => {
+      expect(() => {
+        benchDescribe(
+          'Quiet Suite',
+          () => {
+            // This benchmark explicitly enables warnings despite suite being quiet
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing quiet override
+            benchIt('verbose benchmark', () => {}, { quiet: false });
+          },
+          { quiet: true },
+        );
+      }).not.toThrow();
+    });
+  });
+
+  describe('complex nested scenarios', () => {
+    it('should handle deeply nested describe blocks with mixed content', () => {
+      expect(() => {
+        benchDescribe('Level 1', () => {
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
+          benchBeforeAll(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+          benchIt('test 1', () => {});
+
+          benchDescribe('Level 2', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
+            benchBeforeEach(() => {});
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+            benchIt('test 2', () => {});
+
+            benchDescribe('Level 3', () => {
+              // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
+              setup(() => {});
+              // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+              benchIt('test 3', () => {});
+
+              benchDescribe('Level 4', () => {
+                // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
+                setupSuite(() => {});
+                // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+                benchIt('test 4', () => {});
+              });
+            });
+          });
+        });
+      }).not.toThrow();
+    });
+
+    it('should handle multiple sibling describe blocks', () => {
+      expect(() => {
+        benchDescribe('Root', () => {
+          benchDescribe('Sibling 1', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+            benchIt('test 1', () => {});
+          });
+
+          benchDescribe('Sibling 2', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+            benchIt('test 2', () => {});
+          });
+
+          benchDescribe('Sibling 3', () => {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+            benchIt('test 3', () => {});
+          });
+        });
+      }).not.toThrow();
+    });
+
+    it('should handle describe blocks with many benchmarks', () => {
+      expect(() => {
+        benchDescribe('Suite with many benchmarks', () => {
+          for (let i = 1; i <= 10; i++) {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing many benchmarks
+            benchIt(`benchmark ${i}`, () => {});
+          }
+        });
+      }).not.toThrow();
+    });
+  });
+
+  describe('hook ordering with all hook types', () => {
+    it('should register all 8 hook types in order', () => {
+      const executionOrder: string[] = [];
+
+      expect(() => {
+        benchDescribe('Complete Hook Suite', () => {
+          setupSuite(() => {
+            executionOrder.push('setupSuite');
+          });
+          benchBeforeAll(() => {
+            executionOrder.push('beforeAll');
+          });
+          benchBeforeEach(() => {
+            executionOrder.push('beforeEach');
+          });
+          setup(() => {
+            executionOrder.push('setup');
+          });
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+          benchIt('test', () => {});
+          teardown(() => {
+            executionOrder.push('teardown');
+          });
+          benchAfterEach(() => {
+            executionOrder.push('afterEach');
+          });
+          benchAfterAll(() => {
+            executionOrder.push('afterAll');
+          });
+          teardownSuite(() => {
+            executionOrder.push('teardownSuite');
+          });
+        });
+      }).not.toThrow();
+
+      // Note: We can't verify actual execution order here because benchmarks
+      // don't actually run in the test environment, but we can verify registration
+      // succeeded without errors
+    });
+
+    it('should allow hooks to be registered in any order', () => {
+      expect(() => {
+        benchDescribe('Unordered Hooks', () => {
+          benchAfterAll(() => {
+            // Registered first
+          });
+          setup(() => {
+            // Registered second
+          });
+          benchBeforeEach(() => {
+            // Registered third
+          });
+          teardownSuite(() => {
+            // Registered fourth
+          });
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+          benchIt('test', () => {});
+          setupSuite(() => {
+            // Registered after benchmark
+          });
+          benchAfterEach(() => {
+            // Registered after setupSuite
+          });
+        });
+      }).not.toThrow();
+    });
+  });
+
+  describe('edge cases with empty callbacks', () => {
+    it('should handle benchmark with empty synchronous function', () => {
+      expect(() => {
+        benchDescribe('Suite', () => {
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty function
+          benchIt('empty sync benchmark', () => {});
+        });
+      }).not.toThrow();
+    });
+
+    it('should handle benchmark with empty async function', () => {
+      expect(() => {
+        benchDescribe('Suite', () => {
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty async function
+          benchIt('empty async benchmark', async () => {});
+        });
+      }).not.toThrow();
+    });
+
+    it('should handle all hooks with empty functions', () => {
+      expect(() => {
+        benchDescribe('Suite', () => {
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          setupSuite(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          benchBeforeAll(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          benchBeforeEach(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          setup(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
+          benchIt('test', () => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          teardown(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          benchAfterEach(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          benchAfterAll(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
+          teardownSuite(() => {});
+        });
+      }).not.toThrow();
+    });
+  });
 });
