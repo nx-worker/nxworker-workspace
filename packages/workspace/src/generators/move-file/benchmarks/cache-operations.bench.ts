@@ -1,5 +1,6 @@
 import {
   beforeAll,
+  beforeEach,
   describe,
   it,
   teardown,
@@ -47,6 +48,11 @@ describe('Cache Operations', () => {
   });
 
   describe('Cache miss', () => {
+    beforeEach(() => {
+      // Clear cache to ensure we measure cache misses, not hits from previous benchmarks
+      fileExistenceCache.clear();
+    });
+
     it('should handle cache misses', () => {
       testFiles.forEach((file) =>
         cachedTreeExists(tree, file, fileExistenceCache),
@@ -70,6 +76,13 @@ describe('Cache Operations', () => {
   });
 
   describe('Cache update', () => {
+    beforeEach(() => {
+      // Pre-populate cache with the old path that will be updated
+      projectSourceFilesCache.set(projectRoot, [
+        `${projectRoot}/src/lib/old.ts`,
+      ]);
+    });
+
     it('should update cache', () => {
       const oldPath = `${projectRoot}/src/lib/old.ts`;
       const newPath = `${projectRoot}/src/lib/new.ts`;
