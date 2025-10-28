@@ -1082,6 +1082,8 @@ function runDescribeBlock(block: DescribeBlock): void {
     }
 
     // Recursively run nested describe blocks
+    // Recursion depth matches describe block nesting, which is typically 2-4 levels
+    // in practice, well within stack limits. Keeping recursive for code clarity.
     for (const child of block.children) {
       runDescribeBlock(child);
     }
