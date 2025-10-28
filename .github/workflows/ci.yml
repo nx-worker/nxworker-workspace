@@ -298,13 +298,18 @@ jobs:
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
-          # Check if PR has the label
-          labels=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
-          if echo "$labels" | grep -q "accept-performance-degradation"; then
-            echo "has_label=true" >> "$GITHUB_OUTPUT"
-            echo "PR has accept-performance-degradation label - will not fail on performance degradation"
+          # Check if PR has the label (default to false if check fails)
+          if labels=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' 2>/dev/null); then
+            if echo "$labels" | grep -q "accept-performance-degradation"; then
+              echo "has_label=true" >> "$GITHUB_OUTPUT"
+              echo "PR has accept-performance-degradation label - will not fail on performance degradation"
+            else
+              echo "has_label=false" >> "$GITHUB_OUTPUT"
+            fi
           else
+            # If gh command fails, default to false (will fail on alert)
             echo "has_label=false" >> "$GITHUB_OUTPUT"
+            echo "Warning: Could not check PR labels, defaulting to fail-on-alert behavior"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -326,7 +331,8 @@ jobs:
           comment-on-alert: true
           # Only fail on alert if PR doesn't have the accept-performance-degradation label
           # For non-PR events (push to main), always fail on alert
-          fail-on-alert: ${{ github.event_name != 'pull_request' || steps.check-label.outputs.has_label != 'true' }}
+          # If check-label step is skipped (non-PR) or fails, the expression evaluates to true (fail on alert)
+          fail-on-alert: ${{ github.event_name != 'pull_request' || (steps.check-label.outputs.has_label || 'false') != 'true' }}
           alert-comment-cc-users: '@LayZeeDK'
           summary-always: true
 
