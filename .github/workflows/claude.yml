@@ -55,7 +55,7 @@ jobs:
           #   --allowedTools "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
           #   --system-prompt "Follow our coding standards. Ensure all new code has tests. Use TypeScript for new files."
           claude_args: |
-            --allowed-tools "mcp__nx__*"
+            --allowed-tools "Bash(npx nx:*),Bash(npm run:*),mcp__nx__*"
             --mcp-config '{
               "mcpServers": {
                 "nx": {
