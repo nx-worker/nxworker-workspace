@@ -873,7 +873,6 @@ describe('tinybench-utils', () => {
     });
   });
 
-
   describe('edge cases', () => {
     it('should handle describe with no benchmarks', () => {
       expect(() => {

@@ -45,25 +45,21 @@ describe('tinybench-utils hook registration', () => {
     registeredAfterAllHooks = [];
 
     // Mock Jest functions to capture hook registration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    globalThis.beforeAll = jest.fn((fn: any) => {
+    globalThis.beforeAll = jest.fn((fn: () => void | Promise<void>) => {
       registeredBeforeAllHooks.push(fn);
-    }) as any;
+    }) as typeof globalThis.beforeAll;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    globalThis.afterAll = jest.fn((fn: any) => {
+    globalThis.afterAll = jest.fn((fn: () => void | Promise<void>) => {
       registeredAfterAllHooks.push(fn);
-    }) as any;
+    }) as typeof globalThis.afterAll;
 
     // Mock describe to execute callback immediately
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     globalThis.describe = jest.fn((name: string, callback: () => void) => {
       callback();
-    }) as any;
+    }) as typeof globalThis.describe;
 
     // Mock it to capture registration without executing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    globalThis.it = jest.fn() as any;
+    globalThis.it = jest.fn() as typeof globalThis.it;
   });
 
   afterEach(() => {
