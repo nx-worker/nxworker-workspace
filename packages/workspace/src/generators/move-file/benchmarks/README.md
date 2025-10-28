@@ -40,21 +40,21 @@ The CI system:
 
 1. Runs all benchmark tests using tinybench via Jest
 2. Parses benchmark results (ops/sec) in benchmark.js format
-3. Compares against historical baseline data
-4. Fails the PR if regressions exceed 150% threshold
+3. **Always compares against the last successful benchmark from `main` branch**
+4. Fails the PR if regressions exceed 115% threshold (15% degradation)
 5. Posts a comment showing which benchmarks regressed
 6. Provides a job summary with visual comparison
+
+**Important:** Benchmarks always compare against the `main` branch baseline, not against previous commits on the PR branch. This ensures cumulative performance regressions across multiple commits are detected.
 
 #### Benchmark Tracking (Main Branch)
 
 On pushes to `main`:
 
 1. Runs all benchmarks
-2. Stores results in GitHub Pages branch
-3. Updates historical performance charts
-4. Enables trend visualization over time
-
-Visit the [benchmark dashboard](https://nx-worker.github.io/nxworker-workspace/dev/bench/) to see performance trends.
+2. Stores results in external JSON file (`benchmarks/workspace/benchmark.json`)
+3. Updates the main branch baseline for future PR comparisons
+4. Fails on any regression exceeding 115% threshold to prevent degradation on main
 
 **If a regression is detected:**
 
@@ -64,11 +64,17 @@ The github-action-benchmark will automatically:
 - Show the benchmark comparison in the job summary
 - Fail the CI check
 
-To accept an intentional regression (e.g., trading performance for maintainability):
+**To accept a performance degradation:**
 
-- Document the trade-off in the PR description
-- Reviewers can approve despite the regression
-- The historical baseline will update automatically when merged to `main`
+If you need to accept a performance regression (e.g., trading performance for correctness, maintainability, or new features):
+
+1. Add the `accept-performance-degradation` label to your PR
+2. Document the trade-off in the PR description
+3. The benchmark check will still run and comment, but won't fail the PR
+4. Reviewers can see the impact and approve the change
+5. The new baseline will be established when merged to `main`
+
+**Note:** This label only works for PRs. Pushes to `main` will always fail on regression to prevent degradation from sneaking into the main branch.
 
 ## Benchmark Implementation
 
