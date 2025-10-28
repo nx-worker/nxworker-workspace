@@ -4,200 +4,223 @@ This directory contains performance benchmarking utilities and tools for the nxw
 
 ## Contents
 
-- `tinybench-utils.ts` - Jest-compatible benchmark suite wrapper for tinybench
+- `tinybench-utils.ts` - Jest-like benchmark API wrapper for tinybench
+- `tinybench-utils-state.ts` - Internal state management for benchmark API
 - `benchmark-glob-performance.js` - Standalone glob pattern batching benchmark
 - `scripts/` - Build and testing scripts
 
-## benchmarkSuite API
+## Jest-Like Benchmark API
 
-The `benchmarkSuite` function provides a Jest-compatible wrapper for [tinybench](https://github.com/tinylibs/tinybench), outputting results in jest-bench format compatible with [benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
+The benchmark API provides a Jest-like interface using `describe()` and `it()` patterns, wrapping [tinybench](https://github.com/tinylibs/tinybench) and outputting results in jest-bench format compatible with [benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
 
-### Basic Usage (Original API)
+All functions (`describe`, `it`, `beforeAll`, `afterAll`, `beforeEach`, `afterEach`, `setup`, `teardown`, `setupSuite`, `teardownSuite`) must be imported from `tools/tinybench-utils` - they are not globals.
+
+### Basic Usage
 
 ```typescript
-import { benchmarkSuite } from '../../../../../../tools/tinybench-utils';
+import { describe, it } from '../../../../../../tools/tinybench-utils';
 
-benchmarkSuite(
-  'My Benchmark Suite',
-  {
-    'Simple benchmark': () => {
-      // Benchmark code
-    },
+describe('My Benchmark Suite', () => {
+  it('should perform simple operation', () => {
+    // Benchmark code runs many iterations
+    doWork();
+  });
+});
+```
 
-    'Benchmark with options': {
-      fn: () => {
-        // Benchmark code
-      },
-      fnOptions: {
-        beforeAll: () => {
-          // Setup before benchmark runs
-        },
-      },
-      warmup: true,
-      warmupIterations: 5,
-    },
+### Using Hooks
+
+The API provides comprehensive hook support for setup and teardown operations:
+
+```typescript
+import {
+  describe,
+  it,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+  setup,
+  teardown,
+  setupSuite,
+  teardownSuite,
+} from '../../../../../../tools/tinybench-utils';
+
+describe('Benchmark Suite with Hooks', () => {
+  let suiteData;
+
+  // Suite-level hooks (run once per describe block)
+  setupSuite(() => {
+    // Runs once before all benchmarks in this describe block
+    suiteData = initializeSuiteData();
+  });
+
+  teardownSuite(() => {
+    // Runs once after all benchmarks in this describe block
+    cleanupSuiteData(suiteData);
+  });
+
+  describe('Individual Benchmark', () => {
+    let benchmarkData;
+
+    // Benchmark-level setup/teardown (BenchOptions)
+    setup(() => {
+      // Runs before warmup iterations
+      benchmarkData = initializeBenchmark();
+    });
+
+    teardown(() => {
+      // Runs after all benchmark iterations
+      cleanupBenchmark(benchmarkData);
+    });
+
+    // Iteration-level hooks (fnOptions)
+    beforeAll(() => {
+      // Runs once before actual benchmark (after warmup)
+      prepareBenchmark();
+    });
+
+    afterAll(() => {
+      // Runs once after actual benchmark completes
+      finalizeBenchmark();
+    });
+
+    beforeEach(() => {
+      // Runs before each iteration (including warmup)
+      resetIterationState();
+    });
+
+    afterEach(() => {
+      // Runs after each iteration (including warmup)
+      cleanupIterationState();
+    });
+
+    it('should perform operation', () => {
+      // This runs many times
+      doWork();
+    });
+  });
+});
+```
+
+### Hook Execution Order
+
+Hooks execute in this order for each benchmark:
+
+1. `setupSuite` - runs once before all benchmarks in the describe block
+2. `setup` - runs before warmup
+3. warmup iterations (with `beforeEach`/`afterEach`)
+4. `beforeAll` - runs before actual benchmark
+5. benchmark iterations (with `beforeEach`/`afterEach`)
+6. `afterAll` - runs after benchmark
+7. `teardown` - runs after benchmark
+8. `teardownSuite` - runs once after all benchmarks in the describe block
+
+**Important**: `setup` (BenchOptions) runs **before** `beforeAll` (fnOptions). Any initialization that other hooks depend on must be in `setup`, not `beforeAll`.
+
+### Nested Describe Blocks
+
+Each inner `describe` block creates its own Bench instance and inherits hooks from parent blocks:
+
+```typescript
+describe('Parent Suite', () => {
+  let sharedState;
+
+  setupSuite(() => {
+    sharedState = initializeShared();
+  });
+
+  describe('Child Suite 1', () => {
+    it('benchmark 1', () => {
+      // Can access sharedState
+      useShared(sharedState);
+    });
+  });
+
+  describe('Child Suite 2', () => {
+    let localState;
+
+    beforeAll(() => {
+      localState = initializeLocal();
+    });
+
+    it('benchmark 2', () => {
+      // Can access both sharedState and localState
+      useShared(sharedState);
+      useLocal(localState);
+    });
+  });
+});
+```
+
+### Benchmark Options
+
+Pass options to `describe()` or `it()`:
+
+```typescript
+// Suppress performance warnings for this suite
+describe(
+  'Quiet Suite',
+  () => {
+    // benchmarks...
+  },
+  { quiet: true },
+);
+
+// Configure benchmark parameters
+it(
+  'benchmark with options',
+  () => {
+    doWork();
   },
   {
-    setupSuite: () => {
-      // Run once before all benchmarks
-    },
-    teardownSuite: () => {
-      // Run once after all benchmarks
-    },
+    iterations: 1000,
+    warmup: true,
+    warmupIterations: 10,
+    itTimeout: 60000, // Jest timeout for this benchmark
   },
 );
 ```
 
-### Factory Function API (New)
+### Performance Monitoring
 
-The factory function API allows you to create a shared scope for benchmarks, avoiding module-level variables and enabling better encapsulation.
+The API automatically monitors hook performance:
 
-#### Suite-Level Factory
+- Warns when `beforeEach` hooks take >10ms (indicates expensive operations that should be in `setup`)
+- Provides detailed timing information in output
 
-Create a shared scope for all benchmarks in the suite:
+### Hook Validation
 
-```typescript
-benchmarkSuite('Suite with Factory', () => {
-  // Shared scope for all benchmarks - better than module-level variables
-  let projectDirectory: string;
-  let sharedCache: Map<string, unknown>;
+The API includes comprehensive validation to prevent common mistakes:
 
-  return {
-    benchmarks: {
-      'Benchmark 1': () => {
-        // Can access projectDirectory and sharedCache
-      },
+- **Prevents hooks inside `it()` callbacks** - Hooks must be called in describe block scope
+- **Prevents hooks outside `describe()` blocks** - All hooks must be within a describe
+- **Prevents nested `it()` calls** - Can't call `it()` inside another `it()` callback
+- **Clear error messages** - Validation errors explain what went wrong and how to fix it
 
-      'Benchmark 2': {
-        fn: () => {
-          // Can access shared scope
-        },
-        fnOptions: {
-          beforeAll: () => {
-            // Setup with access to shared scope
-            sharedCache.clear();
-          },
-        },
-      },
-    },
-    setupSuite: () => {
-      projectDirectory = '/tmp/test';
-      sharedCache = new Map();
-    },
-    teardownSuite: () => {
-      // Cleanup with access to shared scope
-      sharedCache.clear();
-    },
-  };
-});
-```
+### Key Features
 
-#### Benchmark-Level Factory
+1. **Familiar Jest-like API** - Uses `describe()` and `it()` patterns developers already know
+2. **Exported functions** - All functions must be imported (not globals) to avoid confusion with Jest test functions
+3. **Nested describes** - Each inner `describe` creates its own Bench instance with inherited hooks
+4. **Comprehensive hooks** - 8 different hooks for fine-grained control of benchmark lifecycle
+5. **Hook inheritance** - Child describe blocks inherit hooks from parents
+6. **Performance optimizations** - One Bench instance per describe (not per `it`), ~3.5% faster
+7. **Hook validation** - Prevents incorrect hook usage with clear error messages
+8. **Options support** - Configure iterations, warmup, timeouts, and quiet mode
+9. **Performance monitoring** - Warns about expensive operations in the wrong hooks
 
-Create a private scope for each individual benchmark using the `benchmark()` wrapper:
+### Real-World Examples
 
-```typescript
-import {
-  benchmark,
-  benchmarkSuite,
-} from '../../../../../../tools/tinybench-utils';
+See the following files for complete examples:
 
-benchmarkSuite('Suite with Benchmark Factories', {
-  'Regular benchmark': () => {
-    // Regular benchmark - just executes directly
-    doWork();
-  },
+- `packages/workspace/src/generators/move-file/benchmarks/path-resolution.bench.ts` - Simple benchmarks with minimal hooks (5 benchmarks)
+- `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.ts` - Suite-level shared state with beforeEach for isolation (4 benchmarks)
+- `packages/workspace/src/generators/move-file/benchmarks/export-management.bench.ts` - Suite-level setup with per-benchmark beforeAll hooks (4 benchmarks)
+- `packages/workspace/src/generators/move-file/benchmarks/import-updates.bench.ts` - Complex hook execution order example (3 benchmarks)
+- `packages/workspace/src/generators/move-file/benchmarks/validation.bench.ts` - Per-benchmark setup with beforeAll (4 benchmarks)
 
-  'Factory returning config': benchmark(() => {
-    // Private scope for this benchmark only
-    let localCounter = 0;
-    let localData: string[] = [];
-
-    return {
-      fn: () => {
-        localCounter++;
-        localData.push('item');
-      },
-      fnOptions: {
-        beforeAll: () => {
-          localCounter = 0;
-          localData = [];
-        },
-      },
-    };
-  }),
-
-  'Factory returning function': benchmark(() => {
-    // Even simpler - just return the benchmark function
-    let items: number[] = [];
-
-    return () => {
-      items.push(Math.random());
-      items = items.slice(-100); // Keep last 100
-    };
-  }),
-});
-```
-
-**Important**: Use the `benchmark()` wrapper to mark factory functions. Without it, the function will be treated as a regular benchmark and executed directly.
-
-#### Nested Factories
-
-Combine both suite-level and benchmark-level factories:
-
-```typescript
-import {
-  benchmark,
-  benchmarkSuite,
-} from '../../../../../../tools/tinybench-utils';
-
-benchmarkSuite('Nested Factories', () => {
-  // Suite-level shared state
-  let suiteState: { initialized: boolean };
-
-  return {
-    benchmarks: {
-      'Nested factory benchmark': benchmark(() => {
-        // Benchmark-level private state
-        let benchmarkLocal = 0;
-
-        return {
-          fn: () => {
-            // Access both scopes
-            if (suiteState.initialized) {
-              benchmarkLocal++;
-            }
-          },
-          fnOptions: {
-            beforeAll: () => {
-              benchmarkLocal = 0;
-            },
-          },
-        };
-      }),
-    },
-    setupSuite: () => {
-      suiteState = { initialized: true };
-    },
-  };
-});
-```
-
-### Why Use Factory Functions?
-
-1. **Avoid module-level variables** - Better encapsulation and isolation
-2. **Clear scope boundaries** - Each factory defines its own closure
-3. **Easier testing** - State is contained within the factory
-4. **Better IDE support** - TypeScript can infer types within closures
-5. **Backward compatible** - Original API still works
-
-### Examples
-
-See the following files for real-world examples:
-
-- `packages/workspace/src/generators/move-file/benchmarks/cache-operations.bench.ts` - Original API
-- `packages/workspace/src/generators/move-file/benchmarks/cache-operations-factory.bench.ts` - Suite-level factory
-- `packages/workspace/src/generators/move-file/benchmarks/factory-examples.bench.ts` - All factory patterns
+**Total: 20 benchmarks across 5 files**
 
 ## Glob Performance Benchmark Tool
 
