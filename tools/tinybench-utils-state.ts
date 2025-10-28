@@ -142,3 +142,21 @@ export function resetGlobalState(): void {
   rootDescribeBlock = undefined;
   insideItCallback = false;
 }
+
+/**
+ * FOR TESTING ONLY: Allows tests to manually set the insideItCallback flag
+ * to test validation logic without executing benchmarks.
+ *
+ * ⚠️ **TEST-ONLY API:** This function exists solely for testing the hook
+ * validation logic. It should NEVER be used in production code.
+ *
+ * Use case: Testing that hooks properly throw errors when called inside
+ * it() callbacks, without needing to actually execute async benchmarks.
+ *
+ * @param value - The value to set for the insideItCallback flag
+ *
+ * @internal
+ */
+export function __test_setInsideItCallback(value: boolean): void {
+  insideItCallback = value;
+}

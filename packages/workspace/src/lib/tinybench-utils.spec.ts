@@ -15,7 +15,10 @@ import {
   formatBenchmarkResult,
 } from '../../../../tools/tinybench-utils';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Testing internal state management
-import { resetGlobalState } from '../../../../tools/tinybench-utils-state';
+import {
+  resetGlobalState,
+  __test_setInsideItCallback,
+} from '../../../../tools/tinybench-utils-state';
 
 // Mock the global Jest functions to capture calls
 const mockJestDescribe = jest.fn((name, callback) => {
@@ -185,98 +188,131 @@ describe('tinybench-utils', () => {
   });
 
   describe('hook validation - inside it callback', () => {
-    // NOTE: These tests are skipped because they require async benchmark execution
-    // to trigger the insideItCallback flag. The validation works correctly in practice
-    // (as verified by integration tests), but unit testing requires complex async mocking.
-    // The feature is tested indirectly through integration tests that use tinybench-utils.
-    it.skip('should throw error when beforeAll called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            benchBeforeAll(() => {});
-          });
-        });
-      }).toThrow('beforeAll() cannot be called inside an it() callback');
+    it('should throw error when beforeAll called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        // Manually set the flag to simulate being inside it() callback
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => benchBeforeAll(() => {})).toThrow(
+            'beforeAll() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when afterAll called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            benchAfterAll(() => {});
-          });
-        });
-      }).toThrow('afterAll() cannot be called inside an it() callback');
+    it('should throw error when afterAll called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => benchAfterAll(() => {})).toThrow(
+            'afterAll() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when beforeEach called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            benchBeforeEach(() => {});
-          });
-        });
-      }).toThrow('beforeEach() cannot be called inside an it() callback');
+    it('should throw error when beforeEach called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => benchBeforeEach(() => {})).toThrow(
+            'beforeEach() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when afterEach called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            benchAfterEach(() => {});
-          });
-        });
-      }).toThrow('afterEach() cannot be called inside an it() callback');
+    it('should throw error when afterEach called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => benchAfterEach(() => {})).toThrow(
+            'afterEach() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when setup called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            setup(() => {});
-          });
-        });
-      }).toThrow('setup() cannot be called inside an it() callback');
+    it('should throw error when setup called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => setup(() => {})).toThrow(
+            'setup() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when teardown called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            teardown(() => {});
-          });
-        });
-      }).toThrow('teardown() cannot be called inside an it() callback');
+    it('should throw error when teardown called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => teardown(() => {})).toThrow(
+            'teardown() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when setupSuite called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            setupSuite(() => {});
-          });
-        });
-      }).toThrow('setupSuite() cannot be called inside an it() callback');
+    it('should throw error when setupSuite called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => setupSuite(() => {})).toThrow(
+            'setupSuite() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when teardownSuite called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('test', () => {
-            teardownSuite(() => {});
-          });
-        });
-      }).toThrow('teardownSuite() cannot be called inside an it() callback');
+    it('should throw error when teardownSuite called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => teardownSuite(() => {})).toThrow(
+            'teardownSuite() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('test', () => {});
+      });
     });
 
-    it.skip('should throw error when nested it called inside it callback', () => {
-      expect(() => {
-        benchDescribe('Suite', () => {
-          benchIt('outer test', () => {
-            benchIt('inner test', () => {});
-          });
-        });
-      }).toThrow('it() cannot be called inside an it() callback');
+    it('should throw error when nested it called inside it callback', () => {
+      benchDescribe('Suite', () => {
+        __test_setInsideItCallback(true);
+        try {
+          expect(() => benchIt('inner test', () => {})).toThrow(
+            'it() cannot be called inside an it() callback',
+          );
+        } finally {
+          __test_setInsideItCallback(false);
+        }
+        benchIt('outer test', () => {});
+      });
     });
   });
 
