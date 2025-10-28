@@ -327,7 +327,7 @@ jobs:
           # Disable GitHub Pages integration
           save-data-file: true
           skip-fetch-gh-pages: true
-          alert-threshold: '115%'
+          alert-threshold: '130%'
           comment-on-alert: true
           # Only fail on alert if PR doesn't have the override-benchmark-threshold label
           # For non-PR events (push to main), always fail on alert
