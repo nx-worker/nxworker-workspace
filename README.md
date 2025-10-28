@@ -37,6 +37,7 @@ All commands should be run from the repository root. Nx caches results by defaul
 | Lint | Validate code style in all projects | `npx nx run-many --targets=lint` |
 | Build | Build the Nx plugin and internal projects | `npx nx run-many --targets=build` |
 | Unit tests | Run unit tests for the Nx plugin and internal project | `npx nx run-many --targets=test` |
+| Benchmarks | Run micro-benchmarks for move-file generator | `npx nx benchmark workspace` |
 | End-to-end | Publish the plugin to a local Verdaccio registry and install into a fresh Nx workspace then exercise the plugin | `npx nx run-many --targets=e2e` |
 
 Run every step exactly as CI does:
@@ -94,6 +95,27 @@ The workflow processes each commit individually, applying formatting fixes and a
 **Important:** The workflow will refuse to run if your branch hasn't been rebased with the latest base branch. This prevents the workflow from running with an outdated version of its own workflow file.
 
 ### Performance Testing
+
+The repository includes comprehensive performance testing:
+
+#### Micro-Benchmarks (CI-integrated)
+
+Run performance micro-benchmarks for the move-file generator:
+
+```shell
+npx nx benchmark workspace
+```
+
+**CI Integration:**
+
+- Benchmarks run automatically on all PRs and pushes to `main`
+- Always compare against the last successful benchmark from `main` branch
+- Alert on performance regressions exceeding 115% (15% degradation)
+- To accept a known regression, add the `override-benchmark-threshold` label to your PR
+
+See [packages/workspace/src/generators/move-file/benchmarks/README.md](./packages/workspace/src/generators/move-file/benchmarks/README.md) for details.
+
+#### E2E Performance Tests
 
 The e2e suite includes two types of performance tests:
 

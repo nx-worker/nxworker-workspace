@@ -260,6 +260,8 @@ jobs:
       - uses: ./.github/actions/setup-node-and-install
 
       # Download previous benchmark result from cache (if exists)
+      # Always compare against main branch baseline to detect cumulative performance regressions
+      # across multiple commits in a PR
       - name: Resolve benchmark cache key
         id: benchmark-cache-key
         shell: bash
@@ -279,8 +281,9 @@ jobs:
           path: ./benchmarks/workspace
           # Include run id to ensure each save uses a unique cache key
           key: ${{ format('{0}-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+          # Always restore from main branch baseline first to ensure we compare against
+          # the last successful benchmark on main, not against previous commits on the same PR/branch
           restore-keys: |
-            ${{ format('{0}-benchmark-{1}-', runner.os, steps.benchmark-cache-key.outputs.suffix) }}
             ${{ format('{0}-benchmark-main-', runner.os) }}
 
       # Run all benchmark tests using Nx task
@@ -288,6 +291,29 @@ jobs:
         run: |
           # Skip cache to ensure fresh benchmark results and capture all output
           npx nx benchmark workspace 2>&1 | sed -E 's/^[[:space:]]*//' | tee workspace-benchmark.txt
+
+      # Check if PR has the 'override-benchmark-threshold' label
+      - name: Check for override-benchmark-threshold label
+        id: check-label
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          # Check if PR has the label (default to false if check fails)
+          if labels=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' 2>/dev/null); then
+            if echo "$labels" | grep -q "override-benchmark-threshold"; then
+              echo "has_label=true" >> "$GITHUB_OUTPUT"
+              echo "PR has override-benchmark-threshold label - will not fail on performance degradation"
+            else
+              echo "has_label=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # If gh command fails, default to false (will fail on alert)
+            echo "has_label=false" >> "$GITHUB_OUTPUT"
+            echo "Warning: Could not check PR labels, defaulting to fail-on-alert behavior"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
 
       - name: Continuous Benchmark
         uses: benchmark-action/github-action-benchmark@v1
@@ -303,7 +329,10 @@ jobs:
           skip-fetch-gh-pages: true
           alert-threshold: '130%'
           comment-on-alert: true
-          fail-on-alert: true
+          # Only fail on alert if PR doesn't have the override-benchmark-threshold label
+          # For non-PR events (push to main), always fail on alert
+          # If check-label step is skipped (non-PR) or fails, the expression evaluates to true (fail on alert)
+          fail-on-alert: ${{ github.event_name != 'pull_request' || (steps.check-label.outputs.has_label || 'false') != 'true' }}
           alert-comment-cc-users: '@LayZeeDK'
           summary-always: true
 
