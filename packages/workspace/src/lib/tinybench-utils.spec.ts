@@ -1,5 +1,6 @@
 /// <reference types="jest" />
 /* eslint-env jest */
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Testing tools from workspace root
 import {
   describe as benchDescribe,
   it as benchIt,
@@ -13,6 +14,8 @@ import {
   teardownSuite,
   formatBenchmarkResult,
 } from '../../../../tools/tinybench-utils';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Testing internal state management
+import { resetGlobalState } from '../../../../tools/tinybench-utils-state';
 
 // Mock the global Jest functions to capture calls
 const mockJestDescribe = jest.fn((name, callback) => {
@@ -42,6 +45,9 @@ const originalIt = globalThis.it;
 
 describe('tinybench-utils', () => {
   beforeEach(() => {
+    // Reset global state for test isolation
+    resetGlobalState();
+
     // Replace global Jest functions with mocks
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     globalThis.describe = mockJestDescribe as any;

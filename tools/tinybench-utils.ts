@@ -1,49 +1,19 @@
 import { Bench, BenchOptions, Fn, FnOptions, Task } from 'tinybench';
+import {
+  getCurrentDescribeBlock,
+  getRootDescribeBlock,
+  getInsideItCallback,
+  setCurrentDescribeBlock,
+  setRootDescribeBlock,
+  setInsideItCallback,
+  type DescribeBlock,
+} from './tinybench-utils-state';
 
 // Access Jest functions dynamically so tests can mock them
 const getJestDescribe = () => globalThis.describe;
 const getJestIt = () => globalThis.it;
 const getJestBeforeAll = () => globalThis.beforeAll;
 const getJestAfterAll = () => globalThis.afterAll;
-
-/**
- * Internal representation of a registered benchmark
- */
-interface RegisteredBenchmark {
-  name: string;
-  fn: Fn;
-  fnOptions: FnOptions;
-  benchOptions?: Omit<BenchOptions, 'name'>;
-  itTimeout?: number;
-  quiet?: boolean;
-}
-
-/**
- * Hook with optional timeout configuration
- */
-interface HookWithTimeout {
-  fn: () => void | Promise<void>;
-  timeout?: number;
-}
-
-/**
- * Represents a describe block with its benchmarks and hooks
- */
-interface DescribeBlock {
-  name: string;
-  benchmarks: RegisteredBenchmark[];
-  beforeAllHooks: Array<() => void | Promise<void>>;
-  afterAllHooks: Array<() => void | Promise<void>>;
-  beforeEachHooks: Array<() => void | Promise<void>>;
-  afterEachHooks: Array<() => void | Promise<void>>;
-  setupHooks: Array<() => void | Promise<void>>;
-  teardownHooks: Array<() => void | Promise<void>>;
-  setupSuiteHooks: HookWithTimeout[];
-  teardownSuiteHooks: HookWithTimeout[];
-  children: DescribeBlock[];
-  parent?: DescribeBlock;
-  quiet?: boolean;
-}
 
 /**
  * @fileoverview
@@ -125,13 +95,6 @@ interface DescribeBlock {
  */
 
 /**
- * Global state for tracking current describe block
- */
-let currentDescribeBlock: DescribeBlock | undefined = undefined;
-let rootDescribeBlock: DescribeBlock | undefined = undefined;
-let insideItCallback = false;
-
-/**
  * Validates a timeout value for Jest hooks.
  *
  * @param timeout - The timeout value to validate
@@ -204,13 +167,14 @@ function validateTimeout(timeout: number | undefined, hookName: string): void {
  * ```
  */
 export function beforeAll(fn: () => void | Promise<void>): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('beforeAll() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('beforeAll() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.beforeAllHooks.push(fn);
+  currentBlock.beforeAllHooks.push(fn);
 }
 
 /**
@@ -238,13 +202,14 @@ export function beforeAll(fn: () => void | Promise<void>): void {
  * ```
  */
 export function afterAll(fn: () => void | Promise<void>): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('afterAll() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('afterAll() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.afterAllHooks.push(fn);
+  currentBlock.afterAllHooks.push(fn);
 }
 
 /**
@@ -324,13 +289,14 @@ export function afterAll(fn: () => void | Promise<void>): void {
  * ```
  */
 export function beforeEach(fn: () => void | Promise<void>): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('beforeEach() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('beforeEach() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.beforeEachHooks.push(fn);
+  currentBlock.beforeEachHooks.push(fn);
 }
 
 /**
@@ -361,13 +327,14 @@ export function beforeEach(fn: () => void | Promise<void>): void {
  * ```
  */
 export function afterEach(fn: () => void | Promise<void>): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('afterEach() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('afterEach() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.afterEachHooks.push(fn);
+  currentBlock.afterEachHooks.push(fn);
 }
 
 /**
@@ -432,13 +399,14 @@ export function afterEach(fn: () => void | Promise<void>): void {
  * ```
  */
 export function setup(fn: () => void | Promise<void>): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('setup() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('setup() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.setupHooks.push(fn);
+  currentBlock.setupHooks.push(fn);
 }
 
 /**
@@ -472,13 +440,14 @@ export function setup(fn: () => void | Promise<void>): void {
  * ```
  */
 export function teardown(fn: () => void | Promise<void>): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('teardown() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('teardown() cannot be called inside an it() callback');
   }
-  currentDescribeBlock.teardownHooks.push(fn);
+  currentBlock.teardownHooks.push(fn);
 }
 
 /**
@@ -547,14 +516,15 @@ export function setupSuite(
   fn: () => void | Promise<void>,
   timeout?: number,
 ): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('setupSuite() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('setupSuite() cannot be called inside an it() callback');
   }
   validateTimeout(timeout, 'setupSuite');
-  currentDescribeBlock.setupSuiteHooks.push({ fn, timeout });
+  currentBlock.setupSuiteHooks.push({ fn, timeout });
 }
 
 /**
@@ -598,14 +568,15 @@ export function teardownSuite(
   fn: () => void | Promise<void>,
   timeout?: number,
 ): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('teardownSuite() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('teardownSuite() cannot be called inside an it() callback');
   }
   validateTimeout(timeout, 'teardownSuite');
-  currentDescribeBlock.teardownSuiteHooks.push({ fn, timeout });
+  currentBlock.teardownSuiteHooks.push({ fn, timeout });
 }
 
 /**
@@ -679,10 +650,11 @@ interface ItOptions extends Omit<BenchOptions, 'name'> {
  * ```
  */
 export function it(name: string, fn: Fn, options?: ItOptions): void {
-  if (!currentDescribeBlock) {
+  const currentBlock = getCurrentDescribeBlock();
+  if (!currentBlock) {
     throw new Error('it() must be called inside a describe() block');
   }
-  if (insideItCallback) {
+  if (getInsideItCallback()) {
     throw new Error('it() cannot be called inside an it() callback');
   }
 
@@ -691,7 +663,7 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
   validateTimeout(itTimeout, 'it');
 
   // Determine quiet flag: explicit option > parent describe quiet > default (false)
-  const effectiveQuiet = quiet ?? currentDescribeBlock.quiet ?? false;
+  const effectiveQuiet = quiet ?? currentBlock.quiet ?? false;
 
   // Collect hooks from current block and all ancestors
   const beforeAllHooks: Array<() => void | Promise<void>> = [];
@@ -701,7 +673,7 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
   const setupHooks: Array<() => void | Promise<void>> = [];
   const teardownHooks: Array<() => void | Promise<void>> = [];
 
-  let block: DescribeBlock | undefined = currentDescribeBlock;
+  let block: DescribeBlock | undefined = currentBlock;
   const blocks: DescribeBlock[] = [];
 
   // Collect all blocks from current to root
@@ -817,7 +789,7 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
    * - For errors: Always resets flag before re-throwing to prevent flag leakage
    */
   const wrappedFn: Fn = () => {
-    insideItCallback = true;
+    setInsideItCallback(true);
     try {
       const result = fn();
       // If it's a promise, chain the cleanup
@@ -827,19 +799,19 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
         typeof (result as any).then === 'function'
       ) {
         return (result as Promise<any>).finally(() => {
-          insideItCallback = false;
+          setInsideItCallback(false);
         });
       }
       // Otherwise, clean up immediately
-      insideItCallback = false;
+      setInsideItCallback(false);
       return result;
     } catch (error) {
-      insideItCallback = false;
+      setInsideItCallback(false);
       throw error;
     }
   };
 
-  currentDescribeBlock.benchmarks.push({
+  currentBlock.benchmarks.push({
     name,
     fn: wrappedFn,
     fnOptions,
@@ -922,8 +894,9 @@ export function describe(
   callback: () => void,
   options?: DescribeOptions,
 ): void {
+  const currentBlock = getCurrentDescribeBlock();
   // Determine quiet flag: explicit option > parent quiet > default (false)
-  const effectiveQuiet = options?.quiet ?? currentDescribeBlock?.quiet ?? false;
+  const effectiveQuiet = options?.quiet ?? currentBlock?.quiet ?? false;
 
   const block: DescribeBlock = {
     name,
@@ -937,29 +910,29 @@ export function describe(
     setupSuiteHooks: [],
     teardownSuiteHooks: [],
     children: [],
-    parent: currentDescribeBlock,
+    parent: currentBlock,
     quiet: effectiveQuiet,
   };
 
-  if (currentDescribeBlock) {
-    currentDescribeBlock.children.push(block);
+  if (currentBlock) {
+    currentBlock.children.push(block);
   } else {
     // This is the root describe block
-    rootDescribeBlock = block;
+    setRootDescribeBlock(block);
   }
 
-  const previousBlock = currentDescribeBlock;
-  currentDescribeBlock = block;
+  const previousBlock = currentBlock;
+  setCurrentDescribeBlock(block);
 
   // Execute the callback to register benchmarks and nested describes
   callback();
 
-  currentDescribeBlock = previousBlock;
+  setCurrentDescribeBlock(previousBlock);
 
   // If this was the root describe, run the benchmarks
-  if (!currentDescribeBlock && rootDescribeBlock === block) {
+  if (!getCurrentDescribeBlock() && getRootDescribeBlock() === block) {
     runDescribeBlock(block);
-    rootDescribeBlock = undefined;
+    setRootDescribeBlock(undefined);
   }
 }
 
