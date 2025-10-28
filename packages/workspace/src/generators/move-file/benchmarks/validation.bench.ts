@@ -234,7 +234,7 @@ describe('Validation Operations', () => {
       const functions = Array.from(
         { length: 20 },
         (_, i) => `function func${i}() { return util${i + 1}(); }`,
-      );
+      ).join('\n');
       tree.write(
         'packages/lib1/src/lib/large-file.ts',
         `${imports}\n${functions}\nexport function main() { return "test"; }`,
