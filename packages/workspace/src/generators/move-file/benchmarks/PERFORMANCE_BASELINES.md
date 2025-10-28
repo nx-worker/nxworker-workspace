@@ -108,19 +108,19 @@ The CI system automatically:
 1. Runs all micro-benchmark tests using tinybench via Jest
 2. Parses benchmark results (ops/sec in benchmark.js format)
 3. Compares against historical data stored in GitHub Pages
-4. Fails PRs if regressions exceed 150% threshold
+4. Fails PRs if regressions exceed 130% threshold
 5. Posts comments and job summaries showing regressions
 
 **See:** [Benchmark README](./README.md)
 
 ### Regression Threshold
 
-A regression is flagged if performance degrades by more than **150%** (i.e., becomes 2.5x slower).
+A regression is flagged if performance degrades by more than **130%** (i.e., becomes 2.3x slower).
 
 This threshold is configured in `.github/workflows/ci.yml`:
 
 ```yaml
-alert-threshold: '150%'
+alert-threshold: '130%'
 ```
 
 ### Managing Regressions
