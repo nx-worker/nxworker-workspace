@@ -77,6 +77,18 @@ describe('tinybench-utils', () => {
   });
 
   describe('formatBenchmarkResult', () => {
+    it('should format result with nested describe path', () => {
+      const result = formatBenchmarkResult(
+        '[Suite > Nested] Test Benchmark',
+        1000000,
+        1.0,
+        100,
+      );
+      expect(result).toBe(
+        '[Suite > Nested] Test Benchmark x 1,000,000 ops/sec ±1.00% (100 runs sampled)',
+      );
+    });
+
     it('should format result with high ops/sec (no decimals)', () => {
       const result = formatBenchmarkResult(
         'Test Benchmark',

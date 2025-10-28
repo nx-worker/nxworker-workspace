@@ -937,6 +937,29 @@ export function describe(
 }
 
 /**
+ * Builds the full path of describe block names from root to current block.
+ * For example, if we have:
+ * describe('Suite', () => {
+ *   describe('Group', () => { ... })
+ * })
+ * This returns 'Suite > Group'
+ *
+ * @param block - The describe block to build the path for
+ * @returns The full path as a string with " > " separator
+ */
+function buildDescribeBlockPath(block: DescribeBlock): string {
+  const names: string[] = [];
+  let current: DescribeBlock | undefined = block;
+
+  while (current) {
+    names.unshift(current.name);
+    current = current.parent;
+  }
+
+  return names.join(' > ');
+}
+
+/**
  * Runs a describe block as a Jest describe with its benchmarks and nested describes
  */
 function runDescribeBlock(block: DescribeBlock): void {
@@ -1063,7 +1086,7 @@ function runDescribeBlock(block: DescribeBlock): void {
 
         summaryLines.push(
           formatBenchmarkResult(
-            `[${block.name}] ${benchmark.name}`,
+            `[${buildDescribeBlockPath(block)}] ${benchmark.name}`,
             taskResult.throughput.mean,
             taskResult.latency.rme,
             taskResult.latency.samples.length,
