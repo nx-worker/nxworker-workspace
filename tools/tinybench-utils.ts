@@ -688,7 +688,7 @@ export function describe(name: string, callback: () => void): void {
  */
 function runDescribeBlock(block: DescribeBlock): void {
   getJestDescribe()(block.name, () => {
-    let summary: string;
+    let summaryLines: string[];
     let bench: Bench;
     let taskResults: Map<string, Task>;
 
@@ -705,7 +705,7 @@ function runDescribeBlock(block: DescribeBlock): void {
 
     // Run benchmarks in a beforeAll hook (registered AFTER setupSuite hooks)
     getJestBeforeAll()(async () => {
-      summary = '';
+      summaryLines = [];
 
       // Create ONE Bench instance for all benchmarks in this describe block
       if (block.benchmarks.length > 0) {
@@ -746,8 +746,8 @@ function runDescribeBlock(block: DescribeBlock): void {
 
     // Print summary and cleanup (registered LAST)
     getJestAfterAll()(() => {
-      if (summary) {
-        console.log(summary);
+      if (summaryLines.length > 0) {
+        console.log(summaryLines.join('\n'));
       }
 
       // Cleanup: remove all tasks from the Bench instance
@@ -785,13 +785,14 @@ function runDescribeBlock(block: DescribeBlock): void {
           throw error;
         }
 
-        summary +=
+        summaryLines.push(
           formatBenchmarkResult(
             `[${block.name}] ${benchmark.name}`,
             taskResult.throughput.mean,
             taskResult.latency.rme,
             taskResult.latency.samples.length,
-          ) + '\n';
+          ),
+        );
       };
 
       // Still supports per-benchmark itTimeout for test runner
