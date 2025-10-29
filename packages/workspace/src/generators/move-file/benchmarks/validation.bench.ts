@@ -3,8 +3,8 @@ import {
   beforeAllIterations,
   describe,
   it,
-  setupTask,
-  teardownTask,
+  beforeCycle,
+  afterCycle,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
@@ -36,10 +36,10 @@ describe('Validation Operations', () => {
     targetFile = 'packages/lib1/src/lib/utils/helper.ts';
   });
 
-  // ✅ Use setupTask for parent-level initialization that benchmarks depend on
+  // ✅ Use beforeCycle for parent-level initialization that benchmarks depend on
   // Runs BEFORE nested beforeAllIterations hooks, making dependencies explicit
-  setupTask(() => {
-    // Reset caches and helper function for each task cycle (warmup and run)
+  beforeCycle(() => {
+    // Reset caches and helper function for each benchmark cycle (warmup and run)
     fileExistenceCache = new Map<string, boolean>();
     cachedTreeExists = (tree, filePath) =>
       cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
@@ -48,7 +48,7 @@ describe('Validation Operations', () => {
     sourceFiles = [];
   });
 
-  teardownTask(() => {
+  afterCycle(() => {
     fileExistenceCache.clear();
     treeReadCache.clear();
   });

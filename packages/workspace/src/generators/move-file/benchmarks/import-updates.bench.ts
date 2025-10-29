@@ -2,8 +2,8 @@ import {
   beforeAll,
   describe,
   it,
-  setupTask,
-  teardownTask,
+  beforeCycle,
+  afterCycle,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
@@ -48,13 +48,13 @@ describe('Import Updates', () => {
     targetFile = 'libs/lib-b/src/lib/target.ts';
   });
 
-  setupTask(() => {
-    // Reset cache and write source file for each task cycle (warmup and run)
+  beforeCycle(() => {
+    // Reset cache and write source file for each benchmark cycle (warmup and run)
     fileExistenceCache = new Map<string, boolean>();
     tree.write(sourceFile, fileContent);
   });
 
-  teardownTask(() => {
+  afterCycle(() => {
     if (tree.exists(sourceFile)) {
       tree.delete(sourceFile);
     }

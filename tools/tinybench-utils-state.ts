@@ -38,36 +38,42 @@ export interface HookWithTimeout {
  *
  * **Hook Types:**
  * - `setupSuiteHooks`/`teardownSuiteHooks`: Suite-level hooks (Jest context, no Task/mode)
- * - `setupHooks`/`teardownHooks`: Task cycle hooks (Tinybench context with Task/mode)
+ * - `setupHooks`/`teardownHooks`: Cycle-level hooks (Tinybench context with Task/mode)
+ *   - Maps to Tinybench's `BenchOptions.setup` and `BenchOptions.teardown`
+ *   - Exposed in API as `beforeCycle()` and `afterCycle()`
  * - `beforeAllHooks`/`afterAllHooks`: Iteration group hooks (Tinybench context with Task/mode)
+ *   - Maps to Tinybench's `FnOptions.beforeAll` and `FnOptions.afterAll`
+ *   - Exposed in API as `beforeAllIterations()` and `afterAllIterations()`
  * - `beforeEachHooks`/`afterEachHooks`: Per-iteration hooks (Tinybench context with Task/mode)
+ *   - Maps to Tinybench's `FnOptions.beforeEach` and `FnOptions.afterEach`
+ *   - Exposed in API as `beforeEachIteration()` and `afterEachIteration()`
  *
  * @internal
  */
 export interface DescribeBlock {
   name: string;
   benchmarks: RegisteredBenchmark[];
-  /** beforeAllIterations hooks - receive Task and mode parameters */
+  /** beforeAllIterations hooks - Maps to Tinybench FnOptions.beforeAll - receive Task and mode parameters */
   beforeAllHooks: Array<
     (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
   >;
-  /** afterAllIterations hooks - receive Task and mode parameters */
+  /** afterAllIterations hooks - Maps to Tinybench FnOptions.afterAll - receive Task and mode parameters */
   afterAllHooks: Array<
     (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
   >;
-  /** beforeEachIteration hooks - receive Task and mode parameters */
+  /** beforeEachIteration hooks - Maps to Tinybench FnOptions.beforeEach - receive Task and mode parameters */
   beforeEachHooks: Array<
     (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
   >;
-  /** afterEachIteration hooks - receive Task and mode parameters */
+  /** afterEachIteration hooks - Maps to Tinybench FnOptions.afterEach - receive Task and mode parameters */
   afterEachHooks: Array<
     (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
   >;
-  /** setupTask hooks - receive Task and mode parameters */
+  /** beforeCycle hooks - Maps to Tinybench BenchOptions.setup - receive Task and mode parameters */
   setupHooks: Array<
     (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
   >;
-  /** teardownTask hooks - receive Task and mode parameters */
+  /** afterCycle hooks - Maps to Tinybench BenchOptions.teardown - receive Task and mode parameters */
   teardownHooks: Array<
     (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
   >;

@@ -13,7 +13,7 @@ This directory contains performance benchmarking utilities and tools for the nxw
 
 The benchmark API provides a Jest-like interface using `describe()` and `it()` patterns, wrapping [tinybench](https://github.com/tinylibs/tinybench) and outputting results in jest-bench format compatible with [benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
 
-All functions (`describe`, `it`, `beforeAll`, `afterAll`, `beforeAllIterations`, `afterAllIterations`, `beforeEachIteration`, `afterEachIteration`, `setupTask`, `teardownTask`) must be imported from `tools/tinybench-utils` - they are not globals.
+All functions (`describe`, `it`, `beforeAll`, `afterAll`, `beforeAllIterations`, `afterAllIterations`, `beforeEachIteration`, `afterEachIteration`, `beforeCycle`, `afterCycle`) must be imported from `tools/tinybench-utils` - they are not globals.
 
 ### Basic Usage
 
@@ -42,8 +42,8 @@ import {
   afterAllIterations,
   beforeEachIteration,
   afterEachIteration,
-  setupTask,
-  teardownTask,
+  beforeCycle,
+  afterCycle,
 } from '../../../../../../tools/tinybench-utils';
 
 describe('Benchmark Suite with Hooks', () => {
@@ -63,14 +63,14 @@ describe('Benchmark Suite with Hooks', () => {
   describe('Individual Benchmark', () => {
     let benchmarkData;
 
-    // Task-level setup/teardown (BenchOptions, per task/cycle)
+    // Cycle-level setup/teardown (maps to Tinybench BenchOptions.setup/teardown)
     // ⚠️ Runs 1-2 times per benchmark (once for warmup if enabled, once for run)
-    setupTask(() => {
+    beforeCycle(() => {
       // Runs before each warmup and run cycle
       benchmarkData = initializeBenchmark();
     });
 
-    teardownTask(() => {
+    afterCycle(() => {
       // Runs after each warmup and run cycle
       cleanupBenchmark(benchmarkData);
     });
@@ -112,16 +112,16 @@ Hooks execute in this order for each benchmark:
    - `beforeAll` - runs once before all benchmarks
 
 2. **Per benchmark** - runs for each `it()`:
-   - `setupTask` - runs before warmup cycle
-   - `beforeAllIterations` - runs once before warmup iterations
+   - `beforeCycle` - runs before warmup cycle (maps to Tinybench `BenchOptions.setup`)
+   - `beforeAllIterations` - runs once before warmup iterations (maps to Tinybench `FnOptions.beforeAll`)
    - warmup iterations (with `beforeEachIteration`/`afterEachIteration`)
-   - `afterAllIterations` - runs once after warmup
-   - `teardownTask` - runs after warmup
-   - `setupTask` - runs before run cycle
+   - `afterAllIterations` - runs once after warmup (maps to Tinybench `FnOptions.afterAll`)
+   - `afterCycle` - runs after warmup (maps to Tinybench `BenchOptions.teardown`)
+   - `beforeCycle` - runs before run cycle
    - `beforeAllIterations` - runs once before run iterations
    - run iterations (with `beforeEachIteration`/`afterEachIteration`)
    - `afterAllIterations` - runs once after run
-   - `teardownTask` - runs after run
+   - `afterCycle` - runs after run
 
 3. **Suite level (Jest context)** - runs once per describe block:
    - `afterAll` - runs once after all benchmarks
@@ -129,11 +129,11 @@ Hooks execute in this order for each benchmark:
 **Execution Frequency**:
 
 - Suite hooks (`beforeAll`/`afterAll`): 1× per describe block
-- Task hooks (`setupTask`/`teardownTask`): **1-2× per benchmark** (once for warmup if enabled, once for run)
+- Cycle hooks (`beforeCycle`/`afterCycle`): **1-2× per benchmark** (once for warmup if enabled, once for run)
 - Iteration group hooks (`beforeAllIterations`/`afterAllIterations`): **1-2× per benchmark** (once for warmup if enabled, once for run)
 - Iteration hooks (`beforeEachIteration`/`afterEachIteration`): ~1000× per benchmark (all iterations)
 
-**Important**: `setupTask` runs **before** `beforeAllIterations`. Any initialization that other hooks depend on must be in `setupTask`, not `beforeAllIterations`.
+**Important**: `beforeCycle` runs **before** `beforeAllIterations`. Any initialization that other hooks depend on must be in `beforeCycle`, not `beforeAllIterations`.
 
 ### Nested Describe Blocks
 
@@ -203,7 +203,7 @@ it(
 
 The API automatically monitors hook performance:
 
-- Warns when `beforeEachIteration` hooks take >10ms (indicates expensive operations that should be in `setupTask`)
+- Warns when `beforeEachIteration` hooks take >10ms (indicates expensive operations that should be in `beforeCycle`)
 - Provides detailed timing information in output
 
 ### Hook Validation
@@ -221,11 +221,12 @@ The API includes comprehensive validation to prevent common mistakes:
 2. **Exported functions** - All functions must be imported (not globals) to avoid confusion with Jest test functions
 3. **Nested describes** - Each inner `describe` creates its own Bench instance with inherited hooks
 4. **Comprehensive hooks** - 8 different hooks for fine-grained control of benchmark lifecycle
-5. **Hook inheritance** - Child describe blocks inherit hooks from parents
-6. **Performance optimizations** - One Bench instance per describe (not per `it`), ~3.5% faster
-7. **Hook validation** - Prevents incorrect hook usage with clear error messages
-8. **Options support** - Configure iterations, warmup, timeouts, and quiet mode
-9. **Performance monitoring** - Warns about expensive operations in the wrong hooks
+5. **Tinybench mapping** - Hooks map directly to Tinybench's `BenchOptions` and `FnOptions`
+6. **Hook inheritance** - Child describe blocks inherit hooks from parents
+7. **Performance optimizations** - One Bench instance per describe (not per `it`), ~3.5% faster
+8. **Hook validation** - Prevents incorrect hook usage with clear error messages
+9. **Options support** - Configure iterations, warmup, timeouts, and quiet mode
+10. **Performance monitoring** - Warns about expensive operations in the wrong hooks
 
 ### Real-World Examples
 
