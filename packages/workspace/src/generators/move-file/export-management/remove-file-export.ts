@@ -6,6 +6,7 @@ import { removeSourceFileExtension } from '../path-utils/remove-source-file-exte
 import { escapeRegex } from '../security-utils/escape-regex';
 import { treeReadCache } from '../tree-cache';
 import { astCache } from '../ast-cache';
+import { invalidateIndexExportsCache } from './index-exports-cache';
 
 /**
  * Removes the export for a file from the project's entrypoint.
@@ -73,6 +74,7 @@ export function removeFileExport(
       tree.write(indexPath, updatedContent);
       treeReadCache.invalidateFile(indexPath);
       astCache.invalidate(indexPath);
+      invalidateIndexExportsCache(indexPath);
       logger.verbose(`Removed export from ${indexPath}`);
     }
   });

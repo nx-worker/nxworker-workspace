@@ -4,6 +4,8 @@ import { logger } from '@nx/devkit';
 import { getProjectEntryPointPaths } from '../project-analysis/get-project-entry-point-paths';
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
 import { treeReadCache } from '../tree-cache';
+import { invalidateIndexExportsCache } from './index-exports-cache';
+import { astCache } from '../ast-cache';
 
 /**
  * Ensures the file is exported from the target project's entrypoint.
@@ -42,6 +44,8 @@ export function ensureFileExported(
     content += exportStatement;
     tree.write(indexPath, content);
     treeReadCache.invalidateFile(indexPath);
+    invalidateIndexExportsCache(indexPath);
+    astCache.invalidate(indexPath);
     logger.verbose(`Added export to ${indexPath}`);
   }
 }

@@ -4,6 +4,8 @@ import { isFileExported } from './is-file-exported';
 import type { ProjectConfiguration } from '@nx/devkit';
 import { treeReadCache } from '../tree-cache';
 import { clearCompilerPathsCache } from '../project-analysis/read-compiler-paths';
+import { clearIndexExportsCache } from './index-exports-cache';
+import { astCache } from '../ast-cache';
 
 describe('isFileExported', () => {
   let tree: Tree;
@@ -20,10 +22,14 @@ describe('isFileExported', () => {
     cachedTreeExists = jest.fn((t, path) => t.exists(path));
     treeReadCache.clear();
     clearCompilerPathsCache();
+    clearIndexExportsCache();
+    astCache.clear();
   });
 
   afterEach(() => {
     clearCompilerPathsCache();
+    clearIndexExportsCache();
+    astCache.clear();
   });
 
   it('should detect export * from pattern', () => {

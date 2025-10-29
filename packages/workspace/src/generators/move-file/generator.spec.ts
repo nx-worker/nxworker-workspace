@@ -35,6 +35,8 @@ import { moveFileGenerator } from './generator';
 import { MoveFileGeneratorSchema } from './schema';
 import { clearCompilerPathsCache } from './project-analysis/read-compiler-paths';
 import { treeReadCache } from './tree-cache';
+import { clearIndexExportsCache } from './export-management/index-exports-cache';
+import { astCache } from './ast-cache';
 
 jest.mock('@nx/devkit', () => {
   const actual = jest.requireActual('@nx/devkit');
@@ -62,6 +64,8 @@ describe('move-file generator', () => {
     // Clear caches to prevent pollution from other test files
     clearCompilerPathsCache();
     treeReadCache.clear();
+    clearIndexExportsCache();
+    astCache.clear();
 
     createProjectGraphAsyncMock.mockImplementation(async () => ({
       nodes: {},

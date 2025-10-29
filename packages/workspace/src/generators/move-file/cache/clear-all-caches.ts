@@ -1,4 +1,6 @@
 import { treeReadCache } from '../tree-cache';
+import { clearIndexExportsCache } from '../export-management/index-exports-cache';
+import { astCache } from '../ast-cache';
 
 /**
  * Clears all caches. Should be called when starting a new generator operation
@@ -10,6 +12,8 @@ import { treeReadCache } from '../tree-cache';
  * - Compiler paths cache
  * - Tree read cache
  * - Dependency graph cache
+ * - Index exports cache
+ * - AST cache
  *
  * @param projectSourceFilesCache - Cache for source files per project
  * @param fileExistenceCache - Cache for file existence checks
@@ -27,4 +31,6 @@ export function clearAllCaches(
   compilerPathsCache.value = undefined;
   treeReadCache.clear();
   dependencyGraphCache.clear();
+  clearIndexExportsCache();
+  astCache.clear();
 }
