@@ -32,8 +32,17 @@ jobs:
           DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
           echo "default-branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
 
+          # Determine the branch being processed
+          # If a branch was specified via workflow input, use that
+          # Otherwise, use the branch from GITHUB_REF
+          if [ -n "${{ inputs.branch }}" ]; then
+            BRANCH="${{ inputs.branch }}"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+          fi
+
           # Prevent running on the default branch
-          if [ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]; then
+          if [ "$BRANCH" == "$DEFAULT_BRANCH" ]; then
             echo "Error: This workflow cannot run on the default branch ($DEFAULT_BRANCH)"
             exit 1
           fi
