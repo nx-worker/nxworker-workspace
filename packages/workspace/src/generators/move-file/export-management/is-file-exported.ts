@@ -7,17 +7,17 @@ import { getIndexExports } from './index-exports-cache';
 /**
  * Checks if a file is exported from the project's entrypoint.
  *
- * This function scans project entrypoint files (index.ts, index.tsx, etc.)
- * and checks for re-export statements matching the given file.
+ * This function uses the index exports cache to scan project entrypoint files
+ * (index.ts, index.tsx, etc.) and checks for re-export statements matching the given file.
  *
  * Supported export patterns:
  * - export * from "path"
  * - export { Something } from "path"
  * - export Something from "path"
  *
- * Note: This function currently only checks for re-exports (export ... from).
- * It does not check if symbols from the file are individually defined/exported
- * in the index file via local declarations.
+ * Note: The cache system now parses local declarations, but this function currently
+ * only checks for re-exports (export ... from). It does not check if symbols from
+ * the file are individually defined/exported in the index file via local declarations.
  *
  * @param tree - The virtual file system tree.
  * @param project - Project configuration.
