@@ -41,13 +41,13 @@ const getJestAfterAll = () => globalThis.afterAll;
  *    a. **setupTask()** - Runs per benchmark cycle (before warmup, before run)
  *       - ⚠️ RUNS BEFORE beforeAllIterations() - this is counter-intuitive!
  *       - Use for expensive initialization that beforeAllIterations/beforeEachIteration need
- *       - **Lifecycle:** Twice per benchmark (warmup cycle + run cycle)
+ *       - **Lifecycle:** 1-2 times per benchmark (warmup cycle if enabled + run cycle)
  *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
  *    b. **beforeAllIterations()** - Runs per cycle before iterations begin
  *       - Use for per-cycle initialization
  *       - Can access state from beforeAll() (suite) and setupTask()
- *       - **Lifecycle:** Twice per benchmark (once per cycle)
+ *       - **Lifecycle:** 1-2 times per benchmark (once per cycle: warmup if enabled, run)
  *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
  *    c. **WARMUP PHASE** (if warmup is enabled, mode = 'warmup')
@@ -67,12 +67,12 @@ const getJestAfterAll = () => globalThis.afterAll;
  *
  *    e. **afterAllIterations()** - Runs per cycle after iterations complete
  *       - Use for per-cycle cleanup
- *       - **Lifecycle:** Twice per benchmark (once per cycle)
+ *       - **Lifecycle:** 1-2 times per benchmark (once per cycle: warmup if enabled, run)
  *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
  *    f. **teardownTask()** - Runs per benchmark cycle after all iterations
  *       - Use to clean up resources from setupTask()
- *       - **Lifecycle:** Twice per benchmark (warmup cycle + run cycle)
+ *       - **Lifecycle:** 1-2 times per benchmark (warmup cycle if enabled + run cycle)
  *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
  * 3. **afterAll()** - Runs ONCE after all benchmarks complete (suite-level)
@@ -137,7 +137,7 @@ function validateTimeout(timeout: number | undefined, hookName: string): void {
  * Registers a hook that runs once before all iterations of a benchmark in the current describe block.
  *
  * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), before iterations begin
- * **Frequency:** Runs twice per benchmark (once before warmup iterations, once before run iterations)
+ * **Frequency:** Runs **1-2 times per benchmark** (once before warmup iterations if enabled, once before run iterations)
  * **Context:** Tinybench cycle context with Task instance and mode parameter
  *
  * ⚠️ **TINYBENCH BEHAVIOR - EXECUTION ORDER WARNING:** Tinybench executes this AFTER setupTask() hooks!
@@ -207,7 +207,7 @@ export function beforeAllIterations(
  * Registers a hook that runs once after all iterations of a benchmark in the current describe block.
  *
  * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), after all iterations complete
- * **Frequency:** Runs twice per benchmark (once after warmup iterations, once after run iterations)
+ * **Frequency:** Runs **1-2 times per benchmark** (once after warmup iterations if enabled, once after run iterations)
  * **Context:** Tinybench cycle context with Task instance and mode parameter
  *
  * This corresponds to tinybench's FnOptions.afterAll - a function that runs once after all
@@ -331,7 +331,7 @@ export function afterAllIterations(
  * ✅ **CORRECT:** Move expensive operations to setupTask() or beforeAllIterations()
  * ```ts
  * setupTask(() => {
- *   // ✅ GOOD: This runs ONCE per benchmark cycle
+ *   // ✅ GOOD: This runs 1-2 times per benchmark (once per cycle: warmup if enabled, run)
  *   expensiveResource = initializeExpensiveResource();
  * });
  * ```
@@ -413,7 +413,7 @@ export function afterEachIteration(
  * Registers a task/cycle-level setup hook that runs once before each benchmark cycle starts.
  *
  * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), before beforeAllIterations()
- * **Frequency:** Runs twice per benchmark (once before warmup cycle, once before run cycle)
+ * **Frequency:** Runs **1-2 times per benchmark** (once before warmup cycle if enabled, once before run cycle)
  * **Context:** Tinybench cycle context with Task instance and mode parameter
  *
  * ⚠️ **TINYBENCH BEHAVIOR - COUNTER-INTUITIVE:** Tinybench executes setupTask() BEFORE beforeAllIterations()!
@@ -423,17 +423,17 @@ export function afterEachIteration(
  * This corresponds to tinybench's BenchOptions.setup - a function that runs before the
  * benchmark cycle starts. Use this for expensive initialization that other hooks depend on.
  *
- * **Execution Order:**
- * 1. beforeAll() - suite-level (runs first)
- * 2. **setupTask() - YOU ARE HERE** ⚠️ Runs BEFORE beforeAllIterations AND before warmup!
- * 3. beforeAllIterations() - runs after this hook
+ * **Execution Order (per benchmark):**
+ * 1. beforeAll() - suite-level (runs first, once per suite)
+ * 2. **setupTask() - YOU ARE HERE** ⚠️ Runs 1-2 times (before warmup if enabled, before run)
+ * 3. beforeAllIterations() - runs after this hook (1-2 times)
  * 4. WARMUP PHASE (if enabled):
  *    - beforeEachIteration() → benchmark → afterEachIteration()
  * 5. MEASUREMENT PHASE:
  *    - beforeEachIteration() → benchmark → afterEachIteration()
- * 6. afterAllIterations() - after all iterations
- * 7. teardownTask() - cleanup
- * 8. afterAll() - suite-level (runs last)
+ * 6. afterAllIterations() - after all iterations (1-2 times)
+ * 7. teardownTask() - cleanup (1-2 times)
+ * 8. afterAll() - suite-level (runs last, once per suite)
  *
  * **State Availability:** Can safely access state initialized in beforeAll() (suite)
  *
@@ -451,7 +451,7 @@ export function afterEachIteration(
  *   let expensiveResource;
  *
  *   setupTask((task, mode) => {
- *     // ✅ Runs per cycle (before warmup and before run)
+ *     // ✅ Runs 1-2 times per benchmark (before warmup if enabled, before run)
  *     expensiveResource = initializeExpensiveResource();
  *     console.log(`Setting up ${task.name} for ${mode} cycle`);
  *   });
@@ -494,7 +494,7 @@ export function setupTask(
  * Registers a task/cycle-level teardown hook that runs once after each benchmark cycle completes.
  *
  * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), after afterAllIterations()
- * **Frequency:** Runs twice per benchmark (once after warmup cycle, once after run cycle)
+ * **Frequency:** Runs **1-2 times per benchmark** (once after warmup cycle if enabled, once after run cycle)
  * **Context:** Tinybench cycle context with Task instance and mode parameter
  *
  * This corresponds to tinybench's BenchOptions.teardown - a function that runs after the
@@ -512,11 +512,13 @@ export function setupTask(
  *   let tempFile;
  *
  *   setupTask((task, mode) => {
+ *     // ✅ Runs 1-2 times per benchmark (before warmup if enabled, before run)
  *     tempFile = createTempFile();
  *     console.log(`Created temp file for ${task.name} ${mode} cycle`);
  *   });
  *
  *   teardownTask((task, mode) => {
+ *     // ✅ Runs 1-2 times per benchmark (after warmup if enabled, after run)
  *     deleteTempFile(tempFile);
  *     console.log(`Cleaned up ${task.name} ${mode} cycle`);
  *   });

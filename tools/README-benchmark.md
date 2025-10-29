@@ -64,6 +64,7 @@ describe('Benchmark Suite with Hooks', () => {
     let benchmarkData;
 
     // Task-level setup/teardown (BenchOptions, per task/cycle)
+    // ⚠️ Runs 1-2 times per benchmark (once for warmup if enabled, once for run)
     setupTask(() => {
       // Runs before each warmup and run cycle
       benchmarkData = initializeBenchmark();
@@ -128,8 +129,8 @@ Hooks execute in this order for each benchmark:
 **Execution Frequency**:
 
 - Suite hooks (`beforeAll`/`afterAll`): 1× per describe block
-- Task hooks (`setupTask`/`teardownTask`): 2× per benchmark (once for warmup, once for run)
-- Iteration group hooks (`beforeAllIterations`/`afterAllIterations`): 2× per benchmark (once per cycle)
+- Task hooks (`setupTask`/`teardownTask`): **1-2× per benchmark** (once for warmup if enabled, once for run)
+- Iteration group hooks (`beforeAllIterations`/`afterAllIterations`): **1-2× per benchmark** (once for warmup if enabled, once for run)
 - Iteration hooks (`beforeEachIteration`/`afterEachIteration`): ~1000× per benchmark (all iterations)
 
 **Important**: `setupTask` runs **before** `beforeAllIterations`. Any initialization that other hooks depend on must be in `setupTask`, not `beforeAllIterations`.
