@@ -42,8 +42,6 @@ export function ensureFileExported(
     content += exportStatement;
     tree.write(indexPath, content);
     treeReadCache.invalidateFile(indexPath);
-    // Invalidate index exports cache so subsequent checks re-read
-    try { require('./index-exports-cache').invalidateIndexExportsCacheEntry(indexPath); } catch {}
     logger.verbose(`Added export to ${indexPath}`);
   }
 }
