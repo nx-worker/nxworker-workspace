@@ -112,6 +112,51 @@ function getDefaultPerformanceThreshold(): number {
  *    - **Lifecycle:** Once per describe block
  *    - **Context:** Jest context (no Task or mode parameters)
  *
+ * ### Visual Execution Flow
+ *
+ * Here's what actually happens when you run a benchmark suite with 2 benchmarks:
+ *
+ * ```
+ * describe('Suite', () => { ... })
+ * │
+ * ├─ beforeAll()                          ← Runs ONCE (suite-level, Jest context)
+ * │
+ * ├─ Benchmark 1: it('first', ...)
+ * │  │
+ * │  ├─ WARMUP CYCLE (mode='warmup')      ← Cycle 1 of 2
+ * │  │  ├─ beforeCycle()                  ← Once per cycle
+ * │  │  ├─ beforeAllIterations()          ← Once per cycle
+ * │  │  ├─ iterations (~16×)              ← Many times
+ * │  │  │  ├─ beforeEachIteration()      ← Per iteration
+ * │  │  │  ├─ [benchmark function]       ← Per iteration
+ * │  │  │  └─ afterEachIteration()       ← Per iteration
+ * │  │  ├─ afterAllIterations()           ← Once per cycle
+ * │  │  └─ afterCycle()                   ← Once per cycle
+ * │  │
+ * │  └─ RUN CYCLE (mode='run')            ← Cycle 2 of 2
+ * │     ├─ beforeCycle()                  ← Once per cycle
+ * │     ├─ beforeAllIterations()          ← Once per cycle
+ * │     ├─ iterations (~1000×)            ← Many times (measured)
+ * │     │  ├─ beforeEachIteration()      ← Per iteration
+ * │     │  ├─ [benchmark function]       ← Per iteration (measured)
+ * │     │  └─ afterEachIteration()       ← Per iteration
+ * │     ├─ afterAllIterations()           ← Once per cycle
+ * │     └─ afterCycle()                   ← Once per cycle
+ * │
+ * ├─ Benchmark 2: it('second', ...)      ← Same structure as Benchmark 1
+ * │  └─ ... (warmup cycle + run cycle)
+ * │
+ * └─ afterAll()                           ← Runs ONCE (suite-level, Jest context)
+ * ```
+ *
+ * **Key Observations:**
+ * - `beforeAll`/`afterAll` run ONCE for the entire suite
+ * - Each benchmark runs TWO cycles: warmup + run
+ * - `beforeCycle`/`afterCycle` run TWICE per benchmark (once per cycle)
+ * - `beforeAllIterations`/`afterAllIterations` run TWICE per benchmark (once per cycle)
+ * - `beforeEachIteration`/`afterEachIteration` run THOUSANDS of times (~1016 per benchmark)
+ * - The benchmark function itself runs ~1016 times, but only ~1000 are measured
+ *
  * ### Common Pitfalls
  *
  * ❌ **WRONG:** Initializing shared state in beforeAllIterations() that beforeCycle() needs
