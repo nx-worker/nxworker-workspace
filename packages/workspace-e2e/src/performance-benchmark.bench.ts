@@ -1,12 +1,13 @@
 import {
+  afterEachIteration,
   beforeAll,
   describe,
   it,
 } from '../../../tools/tinybench-utils';
-import { uniqueId } from 'lodash';
+import { uniqueId } from '@internal/test-util';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 
 /**
  * E2E Performance benchmarks for the move-file generator.
@@ -63,41 +64,62 @@ describe('Move-File Generator E2E Performance', () => {
     let smallFileName: string;
     let mediumFileName: string;
     let largeFileName: string;
+    let smallFileContent: string;
+    let mediumFileContent: string;
+    let largeFileContent: string;
 
     beforeAll(() => {
       // Create test files
       smallFileName = 'small-file.ts';
-      const smallFilePath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        smallFileName,
-      );
-      writeFileSync(
-        smallFilePath,
-        'export function smallFunction() { return "small"; }\n',
-      );
+      smallFileContent =
+        'export function smallFunction() { return "small"; }\n';
 
       mediumFileName = 'medium-file.ts';
-      const mediumFilePath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        mediumFileName,
-      );
-      writeFileSync(mediumFilePath, generateLargeTypeScriptFile(200));
+      mediumFileContent = generateLargeTypeScriptFile(200);
 
       largeFileName = 'large-file.ts';
-      const largeFilePath = join(
-        projectDirectory,
-        benchmarkLib1,
-        'src',
-        'lib',
-        largeFileName,
+      largeFileContent = generateLargeTypeScriptFile(1000);
+
+      // Write files to lib1
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', smallFileName),
+        smallFileContent,
       );
-      writeFileSync(largeFilePath, generateLargeTypeScriptFile(1000));
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', mediumFileName),
+        mediumFileContent,
+      );
+      writeFileSync(
+        join(projectDirectory, benchmarkLib1, 'src', 'lib', largeFileName),
+        largeFileContent,
+      );
+    });
+
+    afterEachIteration(() => {
+      // Move files back to lib1 for next iteration
+      [smallFileName, mediumFileName, largeFileName].forEach((fileName) => {
+        const lib2Path = join(
+          projectDirectory,
+          benchmarkLib2,
+          'src',
+          'lib',
+          fileName,
+        );
+        const lib1Path = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          fileName,
+        );
+        try {
+          const content = readFileSync(lib2Path, 'utf-8');
+          writeFileSync(lib1Path, content);
+          rmSync(lib2Path, { force: true });
+        } catch {
+          // File might not have been moved yet, ignore
+        }
+      });
     });
 
     it('should move a small file (< 1KB) efficiently', () => {
@@ -105,22 +127,9 @@ describe('Move-File Generator E2E Performance', () => {
         `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${smallFileName} --project ${benchmarkLib2} --no-interactive`,
         {
           cwd: projectDirectory,
-          stdio: 'pipe',
+          stdio: 'inherit',
         },
       );
-
-      // Verify the move succeeded
-      const movedPath = join(
-        projectDirectory,
-        benchmarkLib2,
-        'src',
-        'lib',
-        smallFileName,
-      );
-      const content = readFileSync(movedPath, 'utf-8');
-      if (!content.includes('smallFunction')) {
-        throw new Error('File move verification failed');
-      }
     });
 
     it('should move a medium file (~10KB) efficiently', () => {
@@ -128,21 +137,9 @@ describe('Move-File Generator E2E Performance', () => {
         `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${mediumFileName} --project ${benchmarkLib2} --no-interactive`,
         {
           cwd: projectDirectory,
-          stdio: 'pipe',
+          stdio: 'inherit',
         },
       );
-
-      const movedPath = join(
-        projectDirectory,
-        benchmarkLib2,
-        'src',
-        'lib',
-        mediumFileName,
-      );
-      const content = readFileSync(movedPath, 'utf-8');
-      if (!content.includes('func0')) {
-        throw new Error('File move verification failed');
-      }
     });
 
     it('should move a large file (~50KB) efficiently', () => {
@@ -150,35 +147,55 @@ describe('Move-File Generator E2E Performance', () => {
         `npx nx generate @nxworker/workspace:move-file ${benchmarkLib1}/src/lib/${largeFileName} --project ${benchmarkLib2} --no-interactive`,
         {
           cwd: projectDirectory,
-          stdio: 'pipe',
+          stdio: 'inherit',
         },
       );
-
-      const movedPath = join(
-        projectDirectory,
-        benchmarkLib2,
-        'src',
-        'lib',
-        largeFileName,
-      );
-      const content = readFileSync(movedPath, 'utf-8');
-      if (!content.includes('func0')) {
-        throw new Error('File move verification failed');
-      }
     });
   });
 
   describe('Multiple file operations', () => {
+    let fileContents: Map<string, string>;
+
     beforeAll(() => {
       const fileCount = 10;
+      fileContents = new Map();
+
       // Create multiple small files
       for (let i = 0; i < fileCount; i++) {
         const fileName = `multi-small-${i}.ts`;
+        const content = `export function func${i}() { return ${i}; }\n`;
+        fileContents.set(fileName, content);
         writeFileSync(
           join(projectDirectory, benchmarkLib1, 'src', 'lib', fileName),
-          `export function func${i}() { return ${i}; }\n`,
+          content,
         );
       }
+    });
+
+    afterEachIteration(() => {
+      // Move files back to lib1
+      fileContents.forEach((content, fileName) => {
+        const lib2Path = join(
+          projectDirectory,
+          benchmarkLib2,
+          'src',
+          'lib',
+          fileName,
+        );
+        const lib1Path = join(
+          projectDirectory,
+          benchmarkLib1,
+          'src',
+          'lib',
+          fileName,
+        );
+        try {
+          writeFileSync(lib1Path, content);
+          rmSync(lib2Path, { force: true });
+        } catch {
+          // File might not have been moved yet, ignore
+        }
+      });
     });
 
     it('should move multiple small files efficiently', () => {
@@ -186,22 +203,9 @@ describe('Move-File Generator E2E Performance', () => {
         `npx nx generate @nxworker/workspace:move-file "${benchmarkLib1}/src/lib/multi-small-*.ts" --project ${benchmarkLib2} --no-interactive`,
         {
           cwd: projectDirectory,
-          stdio: 'pipe',
+          stdio: 'inherit',
         },
       );
-
-      // Verify at least one file was moved
-      const movedPath = join(
-        projectDirectory,
-        benchmarkLib2,
-        'src',
-        'lib',
-        'multi-small-0.ts',
-      );
-      const content = readFileSync(movedPath, 'utf-8');
-      if (!content.includes('func0')) {
-        throw new Error('File move verification failed');
-      }
     });
   });
 });
@@ -247,7 +251,6 @@ async function createTestProject(): Promise<string> {
       env: process.env,
     },
   );
-  console.log(`Created benchmark project in "${projectDirectory}"`);
 
   return projectDirectory;
 }

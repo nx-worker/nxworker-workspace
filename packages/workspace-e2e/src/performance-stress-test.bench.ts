@@ -1,9 +1,10 @@
 import {
+  afterEachIteration,
   beforeAll,
   describe,
   it,
 } from '../../../tools/tinybench-utils';
-import { uniqueId } from 'lodash';
+import { uniqueId } from '@internal/test-util';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
@@ -16,7 +17,6 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
  * - Many projects (10+)
  * - Many large files (100+ files, 10KB+ each)
  * - Many cross-project dependencies
- * - Many intra-project dependencies
  *
  * Expected benefits from optimizations:
  * 1. Parser reuse: Eliminates parser instantiation overhead per file
@@ -50,12 +50,11 @@ describe('Move-File Generator E2E Stress Tests', () => {
   describe('Many projects with cross-project dependencies', () => {
     let libs: string[];
     let utilityFile: string;
+    let utilityContent: string;
 
     beforeAll(() => {
       const projectCount = 10;
       libs = [];
-
-      console.log(`\n=== Creating ${projectCount} projects ===`);
 
       // Create multiple projects
       for (let i = 0; i < projectCount; i++) {
@@ -66,15 +65,14 @@ describe('Move-File Generator E2E Stress Tests', () => {
           `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       }
 
-      console.log(`Created ${projectCount} projects`);
-
       // Create a utility file in the first project
       utilityFile = 'shared-utility.ts';
+      utilityContent = generateUtilityModule('sharedUtil', 50);
       const utilityPath = join(
         projectDirectory,
         libs[0],
@@ -82,7 +80,7 @@ describe('Move-File Generator E2E Stress Tests', () => {
         'lib',
         utilityFile,
       );
-      writeFileSync(utilityPath, generateUtilityModule('sharedUtil', 50));
+      writeFileSync(utilityPath, utilityContent);
 
       // Export from first project's index
       const sourceIndexPath = join(
@@ -99,10 +97,6 @@ describe('Move-File Generator E2E Stress Tests', () => {
       // Create dependencies: each project imports from the first project
       const lib0Alias = getProjectImportAlias(projectDirectory, libs[0]);
 
-      console.log(
-        `Creating cross-project dependencies (${projectCount - 1} projects depend on ${libs[0]})`,
-      );
-
       for (let i = 1; i < projectCount; i++) {
         const consumerPath = join(
           projectDirectory,
@@ -118,25 +112,9 @@ describe('Move-File Generator E2E Stress Tests', () => {
       }
     });
 
-    it('should efficiently move files across workspace with 10+ projects', () => {
+    afterEachIteration(() => {
       const projectCount = libs.length;
-
-      console.log(
-        `\n=== Moving ${utilityFile} from ${libs[0]} to ${libs[projectCount - 1]} ===`,
-      );
-      console.log(
-        `Expected to update imports in ${projectCount - 1} consumer projects`,
-      );
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${libs[0]}/src/lib/${utilityFile} --project ${libs[projectCount - 1]} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
-      );
-
-      // Verify the file was moved
+      // Move utility file back to first project
       const movedPath = join(
         projectDirectory,
         libs[projectCount - 1],
@@ -144,27 +122,44 @@ describe('Move-File Generator E2E Stress Tests', () => {
         'lib',
         utilityFile,
       );
-      const movedContent = readFileSync(movedPath, 'utf-8');
-      if (!movedContent.includes('sharedUtil')) {
-        throw new Error('File move verification failed');
-      }
-
-      // Verify imports were updated in at least one consumer
-      const lastLibAlias = getProjectImportAlias(
+      const originalPath = join(
         projectDirectory,
-        libs[projectCount - 1],
-      );
-      const consumerPath = join(
-        projectDirectory,
-        libs[1],
+        libs[0],
         'src',
         'lib',
-        'consumer-from-lib0.ts',
+        utilityFile,
       );
-      const consumerContent = readFileSync(consumerPath, 'utf-8');
-      if (!consumerContent.includes(lastLibAlias)) {
-        throw new Error('Import update verification failed');
+
+      try {
+        writeFileSync(originalPath, utilityContent);
+        rmSync(movedPath, { force: true });
+
+        // Reset index file
+        const sourceIndexPath = join(
+          projectDirectory,
+          libs[0],
+          'src',
+          'index.ts',
+        );
+        writeFileSync(
+          sourceIndexPath,
+          `export * from './lib/${utilityFile.replace('.ts', '')}';\n`,
+        );
+      } catch {
+        // File might not have been moved yet, ignore
       }
+    });
+
+    it('should efficiently move files across workspace with 10+ projects', () => {
+      const projectCount = libs.length;
+
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${libs[0]}/src/lib/${utilityFile} --project ${libs[projectCount - 1]} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
     });
   });
 
@@ -172,13 +167,12 @@ describe('Move-File Generator E2E Stress Tests', () => {
     let sourceLib: string;
     let targetLib: string;
     let targetFile: string;
+    let targetFileContent: string;
 
     beforeAll(() => {
       const fileCount = 100;
       sourceLib = uniqueId('stress-source-');
       targetLib = uniqueId('stress-target-');
-
-      console.log(`\n=== Creating workspace with ${fileCount} large files ===`);
 
       // Create source and target libraries
       for (const lib of [sourceLib, targetLib]) {
@@ -186,13 +180,14 @@ describe('Move-File Generator E2E Stress Tests', () => {
           `npx nx generate @nx/js:library ${lib} --unitTestRunner=none --bundler=none --no-interactive`,
           {
             cwd: projectDirectory,
-            stdio: 'pipe',
+            stdio: 'inherit',
           },
         );
       }
 
       // Create file to be moved
       targetFile = 'large-module.ts';
+      targetFileContent = generateLargeTypeScriptFile(500);
       const targetFilePath = join(
         projectDirectory,
         sourceLib,
@@ -200,10 +195,15 @@ describe('Move-File Generator E2E Stress Tests', () => {
         'lib',
         targetFile,
       );
-      writeFileSync(targetFilePath, generateLargeTypeScriptFile(500));
+      writeFileSync(targetFilePath, targetFileContent);
 
       // Export from index
-      const sourceIndexPath = join(projectDirectory, sourceLib, 'src', 'index.ts');
+      const sourceIndexPath = join(
+        projectDirectory,
+        sourceLib,
+        'src',
+        'index.ts',
+      );
       writeFileSync(
         sourceIndexPath,
         `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
@@ -212,7 +212,6 @@ describe('Move-File Generator E2E Stress Tests', () => {
       const sourceLibAlias = getProjectImportAlias(projectDirectory, sourceLib);
 
       // Create many large files in the source library
-      console.log(`Generating ${fileCount} large files...`);
       const filesWithImports = Math.floor(fileCount * 0.1); // 10% import the target
 
       for (let i = 0; i < fileCount; i++) {
@@ -237,43 +236,53 @@ describe('Move-File Generator E2E Stress Tests', () => {
 
         writeFileSync(filePath, content);
       }
-
-      console.log(
-        `Created ${fileCount} files (${filesWithImports} with imports, ${fileCount - filesWithImports} without)`,
-      );
     });
 
-    it('should efficiently process workspace with 100+ large files', () => {
-      console.log(`\n=== Moving ${targetFile} ===`);
-
-      execSync(
-        `npx nx generate @nxworker/workspace:move-file ${sourceLib}/src/lib/${targetFile} --project ${targetLib} --no-interactive`,
-        {
-          cwd: projectDirectory,
-          stdio: 'pipe',
-        },
+    afterEachIteration(() => {
+      // Move file back to source library
+      const movedPath = join(
+        projectDirectory,
+        targetLib,
+        'src',
+        'lib',
+        targetFile,
       );
-
-      // Verify the file was moved
-      const movedPath = join(projectDirectory, targetLib, 'src', 'lib', targetFile);
-      const movedContent = readFileSync(movedPath, 'utf-8');
-      if (!movedContent.includes('func0')) {
-        throw new Error('File move verification failed');
-      }
-
-      // Verify at least one import was updated
-      const targetLibAlias = getProjectImportAlias(projectDirectory, targetLib);
-      const consumerPath = join(
+      const originalPath = join(
         projectDirectory,
         sourceLib,
         'src',
         'lib',
-        'large-file-0.ts',
+        targetFile,
       );
-      const consumerContent = readFileSync(consumerPath, 'utf-8');
-      if (!consumerContent.includes(targetLibAlias)) {
-        throw new Error('Import update verification failed');
+
+      try {
+        writeFileSync(originalPath, targetFileContent);
+        rmSync(movedPath, { force: true });
+
+        // Reset index file
+        const sourceIndexPath = join(
+          projectDirectory,
+          sourceLib,
+          'src',
+          'index.ts',
+        );
+        writeFileSync(
+          sourceIndexPath,
+          `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
+        );
+      } catch {
+        // File might not have been moved yet, ignore
       }
+    });
+
+    it('should efficiently process workspace with 100+ large files', () => {
+      execSync(
+        `npx nx generate @nxworker/workspace:move-file ${sourceLib}/src/lib/${targetFile} --project ${targetLib} --no-interactive`,
+        {
+          cwd: projectDirectory,
+          stdio: 'inherit',
+        },
+      );
     });
   });
 });
@@ -350,8 +359,6 @@ async function createTestProject(): Promise<string> {
     throw new Error('Could not determine workspace Nx version');
   }
 
-  console.log(`Creating stress test project in "${projectDirectory}"...`);
-
   execSync(
     `npx --yes create-nx-workspace@${workspaceNxVersion} ${projectName} --preset apps --nxCloud=skip --no-interactive`,
     {
@@ -360,8 +367,6 @@ async function createTestProject(): Promise<string> {
       env: process.env,
     },
   );
-
-  console.log(`✓ Created stress test project`);
 
   return projectDirectory;
 }

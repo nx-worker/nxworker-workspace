@@ -41,6 +41,9 @@ Thumbs.db
 .nx/cache
 .nx/workspace-data
 
+# benchmarks
+benchmarks/
+
 # tinybench results
 benchmark.json
 *-benchmark.txt
