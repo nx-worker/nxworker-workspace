@@ -22,7 +22,8 @@ describe('Validation Operations', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  beforeAllIterations(() => {
+  setupTask(() => {
+    // Initialize all state fresh for each task cycle (warmup and run)
     cachedTreeExists = (tree, filePath) =>
       cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
     fileExistenceCache = new Map<string, boolean>();
@@ -34,9 +35,6 @@ describe('Validation Operations', () => {
     };
     targetFile = 'packages/lib1/src/lib/utils/helper.ts';
     treeReadCache = new TreeReadCache();
-  });
-
-  setupTask(() => {
     clearCache();
     sourceFiles = [];
     tree = createTreeWithEmptyWorkspace();

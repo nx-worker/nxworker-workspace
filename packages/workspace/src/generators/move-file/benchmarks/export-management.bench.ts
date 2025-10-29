@@ -21,7 +21,8 @@ describe('Export Management', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  beforeAllIterations(() => {
+  setupTask(() => {
+    // Initialize all state fresh for each task cycle (warmup and run)
     cachedTreeExists = (tree, filePath) =>
       cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
     entryPoint = 'libs/my-lib/src/index.ts';
@@ -32,9 +33,6 @@ describe('Export Management', () => {
       name: 'my-lib',
     };
     treeReadCache = new TreeReadCache();
-  });
-
-  setupTask(() => {
     tree = createTreeWithEmptyWorkspace();
   });
 

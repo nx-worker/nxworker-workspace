@@ -1,8 +1,8 @@
 import {
-  beforeAllIterations,
   beforeEachIteration,
   describe,
   it,
+  setupTask,
   teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
@@ -18,7 +18,8 @@ describe('Cache Operations', () => {
   let tree: Tree;
   let testFiles: readonly string[];
 
-  beforeAllIterations(() => {
+  setupTask(() => {
+    // Create fresh state for each task cycle (warmup and run)
     fileExistenceCache = new Map();
     projectRoot = 'libs/test-lib';
     projectSourceFilesCache = new Map();
@@ -36,6 +37,11 @@ describe('Cache Operations', () => {
   });
 
   describe('Cache hit', () => {
+    beforeEachIteration(() => {
+      // Pre-populate cache before each iteration to ensure we measure cache hits
+      testFiles.forEach((file) => fileExistenceCache.set(file, true));
+    });
+
     it(
       'should check cache hits',
       () => {
@@ -43,24 +49,34 @@ describe('Cache Operations', () => {
           cachedTreeExists(tree, file, fileExistenceCache),
         );
       },
-      { warmup: true, warmupIterations: 1 },
+      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
     );
   });
 
   describe('Cache miss', () => {
     beforeEachIteration(() => {
-      // Clear cache to ensure we measure cache misses, not hits from previous benchmarks
+      // Clear cache before each iteration to ensure we measure cache misses
       fileExistenceCache.clear();
     });
 
-    it('should handle cache misses', () => {
-      testFiles.forEach((file) =>
-        cachedTreeExists(tree, file, fileExistenceCache),
-      );
-    });
+    it(
+      'should handle cache misses',
+      () => {
+        testFiles.forEach((file) =>
+          cachedTreeExists(tree, file, fileExistenceCache),
+        );
+      },
+      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
+    );
   });
 
   describe('Source file retrieval', () => {
+    beforeEachIteration(() => {
+      // Clear caches before each iteration to ensure consistent measurement
+      fileExistenceCache.clear();
+      projectSourceFilesCache.clear();
+    });
+
     it(
       'should retrieve source files',
       () => {
@@ -71,27 +87,32 @@ describe('Cache Operations', () => {
           fileExistenceCache,
         );
       },
-      { warmup: true, warmupIterations: 1 },
+      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
     );
   });
 
   describe('Cache update', () => {
     beforeEachIteration(() => {
       // Pre-populate cache with the old path that will be updated
+      projectSourceFilesCache.clear();
       projectSourceFilesCache.set(projectRoot, [
         `${projectRoot}/src/lib/old.ts`,
       ]);
     });
 
-    it('should update cache', () => {
-      const oldPath = `${projectRoot}/src/lib/old.ts`;
-      const newPath = `${projectRoot}/src/lib/new.ts`;
-      updateProjectSourceFilesCache(
-        projectRoot,
-        oldPath,
-        newPath,
-        projectSourceFilesCache,
-      );
-    });
+    it(
+      'should update cache',
+      () => {
+        const oldPath = `${projectRoot}/src/lib/old.ts`;
+        const newPath = `${projectRoot}/src/lib/new.ts`;
+        updateProjectSourceFilesCache(
+          projectRoot,
+          oldPath,
+          newPath,
+          projectSourceFilesCache,
+        );
+      },
+      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
+    );
   });
 });
