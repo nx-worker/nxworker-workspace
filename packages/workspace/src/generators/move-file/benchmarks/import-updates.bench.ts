@@ -1,8 +1,8 @@
 import {
   describe,
   it,
-  setup,
-  teardown,
+  setupTask,
+  teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
@@ -17,7 +17,7 @@ describe('Import Updates', () => {
   let projects: Map<string, ProjectConfiguration>;
   let tree: Tree;
 
-  setup(() => {
+  setupTask(() => {
     // Initialize tree and project data
     tree = createTreeWithEmptyWorkspace();
     projects = new Map();
@@ -50,7 +50,7 @@ describe('Import Updates', () => {
     tree.write(sourceFile, fileContent);
   });
 
-  teardown(() => {
+  teardownTask(() => {
     if (tree.exists(sourceFile)) {
       tree.delete(sourceFile);
     }

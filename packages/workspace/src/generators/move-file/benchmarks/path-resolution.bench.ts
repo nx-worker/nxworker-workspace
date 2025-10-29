@@ -1,5 +1,5 @@
 import {
-  beforeAll,
+  beforeAllIterations,
   describe,
   it,
 } from '../../../../../../tools/tinybench-utils';
@@ -20,7 +20,7 @@ describe('Path Resolution', () => {
   describe('buildPatterns (100 files)', () => {
     let buildPatternsPrefixes: readonly string[];
 
-    beforeAll(() => {
+    beforeAllIterations(() => {
       buildPatternsPrefixes = Array.from(
         { length: 100 },
         (_, i) => `libs/lib-${i}/`,

@@ -4,14 +4,14 @@
 import {
   describe as benchDescribe,
   it as benchIt,
+  beforeAllIterations,
+  afterAllIterations,
+  beforeEachIteration,
+  afterEachIteration,
+  setupTask,
+  teardownTask,
   beforeAll as benchBeforeAll,
   afterAll as benchAfterAll,
-  beforeEach as benchBeforeEach,
-  afterEach as benchAfterEach,
-  setup,
-  teardown,
-  setupSuite,
-  teardownSuite,
   formatBenchmarkResult,
 } from '../../../../tools/tinybench-utils';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Testing internal state management
@@ -144,59 +144,59 @@ describe('tinybench-utils', () => {
   });
 
   describe('hook validation - outside describe block', () => {
-    it('should throw error when beforeAll called outside describe', () => {
+    it('should throw error when beforeAll (suite-level) called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
       expect(() => benchBeforeAll(() => {})).toThrow(
         'beforeAll() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when afterAll called outside describe', () => {
+    it('should throw error when afterAll (suite-level) called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
       expect(() => benchAfterAll(() => {})).toThrow(
         'afterAll() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when beforeEach called outside describe', () => {
+    it('should throw error when beforeEachIteration called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-      expect(() => benchBeforeEach(() => {})).toThrow(
-        'beforeEach() must be called inside a describe() block',
+      expect(() => beforeEachIteration(() => {})).toThrow(
+        'beforeEachIteration() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when afterEach called outside describe', () => {
+    it('should throw error when afterEachIteration called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-      expect(() => benchAfterEach(() => {})).toThrow(
-        'afterEach() must be called inside a describe() block',
+      expect(() => afterEachIteration(() => {})).toThrow(
+        'afterEachIteration() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when setup called outside describe', () => {
+    it('should throw error when setupTask called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-      expect(() => setup(() => {})).toThrow(
-        'setup() must be called inside a describe() block',
+      expect(() => setupTask(() => {})).toThrow(
+        'setupTask() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when teardown called outside describe', () => {
+    it('should throw error when teardownTask called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-      expect(() => teardown(() => {})).toThrow(
-        'teardown() must be called inside a describe() block',
+      expect(() => teardownTask(() => {})).toThrow(
+        'teardownTask() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when setupSuite called outside describe', () => {
+    it('should throw error when beforeAllIterations called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-      expect(() => setupSuite(() => {})).toThrow(
-        'setupSuite() must be called inside a describe() block',
+      expect(() => beforeAllIterations(() => {})).toThrow(
+        'beforeAllIterations() must be called inside a describe() block',
       );
     });
 
-    it('should throw error when teardownSuite called outside describe', () => {
+    it('should throw error when afterAllIterations called outside describe', () => {
       // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-      expect(() => teardownSuite(() => {})).toThrow(
-        'teardownSuite() must be called inside a describe() block',
+      expect(() => afterAllIterations(() => {})).toThrow(
+        'afterAllIterations() must be called inside a describe() block',
       );
     });
 
@@ -242,13 +242,13 @@ describe('tinybench-utils', () => {
       });
     });
 
-    it('should throw error when beforeEach called inside it callback', () => {
+    it('should throw error when beforeEachIteration called inside it callback', () => {
       benchDescribe('Suite', () => {
         __test_setInsideItCallback(true);
         try {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-          expect(() => benchBeforeEach(() => {})).toThrow(
-            'beforeEach() cannot be called inside an it() callback',
+          expect(() => beforeEachIteration(() => {})).toThrow(
+            'beforeEachIteration() cannot be called inside an it() callback',
           );
         } finally {
           __test_setInsideItCallback(false);
@@ -258,13 +258,13 @@ describe('tinybench-utils', () => {
       });
     });
 
-    it('should throw error when afterEach called inside it callback', () => {
+    it('should throw error when afterEachIteration called inside it callback', () => {
       benchDescribe('Suite', () => {
         __test_setInsideItCallback(true);
         try {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-          expect(() => benchAfterEach(() => {})).toThrow(
-            'afterEach() cannot be called inside an it() callback',
+          expect(() => afterEachIteration(() => {})).toThrow(
+            'afterEachIteration() cannot be called inside an it() callback',
           );
         } finally {
           __test_setInsideItCallback(false);
@@ -274,13 +274,13 @@ describe('tinybench-utils', () => {
       });
     });
 
-    it('should throw error when setup called inside it callback', () => {
+    it('should throw error when setupTask called inside it callback', () => {
       benchDescribe('Suite', () => {
         __test_setInsideItCallback(true);
         try {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-          expect(() => setup(() => {})).toThrow(
-            'setup() cannot be called inside an it() callback',
+          expect(() => setupTask(() => {})).toThrow(
+            'setupTask() cannot be called inside an it() callback',
           );
         } finally {
           __test_setInsideItCallback(false);
@@ -290,13 +290,13 @@ describe('tinybench-utils', () => {
       });
     });
 
-    it('should throw error when teardown called inside it callback', () => {
+    it('should throw error when teardownTask called inside it callback', () => {
       benchDescribe('Suite', () => {
         __test_setInsideItCallback(true);
         try {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-          expect(() => teardown(() => {})).toThrow(
-            'teardown() cannot be called inside an it() callback',
+          expect(() => teardownTask(() => {})).toThrow(
+            'teardownTask() cannot be called inside an it() callback',
           );
         } finally {
           __test_setInsideItCallback(false);
@@ -306,13 +306,13 @@ describe('tinybench-utils', () => {
       });
     });
 
-    it('should throw error when setupSuite called inside it callback', () => {
+    it('should throw error when beforeAllIterations called inside it callback', () => {
       benchDescribe('Suite', () => {
         __test_setInsideItCallback(true);
         try {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-          expect(() => setupSuite(() => {})).toThrow(
-            'setupSuite() cannot be called inside an it() callback',
+          expect(() => beforeAllIterations(() => {})).toThrow(
+            'beforeAllIterations() cannot be called inside an it() callback',
           );
         } finally {
           __test_setInsideItCallback(false);
@@ -322,13 +322,13 @@ describe('tinybench-utils', () => {
       });
     });
 
-    it('should throw error when teardownSuite called inside it callback', () => {
+    it('should throw error when afterAllIterations called inside it callback', () => {
       benchDescribe('Suite', () => {
         __test_setInsideItCallback(true);
         try {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook validation with minimal empty function
-          expect(() => teardownSuite(() => {})).toThrow(
-            'teardownSuite() cannot be called inside an it() callback',
+          expect(() => afterAllIterations(() => {})).toThrow(
+            'afterAllIterations() cannot be called inside an it() callback',
           );
         } finally {
           __test_setInsideItCallback(false);
@@ -382,7 +382,7 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with minimal empty function
-          benchBeforeEach(() => {});
+          beforeEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -393,7 +393,7 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with minimal empty function
-          benchAfterEach(() => {});
+          afterEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -404,7 +404,7 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with minimal empty function
-          setup(() => {});
+          setupTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -415,29 +415,29 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with minimal empty function
-          teardown(() => {});
+          teardownTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
       }).not.toThrow();
     });
 
-    it('should register setupSuite hook inside describe', () => {
+    it('should register beforeAll hook inside describe', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with minimal empty function
-          setupSuite(() => {});
+          benchBeforeAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
       }).not.toThrow();
     });
 
-    it('should register teardownSuite hook inside describe', () => {
+    it('should register afterAll hook inside describe', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with minimal empty function
-          teardownSuite(() => {});
+          benchAfterAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -478,11 +478,11 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          benchBeforeEach(() => {});
+          beforeEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          benchBeforeEach(() => {});
+          beforeEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          benchBeforeEach(() => {});
+          beforeEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -493,9 +493,9 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          benchAfterEach(() => {});
+          afterEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          benchAfterEach(() => {});
+          afterEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -506,9 +506,9 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          setup(() => {});
+          setupTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          setup(() => {});
+          setupTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -519,35 +519,35 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          teardown(() => {});
+          teardownTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          teardown(() => {});
+          teardownTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
       }).not.toThrow();
     });
 
-    it('should allow multiple setupSuite hooks in same describe', () => {
+    it('should allow multiple beforeAll hooks in same describe', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          setupSuite(() => {});
+          benchBeforeAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          setupSuite(() => {});
+          benchBeforeAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
       }).not.toThrow();
     });
 
-    it('should allow multiple teardownSuite hooks in same describe', () => {
+    it('should allow multiple afterAll hooks in same describe', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          teardownSuite(() => {});
+          benchAfterAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with minimal empty functions
-          teardownSuite(() => {});
+          benchAfterAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -587,7 +587,7 @@ describe('tinybench-utils', () => {
           benchBeforeAll(() => {});
           benchDescribe('Inner', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested hooks with minimal empty function
-            benchBeforeEach(() => {});
+            beforeEachIteration(() => {});
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -665,7 +665,7 @@ describe('tinybench-utils', () => {
     it('should support async beforeEach hook', () => {
       expect(() => {
         benchDescribe('Suite', () => {
-          benchBeforeEach(async () => {
+          beforeEachIteration(async () => {
             await Promise.resolve();
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -677,7 +677,7 @@ describe('tinybench-utils', () => {
     it('should support async afterEach hook', () => {
       expect(() => {
         benchDescribe('Suite', () => {
-          benchAfterEach(async () => {
+          afterEachIteration(async () => {
             await Promise.resolve();
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -689,7 +689,7 @@ describe('tinybench-utils', () => {
     it('should support async setup hook', () => {
       expect(() => {
         benchDescribe('Suite', () => {
-          setup(async () => {
+          setupTask(async () => {
             await Promise.resolve();
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -701,7 +701,7 @@ describe('tinybench-utils', () => {
     it('should support async teardown hook', () => {
       expect(() => {
         benchDescribe('Suite', () => {
-          teardown(async () => {
+          teardownTask(async () => {
             await Promise.resolve();
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -710,10 +710,10 @@ describe('tinybench-utils', () => {
       }).not.toThrow();
     });
 
-    it('should support async setupSuite hook', () => {
+    it('should support async beforeAll hook', () => {
       expect(() => {
         benchDescribe('Suite', () => {
-          setupSuite(async () => {
+          benchBeforeAll(async () => {
             await Promise.resolve();
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -722,10 +722,10 @@ describe('tinybench-utils', () => {
       }).not.toThrow();
     });
 
-    it('should support async teardownSuite hook', () => {
+    it('should support async afterAll hook', () => {
       expect(() => {
         benchDescribe('Suite', () => {
-          teardownSuite(async () => {
+          benchAfterAll(async () => {
             await Promise.resolve();
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -805,9 +805,9 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hooks with minimal empty function
-          setup(() => {});
+          setupTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hooks with minimal empty function
-          teardown(() => {});
+          teardownTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark with options
           benchIt('test', () => {}, {
             iterations: 50,
@@ -890,9 +890,9 @@ describe('tinybench-utils', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing edge case with minimal empty function
           benchAfterAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing edge case with minimal empty function
-          benchBeforeEach(() => {});
+          beforeEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing edge case with minimal empty function
-          benchAfterEach(() => {});
+          afterEachIteration(() => {});
         });
       }).not.toThrow();
     });
@@ -909,11 +909,11 @@ describe('tinybench-utils', () => {
 
           benchDescribe('Inner', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure with minimal empty function
-            benchBeforeEach(() => {});
+            beforeEachIteration(() => {});
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test 2', () => {});
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure with minimal empty function
-            benchAfterEach(() => {});
+            afterEachIteration(() => {});
           });
 
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
@@ -926,35 +926,35 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('All Hooks', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
-          setupSuite(() => {});
-          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
           benchBeforeAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
-          benchBeforeEach(() => {});
+          beforeAllIterations(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
-          setup(() => {});
+          beforeEachIteration(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
+          setupTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
-          teardown(() => {});
+          teardownTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
-          benchAfterEach(() => {});
+          afterEachIteration(() => {});
+          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
+          afterAllIterations(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
           benchAfterAll(() => {});
-          // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing all hook types with minimal empty function
-          teardownSuite(() => {});
         });
       }).not.toThrow();
     });
   });
 
   describe('timeout validation', () => {
-    describe('setupSuite timeout validation', () => {
+    describe('beforeAll timeout validation', () => {
       it('should accept valid positive timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal setup function
-            setupSuite(() => {}, 5000);
+            benchBeforeAll(() => {}, 5000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -965,7 +965,7 @@ describe('tinybench-utils', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal setup function
-            setupSuite(() => {}, 0);
+            benchBeforeAll(() => {}, 0);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -976,7 +976,7 @@ describe('tinybench-utils', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal setup function
-            setupSuite(() => {}, undefined);
+            benchBeforeAll(() => {}, undefined);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -987,45 +987,45 @@ describe('tinybench-utils', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal setup function
-            setupSuite(() => {}, -1000);
+            benchBeforeAll(() => {}, -1000);
           });
-        }).toThrow('setupSuite timeout must be a positive number, got: -1000');
+        }).toThrow('beforeAll timeout must be a positive number, got: -1000');
       });
 
       it('should reject non-number timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-function -- Testing invalid timeout type with minimal setup
-            setupSuite(() => {}, 'not a number' as any);
+            benchBeforeAll(() => {}, 'not a number' as any);
           });
-        }).toThrow('setupSuite timeout must be a number, got: string');
+        }).toThrow('beforeAll timeout must be a number, got: string');
       });
 
       it('should reject Infinity timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal setup function
-            setupSuite(() => {}, Infinity);
+            benchBeforeAll(() => {}, Infinity);
           });
-        }).toThrow('setupSuite timeout must be a finite number, got: Infinity');
+        }).toThrow('beforeAll timeout must be a finite number, got: Infinity');
       });
 
       it('should reject NaN timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal setup function
-            setupSuite(() => {}, NaN);
+            benchBeforeAll(() => {}, NaN);
           });
-        }).toThrow('setupSuite timeout must be a finite number, got: NaN');
+        }).toThrow('beforeAll timeout must be a finite number, got: NaN');
       });
     });
 
-    describe('teardownSuite timeout validation', () => {
+    describe('benchAfterAll timeout validation', () => {
       it('should accept valid positive timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal teardown function
-            teardownSuite(() => {}, 5000);
+            benchAfterAll(() => {}, 5000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -1036,7 +1036,7 @@ describe('tinybench-utils', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal teardown function
-            teardownSuite(() => {}, 0);
+            benchAfterAll(() => {}, 0);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -1047,7 +1047,7 @@ describe('tinybench-utils', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal teardown function
-            teardownSuite(() => {}, undefined);
+            benchAfterAll(() => {}, undefined);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -1058,40 +1058,36 @@ describe('tinybench-utils', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal teardown function
-            teardownSuite(() => {}, -1000);
+            benchAfterAll(() => {}, -1000);
           });
-        }).toThrow(
-          'teardownSuite timeout must be a positive number, got: -1000',
-        );
+        }).toThrow('afterAll timeout must be a positive number, got: -1000');
       });
 
       it('should reject non-number timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-function -- Testing invalid timeout type with minimal teardown
-            teardownSuite(() => {}, 'not a number' as any);
+            benchAfterAll(() => {}, 'not a number' as any);
           });
-        }).toThrow('teardownSuite timeout must be a number, got: string');
+        }).toThrow('afterAll timeout must be a number, got: string');
       });
 
       it('should reject Infinity timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal teardown function
-            teardownSuite(() => {}, Infinity);
+            benchAfterAll(() => {}, Infinity);
           });
-        }).toThrow(
-          'teardownSuite timeout must be a finite number, got: Infinity',
-        );
+        }).toThrow('afterAll timeout must be a finite number, got: Infinity');
       });
 
       it('should reject NaN timeout', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing timeout validation with minimal teardown function
-            teardownSuite(() => {}, NaN);
+            benchAfterAll(() => {}, NaN);
           });
-        }).toThrow('teardownSuite timeout must be a finite number, got: NaN');
+        }).toThrow('afterAll timeout must be a finite number, got: NaN');
       });
     });
 
@@ -1102,74 +1098,74 @@ describe('tinybench-utils', () => {
       // and works correctly (as evidenced by the lack of errors), but verifying exact mock calls
       // is challenging with the current mock setup.
 
-      it('should register setupSuite with valid timeout without errors', () => {
+      it('should register benchBeforeAll with valid timeout without errors', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with timeout
-            setupSuite(() => {}, 10000);
+            benchBeforeAll(() => {}, 10000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
         }).not.toThrow();
       });
 
-      it('should register teardownSuite with valid timeout without errors', () => {
+      it('should register benchAfterAll with valid timeout without errors', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration with timeout
-            teardownSuite(() => {}, 15000);
+            benchAfterAll(() => {}, 15000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
         }).not.toThrow();
       });
 
-      it('should register setupSuite without timeout without errors', () => {
+      it('should register benchBeforeAll without timeout without errors', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration without timeout
-            setupSuite(() => {});
+            benchBeforeAll(() => {});
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
         }).not.toThrow();
       });
 
-      it('should register teardownSuite without timeout without errors', () => {
+      it('should register benchAfterAll without timeout without errors', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing hook registration without timeout
-            teardownSuite(() => {});
+            benchAfterAll(() => {});
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
         }).not.toThrow();
       });
 
-      it('should register multiple setupSuite hooks with different timeouts', () => {
+      it('should register multiple benchBeforeAll hooks with different timeouts', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with various timeouts
-            setupSuite(() => {}, 5000);
+            benchBeforeAll(() => {}, 5000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with various timeouts
-            setupSuite(() => {}, 10000);
+            benchBeforeAll(() => {}, 10000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with various timeouts
-            setupSuite(() => {}); // no timeout
+            benchBeforeAll(() => {}); // no timeout
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
         }).not.toThrow();
       });
 
-      it('should register multiple teardownSuite hooks with different timeouts', () => {
+      it('should register multiple benchAfterAll hooks with different timeouts', () => {
         expect(() => {
           benchDescribe('Suite', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with various timeouts
-            teardownSuite(() => {}, 5000);
+            benchAfterAll(() => {}, 5000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with various timeouts
-            teardownSuite(() => {}, 10000);
+            benchAfterAll(() => {}, 10000);
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing multiple hooks with various timeouts
-            teardownSuite(() => {}); // no timeout
+            benchAfterAll(() => {}); // no timeout
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test', () => {});
           });
@@ -1399,19 +1395,19 @@ describe('tinybench-utils', () => {
 
           benchDescribe('Level 2', () => {
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
-            benchBeforeEach(() => {});
+            beforeEachIteration(() => {});
             // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
             benchIt('test 2', () => {});
 
             benchDescribe('Level 3', () => {
               // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
-              setup(() => {});
+              setupTask(() => {});
               // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
               benchIt('test 3', () => {});
 
               benchDescribe('Level 4', () => {
                 // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing nested structure
-                setupSuite(() => {});
+                benchBeforeAll(() => {});
                 // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
                 benchIt('test 4', () => {});
               });
@@ -1460,31 +1456,31 @@ describe('tinybench-utils', () => {
 
       expect(() => {
         benchDescribe('Complete Hook Suite', () => {
-          setupSuite(() => {
-            executionOrder.push('setupSuite');
+          benchBeforeAll(() => {
+            executionOrder.push('benchBeforeAll');
           });
           benchBeforeAll(() => {
             executionOrder.push('beforeAll');
           });
-          benchBeforeEach(() => {
+          beforeEachIteration(() => {
             executionOrder.push('beforeEach');
           });
-          setup(() => {
+          setupTask(() => {
             executionOrder.push('setup');
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
-          teardown(() => {
+          teardownTask(() => {
             executionOrder.push('teardown');
           });
-          benchAfterEach(() => {
+          afterEachIteration(() => {
             executionOrder.push('afterEach');
           });
           benchAfterAll(() => {
             executionOrder.push('afterAll');
           });
-          teardownSuite(() => {
-            executionOrder.push('teardownSuite');
+          benchAfterAll(() => {
+            executionOrder.push('benchAfterAll');
           });
         });
       }).not.toThrow();
@@ -1500,22 +1496,22 @@ describe('tinybench-utils', () => {
           benchAfterAll(() => {
             // Registered first
           });
-          setup(() => {
+          setupTask(() => {
             // Registered second
           });
-          benchBeforeEach(() => {
+          beforeEachIteration(() => {
             // Registered third
           });
-          teardownSuite(() => {
+          benchAfterAll(() => {
             // Registered fourth
           });
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
-          setupSuite(() => {
+          benchBeforeAll(() => {
             // Registered after benchmark
           });
-          benchAfterEach(() => {
-            // Registered after setupSuite
+          afterEachIteration(() => {
+            // Registered after benchBeforeAll
           });
         });
       }).not.toThrow();
@@ -1545,23 +1541,23 @@ describe('tinybench-utils', () => {
       expect(() => {
         benchDescribe('Suite', () => {
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
-          setupSuite(() => {});
+          benchBeforeAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
           benchBeforeAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
-          benchBeforeEach(() => {});
+          beforeEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
-          setup(() => {});
+          setupTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
-          teardown(() => {});
+          teardownTask(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
-          benchAfterEach(() => {});
+          afterEachIteration(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
           benchAfterAll(() => {});
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Testing empty hooks
-          teardownSuite(() => {});
+          benchAfterAll(() => {});
         });
       }).not.toThrow();
     });

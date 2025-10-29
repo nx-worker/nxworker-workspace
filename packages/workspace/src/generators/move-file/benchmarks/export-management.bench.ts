@@ -1,9 +1,9 @@
 import {
-  beforeAll,
+  beforeAllIterations,
   describe,
   it,
-  setup,
-  teardown,
+  setupTask,
+  teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
@@ -21,7 +21,7 @@ describe('Export Management', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  beforeAll(() => {
+  beforeAllIterations(() => {
     cachedTreeExists = (tree, filePath) =>
       cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
     entryPoint = 'libs/my-lib/src/index.ts';
@@ -34,17 +34,17 @@ describe('Export Management', () => {
     treeReadCache = new TreeReadCache();
   });
 
-  setup(() => {
+  setupTask(() => {
     tree = createTreeWithEmptyWorkspace();
   });
 
-  teardown(() => {
+  teardownTask(() => {
     fileExistenceCache.clear();
     treeReadCache.clear();
   });
 
   describe('Export detection', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       tree.write(
         entryPoint,
         `export * from './lib/file1';
@@ -59,7 +59,7 @@ describe('Export Management', () => {
   });
 
   describe('Export addition', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       const initialContent = `export * from './lib/file1';
             export * from './lib/file2';`;
       tree.write(entryPoint, initialContent);
@@ -71,7 +71,7 @@ describe('Export Management', () => {
   });
 
   describe('Export removal', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       tree.write(
         entryPoint,
         `export * from './lib/file1';

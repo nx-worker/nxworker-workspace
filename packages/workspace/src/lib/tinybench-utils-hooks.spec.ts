@@ -3,7 +3,7 @@
 /**
  * Integration tests for tinybench-utils hook registration.
  *
- * These tests validate that setupSuite and teardownSuite hooks are properly
+ * These tests validate that suite-level beforeAll and afterAll hooks are properly
  * registered with Jest's beforeAll and afterAll hooks.
  *
  * This test suite uses a different mocking strategy from tinybench-utils.spec.ts
@@ -14,8 +14,8 @@
 import {
   describe as benchDescribe,
   it as benchIt,
-  setupSuite,
-  teardownSuite,
+  beforeAll as benchBeforeAll,
+  afterAll as benchAfterAll,
 } from '../../../../tools/tinybench-utils';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Testing internal state management
 import { resetGlobalState } from '../../../../tools/tinybench-utils-state';
@@ -70,12 +70,12 @@ describe('tinybench-utils hook registration', () => {
     globalThis.it = originalIt;
   });
 
-  describe('setupSuite hook registration', () => {
-    it('should register setupSuite hook as Jest beforeAll', () => {
+  describe('beforeAll hook registration', () => {
+    it('should register beforeAll hook as Jest beforeAll', () => {
       const setupHook = jest.fn();
 
       benchDescribe('Test Suite', () => {
-        setupSuite(setupHook);
+        benchBeforeAll(setupHook);
         // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
         benchIt('test', () => {});
       });
@@ -86,15 +86,15 @@ describe('tinybench-utils hook registration', () => {
       expect(registeredBeforeAllHooks).toContain(setupHook);
     });
 
-    it('should register multiple setupSuite hooks in order', () => {
+    it('should register multiple beforeAll hooks in order', () => {
       const hook1 = jest.fn();
       const hook2 = jest.fn();
       const hook3 = jest.fn();
 
       benchDescribe('Test Suite', () => {
-        setupSuite(hook1);
-        setupSuite(hook2);
-        setupSuite(hook3);
+        benchBeforeAll(hook1);
+        benchBeforeAll(hook2);
+        benchBeforeAll(hook3);
         // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
         benchIt('test', () => {});
       });
@@ -112,14 +112,14 @@ describe('tinybench-utils hook registration', () => {
       expect(hook2Index).toBeLessThan(hook3Index);
     });
 
-    it('should register setupSuite hooks in nested describe blocks', () => {
+    it('should register beforeAll hooks in nested describe blocks', () => {
       const outerHook = jest.fn();
       const innerHook = jest.fn();
 
       benchDescribe('Outer Suite', () => {
-        setupSuite(outerHook);
+        benchBeforeAll(outerHook);
         benchDescribe('Inner Suite', () => {
-          setupSuite(innerHook);
+          benchBeforeAll(innerHook);
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -131,12 +131,12 @@ describe('tinybench-utils hook registration', () => {
     });
   });
 
-  describe('teardownSuite hook registration', () => {
-    it('should register teardownSuite hook as Jest afterAll', () => {
+  describe('afterAll hook registration', () => {
+    it('should register afterAll hook as Jest afterAll', () => {
       const teardownHook = jest.fn();
 
       benchDescribe('Test Suite', () => {
-        teardownSuite(teardownHook);
+        benchAfterAll(teardownHook);
         // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
         benchIt('test', () => {});
       });
@@ -145,13 +145,13 @@ describe('tinybench-utils hook registration', () => {
       expect(registeredAfterAllHooks).toContain(teardownHook);
     });
 
-    it('should register multiple teardownSuite hooks in order', () => {
+    it('should register multiple afterAll hooks in order', () => {
       const hook1 = jest.fn();
       const hook2 = jest.fn();
 
       benchDescribe('Test Suite', () => {
-        teardownSuite(hook1);
-        teardownSuite(hook2);
+        benchAfterAll(hook1);
+        benchAfterAll(hook2);
         // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
         benchIt('test', () => {});
       });
@@ -166,14 +166,14 @@ describe('tinybench-utils hook registration', () => {
       expect(hook1Index).toBeLessThan(hook2Index);
     });
 
-    it('should register teardownSuite hooks in nested describe blocks', () => {
+    it('should register afterAll hooks in nested describe blocks', () => {
       const outerHook = jest.fn();
       const innerHook = jest.fn();
 
       benchDescribe('Outer Suite', () => {
-        teardownSuite(outerHook);
+        benchAfterAll(outerHook);
         benchDescribe('Inner Suite', () => {
-          teardownSuite(innerHook);
+          benchAfterAll(innerHook);
           // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
           benchIt('test', () => {});
         });
@@ -185,14 +185,14 @@ describe('tinybench-utils hook registration', () => {
     });
   });
 
-  describe('combined setupSuite and teardownSuite', () => {
+  describe('combined beforeAll and afterAll', () => {
     it('should register both setup and teardown hooks', () => {
       const setupHook = jest.fn();
       const teardownHook = jest.fn();
 
       benchDescribe('Test Suite', () => {
-        setupSuite(setupHook);
-        teardownSuite(teardownHook);
+        benchBeforeAll(setupHook);
+        benchAfterAll(teardownHook);
         // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
         benchIt('test', () => {});
       });
@@ -209,10 +209,10 @@ describe('tinybench-utils hook registration', () => {
       const teardown2 = jest.fn();
 
       benchDescribe('Test Suite', () => {
-        setupSuite(setup1);
-        setupSuite(setup2);
-        teardownSuite(teardown1);
-        teardownSuite(teardown2);
+        benchBeforeAll(setup1);
+        benchBeforeAll(setup2);
+        benchAfterAll(teardown1);
+        benchAfterAll(teardown2);
         // eslint-disable-next-line @typescript-eslint/no-empty-function -- Minimal test benchmark
         benchIt('test', () => {});
       });

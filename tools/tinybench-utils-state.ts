@@ -7,7 +7,7 @@
  * @internal
  */
 
-import type { BenchOptions, Fn, FnOptions } from 'tinybench';
+import type { BenchOptions, Fn, FnOptions, Task } from 'tinybench';
 
 /**
  * Internal representation of a registered benchmark
@@ -36,18 +36,44 @@ export interface HookWithTimeout {
 /**
  * Represents a describe block with its benchmarks and hooks
  *
+ * **Hook Types:**
+ * - `setupSuiteHooks`/`teardownSuiteHooks`: Suite-level hooks (Jest context, no Task/mode)
+ * - `setupHooks`/`teardownHooks`: Task cycle hooks (Tinybench context with Task/mode)
+ * - `beforeAllHooks`/`afterAllHooks`: Iteration group hooks (Tinybench context with Task/mode)
+ * - `beforeEachHooks`/`afterEachHooks`: Per-iteration hooks (Tinybench context with Task/mode)
+ *
  * @internal
  */
 export interface DescribeBlock {
   name: string;
   benchmarks: RegisteredBenchmark[];
-  beforeAllHooks: Array<() => void | Promise<void>>;
-  afterAllHooks: Array<() => void | Promise<void>>;
-  beforeEachHooks: Array<() => void | Promise<void>>;
-  afterEachHooks: Array<() => void | Promise<void>>;
-  setupHooks: Array<() => void | Promise<void>>;
-  teardownHooks: Array<() => void | Promise<void>>;
+  /** beforeAllIterations hooks - receive Task and mode parameters */
+  beforeAllHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  >;
+  /** afterAllIterations hooks - receive Task and mode parameters */
+  afterAllHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  >;
+  /** beforeEachIteration hooks - receive Task and mode parameters */
+  beforeEachHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  >;
+  /** afterEachIteration hooks - receive Task and mode parameters */
+  afterEachHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  >;
+  /** setupTask hooks - receive Task and mode parameters */
+  setupHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  >;
+  /** teardownTask hooks - receive Task and mode parameters */
+  teardownHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  >;
+  /** beforeAll (suite-level) hooks - Jest context, no Task/mode parameters */
   setupSuiteHooks: HookWithTimeout[];
+  /** afterAll (suite-level) hooks - Jest context, no Task/mode parameters */
   teardownSuiteHooks: HookWithTimeout[];
   children: DescribeBlock[];
   parent?: DescribeBlock;

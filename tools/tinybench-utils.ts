@@ -28,69 +28,81 @@ const getJestAfterAll = () => globalThis.afterAll;
  *
  * ### Complete Execution Sequence (Determined by Tinybench)
  *
- * 1. **setupSuite()** - Runs ONCE before any benchmarks in the suite
+ * 1. **beforeAll()** - Runs ONCE before any benchmarks in the suite (suite-level)
  *    - Registered as Jest beforeAll (first)
  *    - Use for shared state initialization across all benchmarks
- *    - Available in: setupSuite hooks, and all subsequent hooks/benchmarks
+ *    - Available in: all subsequent hooks/benchmarks
+ *    - **Lifecycle:** Once per describe block
+ *    - **Context:** Jest context (no Task or mode parameters)
  *
  * 2. **Benchmark Execution** (all benchmarks run in a single Jest beforeAll)
  *    For EACH benchmark in the suite:
  *
- *    a. **setup()** - Runs ONCE before benchmark starts (before warmup)
- *       - ⚠️ RUNS BEFORE beforeAll() - this is counter-intuitive!
- *       - Use for expensive initialization that beforeAll/beforeEach need
- *       - Available in: setup, beforeAll, beforeEach, afterEach, afterAll, teardown
+ *    a. **setupTask()** - Runs per benchmark cycle (before warmup, before run)
+ *       - ⚠️ RUNS BEFORE beforeAllIterations() - this is counter-intuitive!
+ *       - Use for expensive initialization that beforeAllIterations/beforeEachIteration need
+ *       - **Lifecycle:** Twice per benchmark (warmup cycle + run cycle)
+ *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
- *    b. **beforeAll()** - Runs ONCE before all iterations (warmup + measured)
- *       - Use for per-benchmark initialization
- *       - Can access state from setupSuite() and setup()
- *       - Available in: beforeAll, beforeEach, afterEach, afterAll, teardown
+ *    b. **beforeAllIterations()** - Runs per cycle before iterations begin
+ *       - Use for per-cycle initialization
+ *       - Can access state from beforeAll() (suite) and setupTask()
+ *       - **Lifecycle:** Twice per benchmark (once per cycle)
+ *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
- *    c. **WARMUP PHASE** (if warmup is enabled)
- *       - beforeEach() → benchmark function → afterEach()
- *       - Repeated for warmup iterations (typically 5)
+ *    c. **WARMUP PHASE** (if warmup is enabled, mode = 'warmup')
+ *       - beforeEachIteration() → benchmark function → afterEachIteration()
+ *       - Repeated for warmup iterations (typically ~16)
  *       - Results are NOT measured/recorded
- *       - ⚠️ beforeEach/afterEach run during warmup too!
+ *       - ⚠️ beforeEachIteration/afterEachIteration run during warmup too!
+ *       - **Lifecycle:** ~16 times per benchmark (warmup only)
+ *       - **Context:** Tinybench context (receives Task and mode='warmup')
  *
- *    d. **MEASUREMENT PHASE**
- *       - beforeEach() → benchmark function → afterEach()
- *       - Repeated for measured iterations (typically hundreds/thousands)
+ *    d. **MEASUREMENT PHASE** (mode = 'run')
+ *       - beforeEachIteration() → benchmark function → afterEachIteration()
+ *       - Repeated for measured iterations (typically ~1000)
  *       - Results ARE measured and recorded
+ *       - **Lifecycle:** ~1000 times per benchmark (measurement only)
+ *       - **Context:** Tinybench context (receives Task and mode='run')
  *
- *    e. **afterAll()** - Runs ONCE after all iterations (warmup + measured)
- *       - Use for per-benchmark cleanup
- *       - Available in: afterAll, teardown
+ *    e. **afterAllIterations()** - Runs per cycle after iterations complete
+ *       - Use for per-cycle cleanup
+ *       - **Lifecycle:** Twice per benchmark (once per cycle)
+ *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
- *    f. **teardown()** - Runs ONCE after benchmark completes
- *       - Use to clean up resources from setup()
- *       - Available in: teardown only
+ *    f. **teardownTask()** - Runs per benchmark cycle after all iterations
+ *       - Use to clean up resources from setupTask()
+ *       - **Lifecycle:** Twice per benchmark (warmup cycle + run cycle)
+ *       - **Context:** Tinybench context (receives Task and mode parameters)
  *
- * 3. **teardownSuite()** - Runs ONCE after all benchmarks complete
+ * 3. **afterAll()** - Runs ONCE after all benchmarks complete (suite-level)
  *    - Registered as Jest afterAll (last)
- *    - Use to clean up resources from setupSuite()
+ *    - Use to clean up resources from beforeAll() (suite)
+ *    - **Lifecycle:** Once per describe block
+ *    - **Context:** Jest context (no Task or mode parameters)
  *
  * ### Common Pitfalls
  *
- * ❌ **WRONG:** Initializing shared state in beforeAll() that setup() needs
+ * ❌ **WRONG:** Initializing shared state in beforeAllIterations() that setupTask() needs
  * ```ts
- * beforeAll(() => { sharedState = init(); }); // Runs AFTER setup!
- * setup(() => { use(sharedState); }); // ERROR: sharedState not initialized yet!
+ * beforeAllIterations(() => { sharedState = init(); }); // Runs AFTER setupTask!
+ * setupTask(() => { use(sharedState); }); // ERROR: sharedState not initialized yet!
  * ```
  *
- * ✅ **CORRECT:** Initialize in setupSuite() or setup()
+ * ✅ **CORRECT:** Initialize in beforeAll() (suite) or setupTask()
  * ```ts
- * setupSuite(() => { sharedState = init(); }); // Runs FIRST
- * setup(() => { use(sharedState); }); // OK: sharedState is initialized
+ * beforeAll(() => { sharedState = init(); }); // Runs FIRST
+ * setupTask(() => { use(sharedState); }); // OK: sharedState is initialized
  * ```
  *
- * ❌ **WRONG:** Expensive initialization in beforeEach()
+ * ❌ **WRONG:** Expensive initialization in beforeEachIteration()
  * ```ts
- * beforeEach(() => { expensiveInit(); }); // Runs THOUSANDS of times!
+ * beforeEachIteration(() => { expensiveInit(); }); // Runs THOUSANDS of times!
  * ```
  *
- * ✅ **CORRECT:** Use setup() or beforeAll()
+ * ✅ **CORRECT:** Use setupTask() or beforeAllIterations()
  * ```ts
- * setup(() => { expensiveInit(); }); // Runs ONCE before benchmark
+ * setupTask(() => { expensiveInit(); }); // Runs TWICE per benchmark (per cycle)
  * ```
  */
 
@@ -122,30 +134,35 @@ function validateTimeout(timeout: number | undefined, hookName: string): void {
 }
 
 /**
- * Registers a hook that runs once before all iterations of benchmarks in the current describe block.
+ * Registers a hook that runs once before all iterations of a benchmark in the current describe block.
  *
- * ⚠️ **TINYBENCH BEHAVIOR - EXECUTION ORDER WARNING:** Tinybench executes this AFTER setup() hooks!
+ * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), before iterations begin
+ * **Frequency:** Runs twice per benchmark (once before warmup iterations, once before run iterations)
+ * **Context:** Tinybench cycle context with Task instance and mode parameter
+ *
+ * ⚠️ **TINYBENCH BEHAVIOR - EXECUTION ORDER WARNING:** Tinybench executes this AFTER setupTask() hooks!
  * This is Tinybench's design, not a choice of this wrapper library.
  * See the "Hook Execution Order" section at the top of this file for details.
  *
  * This corresponds to tinybench's FnOptions.beforeAll - a function that runs once before all
- * benchmark iterations.
+ * benchmark iterations in a cycle.
  *
  * **Execution Order:**
- * 1. setupSuite() - runs first
- * 2. setup() - runs before this hook ⚠️
- * 3. **beforeAll() - YOU ARE HERE**
+ * 1. beforeAll() - suite-level (runs first)
+ * 2. setupTask() - runs before this hook ⚠️
+ * 3. **beforeAllIterations() - YOU ARE HERE**
  * 4. WARMUP PHASE (if enabled):
- *    - beforeEach() → benchmark → afterEach()
+ *    - beforeEachIteration() → benchmark → afterEachIteration()
  * 5. MEASUREMENT PHASE:
- *    - beforeEach() → benchmark → afterEach()
- * 6. afterAll() - after all iterations
- * 7. teardown() - cleanup
- * 8. teardownSuite() - runs last
+ *    - beforeEachIteration() → benchmark → afterEachIteration()
+ * 6. afterAllIterations() - after all iterations in cycle
+ * 7. teardownTask() - cleanup
+ * 8. afterAll() - suite-level (runs last)
  *
- * **State Availability:** Can safely access state initialized in setupSuite() and setup()
+ * **State Availability:** Can safely access state initialized in beforeAll() (suite) and setupTask()
  *
- * @param fn - The function to run before all benchmark iterations
+ * @param fn - Callback receiving Task instance and mode ('warmup' or 'run'). Parameters are optional for backward compatibility.
+ * @param timeout - Optional timeout in milliseconds
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
@@ -155,9 +172,10 @@ function validateTimeout(timeout: number | undefined, hookName: string): void {
  * describe('My Suite', () => {
  *   let expensiveData;
  *
- *   beforeAll(() => {
- *     // ✅ SAFE: Can access state from setupSuite() and setup()
+ *   beforeAllIterations((task, mode) => {
+ *     // ✅ SAFE: Can access state from beforeAll() (suite) and setupTask()
  *     expensiveData = loadExpensiveData();
+ *     console.log(`Starting ${mode} phase for ${task.name}`);
  *   });
  *
  *   it('should process data', () => {
@@ -166,24 +184,37 @@ function validateTimeout(timeout: number | undefined, hookName: string): void {
  * });
  * ```
  */
-export function beforeAll(fn: () => void | Promise<void>): void {
+export function beforeAllIterations(
+  fn: (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>,
+  timeout?: number,
+): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('beforeAll() must be called inside a describe() block');
+    throw new Error(
+      'beforeAllIterations() must be called inside a describe() block',
+    );
   }
   if (getInsideItCallback()) {
-    throw new Error('beforeAll() cannot be called inside an it() callback');
+    throw new Error(
+      'beforeAllIterations() cannot be called inside an it() callback',
+    );
   }
+  validateTimeout(timeout, 'beforeAllIterations');
   currentBlock.beforeAllHooks.push(fn);
 }
 
 /**
- * Registers a hook that runs once after all iterations of benchmarks in the current describe block.
+ * Registers a hook that runs once after all iterations of a benchmark in the current describe block.
+ *
+ * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), after all iterations complete
+ * **Frequency:** Runs twice per benchmark (once after warmup iterations, once after run iterations)
+ * **Context:** Tinybench cycle context with Task instance and mode parameter
  *
  * This corresponds to tinybench's FnOptions.afterAll - a function that runs once after all
- * benchmark iterations complete.
+ * benchmark iterations in a cycle complete.
  *
- * @param fn - The function to run after all benchmark iterations
+ * @param fn - Callback receiving Task instance and mode ('warmup' or 'run'). Parameters are optional for backward compatibility.
+ * @param timeout - Optional timeout in milliseconds
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
@@ -191,8 +222,9 @@ export function beforeAll(fn: () => void | Promise<void>): void {
  * @example
  * ```ts
  * describe('My Suite', () => {
- *   afterAll(() => {
+ *   afterAllIterations((task, mode) => {
  *     cleanupResources();
+ *     console.log(`Completed ${mode} phase for ${task.name}`);
  *   });
  *
  *   it('should use resources', () => {
@@ -201,49 +233,62 @@ export function beforeAll(fn: () => void | Promise<void>): void {
  * });
  * ```
  */
-export function afterAll(fn: () => void | Promise<void>): void {
+export function afterAllIterations(
+  fn: (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>,
+  timeout?: number,
+): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('afterAll() must be called inside a describe() block');
+    throw new Error(
+      'afterAllIterations() must be called inside a describe() block',
+    );
   }
   if (getInsideItCallback()) {
-    throw new Error('afterAll() cannot be called inside an it() callback');
+    throw new Error(
+      'afterAllIterations() cannot be called inside an it() callback',
+    );
   }
+  validateTimeout(timeout, 'afterAllIterations');
   currentBlock.afterAllHooks.push(fn);
 }
 
 /**
  * Registers a hook that runs before each benchmark iteration in the current describe block.
  *
- * ⚠️ **PERFORMANCE WARNING:** This hook runs THOUSANDS of times (once per iteration)!
+ * **Lifecycle:** Executes before every single iteration of the benchmark function during both warmup and measurement phases
+ * **Frequency:** Runs thousands of times per benchmark (~16 warmup + ~1000 measurement iterations = ~1016 times per benchmark)
+ * **Context:** Tinybench iteration context with Task instance and mode parameter
+ * **⚠️ Performance Warning:** This hook runs very frequently. Keep logic minimal to avoid skewing benchmark results.
+ *
  * ⚠️ **WARMUP WARNING:** This runs during WARMUP iterations too (not just measured iterations)!
- * Avoid expensive operations here - use setup() or beforeAll() instead.
+ * Avoid expensive operations here - use setupTask() or beforeAllIterations() instead.
  * See the "Hook Execution Order" section at the top of this file for details.
  *
  * This corresponds to tinybench's FnOptions.beforeEach - a function that runs before each
  * iteration of the benchmark (both warmup and measured iterations).
  *
  * **Execution Order:**
- * 1. setupSuite() - runs first
- * 2. setup() - per benchmark
- * 3. beforeAll() - per benchmark
+ * 1. beforeAll() - suite-level (runs first)
+ * 2. setupTask() - per benchmark cycle
+ * 3. beforeAllIterations() - per benchmark cycle
  * 4. WARMUP PHASE (if enabled):
- *    - **beforeEach() - YOU ARE HERE** ⚠️ Runs during warmup!
+ *    - **beforeEachIteration() - YOU ARE HERE** ⚠️ Runs during warmup!
  *    - benchmark function
- *    - afterEach()
+ *    - afterEachIteration()
  * 5. MEASUREMENT PHASE:
- *    - **beforeEach() - YOU ARE HERE** ⚠️ Runs THOUSANDS of times!
+ *    - **beforeEachIteration() - YOU ARE HERE** ⚠️ Runs THOUSANDS of times!
  *    - benchmark function
- *    - afterEach()
- * 6. afterAll() - per benchmark
- * 7. teardown() - per benchmark
- * 8. teardownSuite() - runs last
+ *    - afterEachIteration()
+ * 6. afterAllIterations() - per benchmark cycle
+ * 7. teardownTask() - per benchmark cycle
+ * 8. afterAll() - suite-level (runs last)
  *
- * **State Availability:** Can access state from setupSuite(), setup(), and beforeAll()
+ * **State Availability:** Can access state from beforeAll(), setupTask(), and beforeAllIterations()
  *
  * **Common Use Case:** Reset mutable state between iterations (NOT expensive initialization!)
  *
- * @param fn - The function to run before each iteration
+ * @param fn - Callback receiving Task instance and mode ('warmup' or 'run'). Parameters are optional for backward compatibility.
+ * @param timeout - Optional timeout in milliseconds
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
@@ -254,14 +299,17 @@ export function afterAll(fn: () => void | Promise<void>): void {
  * describe('My Suite', () => {
  *   let counter;
  *
- *   beforeAll(() => {
- *     // ✅ Expensive setup happens ONCE
+ *   beforeAllIterations(() => {
+ *     // ✅ Expensive setup happens ONCE per cycle
  *     initializeExpensiveResource();
  *   });
  *
- *   beforeEach(() => {
+ *   beforeEachIteration((task, mode) => {
  *     // ✅ Light-weight reset happens per iteration
  *     counter = 0;
+ *     if (mode === 'warmup') {
+ *       // Optional: Different behavior during warmup
+ *     }
  *   });
  *
  *   it('should process data', () => {
@@ -272,43 +320,56 @@ export function afterAll(fn: () => void | Promise<void>): void {
  * ```
  *
  * @example
- * ❌ **WRONG:** Expensive operations in beforeEach
+ * ❌ **WRONG:** Expensive operations in beforeEachIteration
  * ```ts
- * beforeEach(() => {
+ * beforeEachIteration(() => {
  *   // ❌ BAD: This runs THOUSANDS of times!
  *   expensiveResource = initializeExpensiveResource();
  * });
  * ```
  *
- * ✅ **CORRECT:** Move expensive operations to setup() or beforeAll()
+ * ✅ **CORRECT:** Move expensive operations to setupTask() or beforeAllIterations()
  * ```ts
- * setup(() => {
- *   // ✅ GOOD: This runs ONCE per benchmark
+ * setupTask(() => {
+ *   // ✅ GOOD: This runs ONCE per benchmark cycle
  *   expensiveResource = initializeExpensiveResource();
  * });
  * ```
  */
-export function beforeEach(fn: () => void | Promise<void>): void {
+export function beforeEachIteration(
+  fn: (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>,
+  timeout?: number,
+): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('beforeEach() must be called inside a describe() block');
+    throw new Error(
+      'beforeEachIteration() must be called inside a describe() block',
+    );
   }
   if (getInsideItCallback()) {
-    throw new Error('beforeEach() cannot be called inside an it() callback');
+    throw new Error(
+      'beforeEachIteration() cannot be called inside an it() callback',
+    );
   }
+  validateTimeout(timeout, 'beforeEachIteration');
   currentBlock.beforeEachHooks.push(fn);
 }
 
 /**
  * Registers a hook that runs after each benchmark iteration in the current describe block.
  *
- * ⚠️ **PERFORMANCE WARNING:** This hook runs THOUSANDS of times (once per iteration)!
+ * **Lifecycle:** Executes after every single iteration of the benchmark function during both warmup and measurement phases
+ * **Frequency:** Runs thousands of times per benchmark (~16 warmup + ~1000 measurement iterations = ~1016 times per benchmark)
+ * **Context:** Tinybench iteration context with Task instance and mode parameter
+ * **⚠️ Performance Warning:** This hook runs very frequently. Keep logic minimal to avoid skewing benchmark results.
+ *
  * ⚠️ **WARMUP WARNING:** This runs during WARMUP iterations too (not just measured iterations)!
  *
  * This corresponds to tinybench's FnOptions.afterEach - a function that runs after each
  * iteration of the benchmark (both warmup and measured iterations).
  *
- * @param fn - The function to run after each iteration
+ * @param fn - Callback receiving Task instance and mode ('warmup' or 'run'). Parameters are optional for backward compatibility.
+ * @param timeout - Optional timeout in milliseconds
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
@@ -316,8 +377,11 @@ export function beforeEach(fn: () => void | Promise<void>): void {
  * @example
  * ```ts
  * describe('My Suite', () => {
- *   afterEach(() => {
+ *   afterEachIteration((task, mode) => {
  *     cleanupIterationData();
+ *     if (mode === 'warmup') {
+ *       // Optional: Different behavior during warmup
+ *     }
  *   });
  *
  *   it('should process data', () => {
@@ -326,45 +390,57 @@ export function beforeEach(fn: () => void | Promise<void>): void {
  * });
  * ```
  */
-export function afterEach(fn: () => void | Promise<void>): void {
+export function afterEachIteration(
+  fn: (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>,
+  timeout?: number,
+): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('afterEach() must be called inside a describe() block');
+    throw new Error(
+      'afterEachIteration() must be called inside a describe() block',
+    );
   }
   if (getInsideItCallback()) {
-    throw new Error('afterEach() cannot be called inside an it() callback');
+    throw new Error(
+      'afterEachIteration() cannot be called inside an it() callback',
+    );
   }
+  validateTimeout(timeout, 'afterEachIteration');
   currentBlock.afterEachHooks.push(fn);
 }
 
 /**
- * Registers a benchmark-level setup hook that runs once before the benchmark starts.
+ * Registers a task/cycle-level setup hook that runs once before each benchmark cycle starts.
  *
- * ⚠️ **TINYBENCH BEHAVIOR - COUNTER-INTUITIVE:** Tinybench executes setup() BEFORE beforeAll()!
+ * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), before beforeAllIterations()
+ * **Frequency:** Runs twice per benchmark (once before warmup cycle, once before run cycle)
+ * **Context:** Tinybench cycle context with Task instance and mode parameter
+ *
+ * ⚠️ **TINYBENCH BEHAVIOR - COUNTER-INTUITIVE:** Tinybench executes setupTask() BEFORE beforeAllIterations()!
  * This is Tinybench's design, not a choice of this wrapper library.
  * See the "Hook Execution Order" section at the top of this file for details.
  *
  * This corresponds to tinybench's BenchOptions.setup - a function that runs before the
- * benchmark starts (before warmup). Use this for expensive initialization that other hooks
- * depend on.
+ * benchmark cycle starts. Use this for expensive initialization that other hooks depend on.
  *
  * **Execution Order:**
- * 1. setupSuite() - runs first
- * 2. **setup() - YOU ARE HERE** ⚠️ Runs BEFORE beforeAll AND before warmup!
- * 3. beforeAll() - runs after this hook
+ * 1. beforeAll() - suite-level (runs first)
+ * 2. **setupTask() - YOU ARE HERE** ⚠️ Runs BEFORE beforeAllIterations AND before warmup!
+ * 3. beforeAllIterations() - runs after this hook
  * 4. WARMUP PHASE (if enabled):
- *    - beforeEach() → benchmark → afterEach()
+ *    - beforeEachIteration() → benchmark → afterEachIteration()
  * 5. MEASUREMENT PHASE:
- *    - beforeEach() → benchmark → afterEach()
- * 6. afterAll() - after all iterations
- * 7. teardown() - cleanup
- * 8. teardownSuite() - runs last
+ *    - beforeEachIteration() → benchmark → afterEachIteration()
+ * 6. afterAllIterations() - after all iterations
+ * 7. teardownTask() - cleanup
+ * 8. afterAll() - suite-level (runs last)
  *
- * **State Availability:** Can safely access state initialized in setupSuite()
+ * **State Availability:** Can safely access state initialized in beforeAll() (suite)
  *
- * **Common Use Case:** Initialize expensive resources that beforeAll/beforeEach will use
+ * **Common Use Case:** Initialize expensive resources per benchmark cycle that beforeAllIterations/beforeEachIteration will use
  *
- * @param fn - The function to run before the benchmark starts
+ * @param fn - Callback receiving Task instance and mode ('warmup' or 'run'). Parameters are optional for backward compatibility.
+ * @param timeout - Optional timeout in milliseconds
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
@@ -374,13 +450,14 @@ export function afterEach(fn: () => void | Promise<void>): void {
  * describe('My Suite', () => {
  *   let expensiveResource;
  *
- *   setup(() => {
- *     // ✅ Runs FIRST (after setupSuite)
+ *   setupTask((task, mode) => {
+ *     // ✅ Runs per cycle (before warmup and before run)
  *     expensiveResource = initializeExpensiveResource();
+ *     console.log(`Setting up ${task.name} for ${mode} cycle`);
  *   });
  *
- *   beforeAll(() => {
- *     // ✅ SAFE: Can use expensiveResource here since setup runs BEFORE beforeAll
+ *   beforeAllIterations(() => {
+ *     // ✅ SAFE: Can use expensiveResource here since setupTask runs BEFORE beforeAllIterations
  *     configureResource(expensiveResource);
  *   });
  *
@@ -391,31 +468,40 @@ export function afterEach(fn: () => void | Promise<void>): void {
  * ```
  *
  * @example
- * ❌ **WRONG:** Don't try to use state from beforeAll in setup
+ * ❌ **WRONG:** Don't try to use state from beforeAllIterations in setupTask
  * ```ts
  * let config;
- * beforeAll(() => { config = loadConfig(); }); // Runs AFTER setup!
- * setup(() => { useConfig(config); }); // ERROR: config is undefined!
+ * beforeAllIterations(() => { config = loadConfig(); }); // Runs AFTER setupTask!
+ * setupTask(() => { useConfig(config); }); // ERROR: config is undefined!
  * ```
  */
-export function setup(fn: () => void | Promise<void>): void {
+export function setupTask(
+  fn: (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>,
+  timeout?: number,
+): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('setup() must be called inside a describe() block');
+    throw new Error('setupTask() must be called inside a describe() block');
   }
   if (getInsideItCallback()) {
-    throw new Error('setup() cannot be called inside an it() callback');
+    throw new Error('setupTask() cannot be called inside an it() callback');
   }
+  validateTimeout(timeout, 'setupTask');
   currentBlock.setupHooks.push(fn);
 }
 
 /**
- * Registers a benchmark-level teardown hook that runs once after the benchmark completes.
+ * Registers a task/cycle-level teardown hook that runs once after each benchmark cycle completes.
+ *
+ * **Lifecycle:** Executes once per benchmark cycle (warmup cycle and run cycle), after afterAllIterations()
+ * **Frequency:** Runs twice per benchmark (once after warmup cycle, once after run cycle)
+ * **Context:** Tinybench cycle context with Task instance and mode parameter
  *
  * This corresponds to tinybench's BenchOptions.teardown - a function that runs after the
- * benchmark completes. Use this to clean up resources created in setup().
+ * benchmark cycle completes. Use this to clean up resources created in setupTask().
  *
- * @param fn - The function to run after the benchmark completes
+ * @param fn - Callback receiving Task instance and mode ('warmup' or 'run'). Parameters are optional for backward compatibility.
+ * @param timeout - Optional timeout in milliseconds
  *
  * @throws {Error} If called outside a describe() block
  * @throws {Error} If called inside an it() callback
@@ -425,12 +511,14 @@ export function setup(fn: () => void | Promise<void>): void {
  * describe('My Suite', () => {
  *   let tempFile;
  *
- *   setup(() => {
+ *   setupTask((task, mode) => {
  *     tempFile = createTempFile();
+ *     console.log(`Created temp file for ${task.name} ${mode} cycle`);
  *   });
  *
- *   teardown(() => {
+ *   teardownTask((task, mode) => {
  *     deleteTempFile(tempFile);
+ *     console.log(`Cleaned up ${task.name} ${mode} cycle`);
  *   });
  *
  *   it('should use temp file', () => {
@@ -439,19 +527,27 @@ export function setup(fn: () => void | Promise<void>): void {
  * });
  * ```
  */
-export function teardown(fn: () => void | Promise<void>): void {
+export function teardownTask(
+  fn: (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>,
+  timeout?: number,
+): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('teardown() must be called inside a describe() block');
+    throw new Error('teardownTask() must be called inside a describe() block');
   }
   if (getInsideItCallback()) {
-    throw new Error('teardown() cannot be called inside an it() callback');
+    throw new Error('teardownTask() cannot be called inside an it() callback');
   }
+  validateTimeout(timeout, 'teardownTask');
   currentBlock.teardownHooks.push(fn);
 }
 
 /**
  * Registers a suite-level setup hook that runs once before all benchmarks in the describe block.
+ *
+ * **Lifecycle:** Executes once before any benchmarks in the suite begin
+ * **Frequency:** Runs once per describe block (before all benchmarks and their cycles)
+ * **Context:** Jest context (runs outside Tinybench, no Task or mode parameters)
  *
  * ✅ **RUNS FIRST:** This is the first hook to execute in the entire suite!
  * See the "Hook Execution Order" section at the top of this file for details.
@@ -460,21 +556,21 @@ export function teardown(fn: () => void | Promise<void>): void {
  * that should be shared across all benchmarks in the suite.
  *
  * **Execution Order:**
- * 1. **setupSuite() - YOU ARE HERE** ✅ Runs FIRST!
- * 2. setup() - per benchmark
- * 3. beforeAll() - per benchmark
- * 4. beforeEach() - per iteration
+ * 1. **beforeAll() - YOU ARE HERE** ✅ Runs FIRST!
+ * 2. setupTask() - per benchmark cycle
+ * 3. beforeAllIterations() - per benchmark cycle
+ * 4. beforeEachIteration() - per iteration
  * 5. benchmark function - per iteration
- * 6. afterEach() - per iteration
- * 7. afterAll() - per benchmark
- * 8. teardown() - per benchmark
- * 9. teardownSuite() - runs last
+ * 6. afterEachIteration() - per iteration
+ * 7. afterAllIterations() - per benchmark cycle
+ * 8. teardownTask() - per benchmark cycle
+ * 9. afterAll() - runs last
  *
  * **State Availability:** State initialized here is available to ALL subsequent hooks
  *
  * **Common Use Case:** Initialize expensive shared resources used across multiple benchmarks
  *
- * @param fn - The function to run before all benchmarks in the suite
+ * @param fn - The function to run before all benchmarks in the suite. Follows Jest's beforeAll pattern with optional done callback.
  * @param timeout - Optional timeout in milliseconds for the hook (must be positive)
  *
  * @throws {Error} If called outside a describe() block
@@ -486,54 +582,58 @@ export function teardown(fn: () => void | Promise<void>): void {
  * describe('My Suite', () => {
  *   let sharedState;
  *
- *   setupSuite(() => {
+ *   beforeAll(() => {
  *     // ✅ Runs FIRST - all other hooks can use sharedState
  *     sharedState = initializeSharedState();
  *   });
  *
  *   // With timeout for long-running setup
- *   setupSuite(async () => {
+ *   beforeAll(async () => {
  *     sharedState = await initializeExpensiveResource();
  *   }, 30000); // 30 second timeout
  *
  *   describe('Group 1', () => {
  *     it('should use shared state', () => {
- *       // ✅ SAFE: sharedState initialized in setupSuite
+ *       // ✅ SAFE: sharedState initialized in beforeAll
  *       processSharedState(sharedState);
  *     });
  *   });
  *
  *   describe('Group 2', () => {
  *     it('should also use shared state', () => {
- *       // ✅ SAFE: sharedState initialized in setupSuite
+ *       // ✅ SAFE: sharedState initialized in beforeAll
  *       processSharedState(sharedState);
  *     });
  *   });
  * });
  * ```
  */
-export function setupSuite(
+export function beforeAll(
   fn: () => void | Promise<void>,
   timeout?: number,
 ): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('setupSuite() must be called inside a describe() block');
+    throw new Error('beforeAll() must be called inside a describe() block');
   }
   if (getInsideItCallback()) {
-    throw new Error('setupSuite() cannot be called inside an it() callback');
+    throw new Error('beforeAll() cannot be called inside an it() callback');
   }
-  validateTimeout(timeout, 'setupSuite');
+  validateTimeout(timeout, 'beforeAll');
   currentBlock.setupSuiteHooks.push({ fn, timeout });
 }
 
 /**
  * Registers a suite-level teardown hook that runs once after all benchmarks in the describe block.
  *
- * This runs after all benchmark tasks have completed. Use this for cleanup of resources
- * initialized in setupSuite().
+ * **Lifecycle:** Executes once after all benchmarks in the suite complete
+ * **Frequency:** Runs once per describe block (after all benchmarks and their cycles)
+ * **Context:** Jest context (runs outside Tinybench, no Task or mode parameters)
  *
- * @param fn - The function to run after all benchmarks in the suite
+ * This runs after all benchmark tasks have completed. Use this for cleanup of resources
+ * initialized in beforeAll().
+ *
+ * @param fn - The function to run after all benchmarks in the suite. Follows Jest's afterAll pattern with optional done callback.
  * @param timeout - Optional timeout in milliseconds for the hook (must be positive)
  *
  * @throws {Error} If called outside a describe() block
@@ -545,16 +645,16 @@ export function setupSuite(
  * describe('My Suite', () => {
  *   let sharedState;
  *
- *   setupSuite(() => {
+ *   beforeAll(() => {
  *     sharedState = initializeSharedState();
  *   });
  *
- *   teardownSuite(() => {
+ *   afterAll(() => {
  *     cleanupSharedState(sharedState);
  *   });
  *
  *   // With timeout for long-running cleanup
- *   teardownSuite(async () => {
+ *   afterAll(async () => {
  *     await cleanupExpensiveResource(sharedState);
  *   }, 15000); // 15 second timeout
  *
@@ -564,18 +664,18 @@ export function setupSuite(
  * });
  * ```
  */
-export function teardownSuite(
+export function afterAll(
   fn: () => void | Promise<void>,
   timeout?: number,
 ): void {
   const currentBlock = getCurrentDescribeBlock();
   if (!currentBlock) {
-    throw new Error('teardownSuite() must be called inside a describe() block');
+    throw new Error('afterAll() must be called inside a describe() block');
   }
   if (getInsideItCallback()) {
-    throw new Error('teardownSuite() cannot be called inside an it() callback');
+    throw new Error('afterAll() cannot be called inside an it() callback');
   }
-  validateTimeout(timeout, 'teardownSuite');
+  validateTimeout(timeout, 'afterAll');
   currentBlock.teardownSuiteHooks.push({ fn, timeout });
 }
 
@@ -666,12 +766,24 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
   const effectiveQuiet = quiet ?? currentBlock.quiet ?? false;
 
   // Collect hooks from current block and all ancestors
-  const beforeAllHooks: Array<() => void | Promise<void>> = [];
-  const afterAllHooks: Array<() => void | Promise<void>> = [];
-  const beforeEachHooks: Array<() => void | Promise<void>> = [];
-  const afterEachHooks: Array<() => void | Promise<void>> = [];
-  const setupHooks: Array<() => void | Promise<void>> = [];
-  const teardownHooks: Array<() => void | Promise<void>> = [];
+  const beforeAllIterationsHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  > = [];
+  const afterAllIterationsHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  > = [];
+  const beforeEachIterationHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  > = [];
+  const afterEachIterationHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  > = [];
+  const setupTaskHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  > = [];
+  const teardownTaskHooks: Array<
+    (task?: Task, mode?: 'run' | 'warmup') => void | Promise<void>
+  > = [];
 
   let block: DescribeBlock | undefined = currentBlock;
   const blocks: DescribeBlock[] = [];
@@ -684,88 +796,91 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
 
   // Collect hooks in order from root to current
   for (const b of blocks) {
-    beforeAllHooks.push(...b.beforeAllHooks);
-    afterAllHooks.push(...b.afterAllHooks);
-    beforeEachHooks.push(...b.beforeEachHooks);
-    afterEachHooks.push(...b.afterEachHooks);
-    setupHooks.push(...b.setupHooks);
-    teardownHooks.push(...b.teardownHooks);
+    beforeAllIterationsHooks.push(...b.beforeAllHooks);
+    afterAllIterationsHooks.push(...b.afterAllHooks);
+    beforeEachIterationHooks.push(...b.beforeEachHooks);
+    afterEachIterationHooks.push(...b.afterEachHooks);
+    setupTaskHooks.push(...b.setupHooks);
+    teardownTaskHooks.push(...b.teardownHooks);
   }
 
   const fnOptions: FnOptions = {};
 
-  if (beforeAllHooks.length > 0) {
-    fnOptions.beforeAll = async () => {
-      for (const hook of beforeAllHooks) {
-        await hook();
+  if (beforeAllIterationsHooks.length > 0) {
+    fnOptions.beforeAll = async function (this: Task, mode?: 'run' | 'warmup') {
+      for (const hook of beforeAllIterationsHooks) {
+        await hook(this, mode);
       }
     };
   }
 
-  if (afterAllHooks.length > 0) {
-    fnOptions.afterAll = async () => {
-      for (const hook of afterAllHooks) {
-        await hook();
+  if (afterAllIterationsHooks.length > 0) {
+    fnOptions.afterAll = async function (this: Task, mode?: 'run' | 'warmup') {
+      for (const hook of afterAllIterationsHooks) {
+        await hook(this, mode);
       }
     };
   }
 
-  if (beforeEachHooks.length > 0) {
-    fnOptions.beforeEach = async () => {
+  if (beforeEachIterationHooks.length > 0) {
+    fnOptions.beforeEach = async function (
+      this: Task,
+      mode?: 'run' | 'warmup',
+    ) {
       // ⚠️ WARNING: This runs THOUSANDS of times per benchmark (warmup + measured iterations)!
       // Slow operations here will severely impact benchmark accuracy.
 
       // Only measure performance if warnings are enabled (not quiet)
       const startTime = effectiveQuiet ? 0 : performance.now();
 
-      for (const hook of beforeEachHooks) {
-        await hook();
+      for (const hook of beforeEachIterationHooks) {
+        await hook(this, mode);
       }
 
-      // Warn if beforeEach takes too long (indicates expensive operations)
+      // Warn if beforeEachIteration takes too long (indicates expensive operations)
       // Only measure and warn if quiet flag is not set
       if (!effectiveQuiet) {
         const duration = performance.now() - startTime;
         if (duration > 10) {
           // More than 10ms is suspiciously slow for per-iteration setup
           console.warn(
-            `⚠️ Performance Warning: beforeEach hook took ${duration.toFixed(2)}ms. ` +
+            `⚠️ Performance Warning: beforeEachIteration hook took ${duration.toFixed(2)}ms. ` +
               `This runs THOUSANDS of times (including warmup iterations) and may impact benchmark accuracy. ` +
-              `Consider moving expensive operations to setup() or beforeAll().`,
+              `Consider moving expensive operations to setupTask() or beforeAllIterations().`,
           );
         }
       }
     };
   }
 
-  if (afterEachHooks.length > 0) {
-    fnOptions.afterEach = async () => {
-      for (const hook of afterEachHooks) {
-        await hook();
+  if (afterEachIterationHooks.length > 0) {
+    fnOptions.afterEach = async function (this: Task, mode?: 'run' | 'warmup') {
+      for (const hook of afterEachIterationHooks) {
+        await hook(this, mode);
       }
     };
   }
 
-  // Add setup/teardown as bench options if present
+  // Add setupTask/teardownTask as bench options if present
   let benchOptions = benchOptionsWithoutTimeout;
-  if (setupHooks.length > 0 || teardownHooks.length > 0) {
+  if (setupTaskHooks.length > 0 || teardownTaskHooks.length > 0) {
     benchOptions = { ...benchOptionsWithoutTimeout };
-    if (setupHooks.length > 0) {
-      benchOptions.setup = async () => {
-        // ⚠️ TINYBENCH EXECUTION ORDER: Tinybench calls setup() BEFORE beforeAll()
+    if (setupTaskHooks.length > 0) {
+      benchOptions.setup = async (task?: Task, mode?: 'run' | 'warmup') => {
+        // ⚠️ TINYBENCH EXECUTION ORDER: Tinybench calls setupTask() BEFORE beforeAllIterations()
         // This is counter-intuitive but is how Tinybench works internally!
         // We cannot change this order - it's defined by Tinybench's implementation.
-        // State initialized here IS available in beforeAll/beforeEach.
-        for (const hook of setupHooks) {
-          await hook();
+        // State initialized here IS available in beforeAllIterations/beforeEachIteration.
+        for (const hook of setupTaskHooks) {
+          await hook(task, mode);
         }
       };
     }
-    if (teardownHooks.length > 0) {
-      benchOptions.teardown = async () => {
-        // Runs AFTER afterAll() to clean up resources from setup()
-        for (const hook of teardownHooks) {
-          await hook();
+    if (teardownTaskHooks.length > 0) {
+      benchOptions.teardown = async (task?: Task, mode?: 'run' | 'warmup') => {
+        // Runs AFTER afterAllIterations() to clean up resources from setupTask()
+        for (const hook of teardownTaskHooks) {
+          await hook(task, mode);
         }
       };
     }
@@ -974,35 +1089,35 @@ function runDescribeBlock(block: DescribeBlock): void {
      * The order in steps 2.a-2.f is determined by Tinybench's implementation,
      * not by this wrapper. We simply register hooks according to Tinybench's API.
      *
-     * 1. setupSuite() - registered as Jest beforeAll (runs FIRST)
+     * 1. beforeAll() [suite-level] - registered as Jest beforeAll (runs FIRST)
      * 2. Benchmark execution - registered as Jest beforeAll (runs SECOND)
      *    - For each benchmark (Tinybench controls this order):
-     *      a. setup() - BenchOptions.setup (⚠️ Tinybench runs this BEFORE beforeAll!)
-     *      b. beforeAll() - FnOptions.beforeAll
-     *      c. WARMUP PHASE (if warmup enabled):
-     *         - beforeEach() → benchmark function → afterEach()
-     *         - Repeated for warmup iterations (typically 5)
-     *         - ⚠️ beforeEach/afterEach run during warmup!
-     *      d. MEASUREMENT PHASE:
-     *         - beforeEach() → benchmark function → afterEach()
-     *         - Repeated for measured iterations (hundreds/thousands)
-     *      e. afterAll() - FnOptions.afterAll
-     *      f. teardown() - BenchOptions.teardown
-     * 3. teardownSuite() - registered as Jest afterAll (runs LAST)
+     *      a. setupTask() - BenchOptions.setup (⚠️ Tinybench runs this BEFORE beforeAllIterations!)
+     *      b. beforeAllIterations() - FnOptions.beforeAll
+     *      c. WARMUP PHASE (if warmup enabled, mode='warmup'):
+     *         - beforeEachIteration() → benchmark function → afterEachIteration()
+     *         - Repeated for warmup iterations (typically ~16)
+     *         - ⚠️ beforeEachIteration/afterEachIteration run during warmup!
+     *      d. MEASUREMENT PHASE (mode='run'):
+     *         - beforeEachIteration() → benchmark function → afterEachIteration()
+     *         - Repeated for measured iterations (typically ~1000)
+     *      e. afterAllIterations() - FnOptions.afterAll
+     *      f. teardownTask() - BenchOptions.teardown
+     * 3. afterAll() [suite-level] - registered as Jest afterAll (runs LAST)
      */
 
-    // STEP 1: Run setupSuite hooks (registered FIRST)
+    // STEP 1: Run beforeAll (suite-level) hooks (registered FIRST)
     for (const hook of block.setupSuiteHooks) {
       const timeout = hook.timeout;
       if (timeout !== undefined) {
-        validateTimeout(timeout, 'setupSuite');
+        validateTimeout(timeout, 'beforeAll');
         getJestBeforeAll()(hook.fn, timeout);
       } else {
         getJestBeforeAll()(hook.fn);
       }
     }
 
-    // STEP 2: Run all benchmarks (registered AFTER setupSuite hooks)
+    // STEP 2: Run all benchmarks (registered AFTER suite-level beforeAll hooks)
     getJestBeforeAll()(async () => {
       summaryLines = [];
 
@@ -1032,11 +1147,11 @@ function runDescribeBlock(block: DescribeBlock): void {
       }
     });
 
-    // STEP 3: Run teardownSuite hooks (registered AFTER benchmark hook)
+    // STEP 3: Run afterAll (suite-level) hooks (registered AFTER benchmark hook)
     for (const hook of block.teardownSuiteHooks) {
       const timeout = hook.timeout;
       if (timeout !== undefined) {
-        validateTimeout(timeout, 'teardownSuite');
+        validateTimeout(timeout, 'afterAll');
         getJestAfterAll()(hook.fn, timeout);
       } else {
         getJestAfterAll()(hook.fn);

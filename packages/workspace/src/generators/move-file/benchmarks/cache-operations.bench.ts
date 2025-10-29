@@ -1,9 +1,9 @@
 import {
-  beforeAll,
-  beforeEach,
+  beforeAllIterations,
+  beforeEachIteration,
   describe,
   it,
-  teardown,
+  teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { cachedTreeExists } from '../cache/cached-tree-exists';
@@ -18,7 +18,7 @@ describe('Cache Operations', () => {
   let tree: Tree;
   let testFiles: readonly string[];
 
-  beforeAll(() => {
+  beforeAllIterations(() => {
     fileExistenceCache = new Map();
     projectRoot = 'libs/test-lib';
     projectSourceFilesCache = new Map();
@@ -30,7 +30,7 @@ describe('Cache Operations', () => {
     testFiles.forEach((file) => tree.write(file, 'export {};'));
   });
 
-  teardown(() => {
+  teardownTask(() => {
     fileExistenceCache.clear();
     projectSourceFilesCache.clear();
   });
@@ -48,7 +48,7 @@ describe('Cache Operations', () => {
   });
 
   describe('Cache miss', () => {
-    beforeEach(() => {
+    beforeEachIteration(() => {
       // Clear cache to ensure we measure cache misses, not hits from previous benchmarks
       fileExistenceCache.clear();
     });
@@ -76,7 +76,7 @@ describe('Cache Operations', () => {
   });
 
   describe('Cache update', () => {
-    beforeEach(() => {
+    beforeEachIteration(() => {
       // Pre-populate cache with the old path that will be updated
       projectSourceFilesCache.set(projectRoot, [
         `${projectRoot}/src/lib/old.ts`,

@@ -1,9 +1,9 @@
 import {
-  beforeAll,
+  beforeAllIterations,
   describe,
   it,
-  setup,
-  teardown,
+  setupTask,
+  teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import type { ProjectConfiguration, Tree } from '@nx/devkit';
@@ -22,7 +22,7 @@ describe('Validation Operations', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  beforeAll(() => {
+  beforeAllIterations(() => {
     cachedTreeExists = (tree, filePath) =>
       cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
     fileExistenceCache = new Map<string, boolean>();
@@ -36,19 +36,19 @@ describe('Validation Operations', () => {
     treeReadCache = new TreeReadCache();
   });
 
-  setup(() => {
+  setupTask(() => {
     clearCache();
     sourceFiles = [];
     tree = createTreeWithEmptyWorkspace();
   });
 
-  teardown(() => {
+  teardownTask(() => {
     fileExistenceCache.clear();
     treeReadCache.clear();
   });
 
   describe('Check for relative imports - no imports', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       sourceFiles = Array.from({ length: 20 }, (_, i) =>
         i === 0 ? targetFile : `packages/lib1/src/lib/file-${i}.ts`,
       );
@@ -69,7 +69,7 @@ describe('Validation Operations', () => {
   });
 
   describe('Check for relative imports - with imports', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       const importerFile = 'packages/lib1/src/lib/main.ts';
       const otherFiles = Array.from({ length: 18 }, (_, i) =>
         i === 0 ? targetFile : `packages/lib1/src/lib/file-${i}.ts`,
@@ -104,7 +104,7 @@ describe('Validation Operations', () => {
   });
 
   describe('Check for relative imports - nested paths', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       const importerFile = 'packages/lib1/src/lib/features/auth/login.ts';
       sourceFiles = [targetFile, importerFile];
 
@@ -129,7 +129,7 @@ describe('Validation Operations', () => {
   });
 
   describe('Check for relative imports - large project', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       // Simulate a larger project with 100 files
       sourceFiles = Array.from({ length: 100 }, (_, i) =>
         i === 0 ? targetFile : `packages/lib1/src/lib/file-${i}.ts`,
@@ -166,7 +166,7 @@ describe('Validation Operations', () => {
   });
 
   describe('Check for unexported dependencies - no imports', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       tree.write('packages/lib1/src/index.ts', '');
       tree.write(targetFile, 'export function helper() { return "hello"; }');
     });
@@ -182,7 +182,7 @@ describe('Validation Operations', () => {
   });
 
   describe('Check for unexported dependencies - multiple imports', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       tree.write('packages/lib1/src/index.ts', '');
 
       // Create multiple dependency files
@@ -215,7 +215,7 @@ describe('Validation Operations', () => {
   });
 
   describe('Check for unexported dependencies - large file', () => {
-    beforeAll(() => {
+    beforeAllIterations(() => {
       tree.write('packages/lib1/src/index.ts', '');
 
       // Create a large number of dependency files

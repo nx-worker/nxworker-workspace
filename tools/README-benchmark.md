@@ -13,7 +13,7 @@ This directory contains performance benchmarking utilities and tools for the nxw
 
 The benchmark API provides a Jest-like interface using `describe()` and `it()` patterns, wrapping [tinybench](https://github.com/tinylibs/tinybench) and outputting results in jest-bench format compatible with [benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
 
-All functions (`describe`, `it`, `beforeAll`, `afterAll`, `beforeEach`, `afterEach`, `setup`, `teardown`, `setupSuite`, `teardownSuite`) must be imported from `tools/tinybench-utils` - they are not globals.
+All functions (`describe`, `it`, `beforeAll`, `afterAll`, `beforeAllIterations`, `afterAllIterations`, `beforeEachIteration`, `afterEachIteration`, `setupTask`, `teardownTask`) must be imported from `tools/tinybench-utils` - they are not globals.
 
 ### Basic Usage
 
@@ -38,24 +38,24 @@ import {
   it,
   beforeAll,
   afterAll,
-  beforeEach,
-  afterEach,
-  setup,
-  teardown,
-  setupSuite,
-  teardownSuite,
+  beforeAllIterations,
+  afterAllIterations,
+  beforeEachIteration,
+  afterEachIteration,
+  setupTask,
+  teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 
 describe('Benchmark Suite with Hooks', () => {
   let suiteData;
 
-  // Suite-level hooks (run once per describe block)
-  setupSuite(() => {
+  // Suite-level hooks (run once per describe block, Jest context)
+  beforeAll(() => {
     // Runs once before all benchmarks in this describe block
     suiteData = initializeSuiteData();
   });
 
-  teardownSuite(() => {
+  afterAll(() => {
     // Runs once after all benchmarks in this describe block
     cleanupSuiteData(suiteData);
   });
@@ -63,40 +63,40 @@ describe('Benchmark Suite with Hooks', () => {
   describe('Individual Benchmark', () => {
     let benchmarkData;
 
-    // Benchmark-level setup/teardown (BenchOptions)
-    setup(() => {
-      // Runs before warmup iterations
+    // Task-level setup/teardown (BenchOptions, per task/cycle)
+    setupTask(() => {
+      // Runs before each warmup and run cycle
       benchmarkData = initializeBenchmark();
     });
 
-    teardown(() => {
-      // Runs after all benchmark iterations
+    teardownTask(() => {
+      // Runs after each warmup and run cycle
       cleanupBenchmark(benchmarkData);
     });
 
-    // Iteration-level hooks (fnOptions)
-    beforeAll(() => {
-      // Runs once before actual benchmark (after warmup)
+    // Iteration group hooks (fnOptions, per cycle)
+    beforeAllIterations(() => {
+      // Runs once before each cycle (warmup and run)
       prepareBenchmark();
     });
 
-    afterAll(() => {
-      // Runs once after actual benchmark completes
+    afterAllIterations(() => {
+      // Runs once after each cycle completes
       finalizeBenchmark();
     });
 
-    beforeEach(() => {
-      // Runs before each iteration (including warmup)
+    beforeEachIteration(() => {
+      // Runs before each iteration (all iterations)
       resetIterationState();
     });
 
-    afterEach(() => {
-      // Runs after each iteration (including warmup)
+    afterEachIteration(() => {
+      // Runs after each iteration (all iterations)
       cleanupIterationState();
     });
 
     it('should perform operation', () => {
-      // This runs many times
+      // This runs many times per cycle
       doWork();
     });
   });
@@ -107,16 +107,32 @@ describe('Benchmark Suite with Hooks', () => {
 
 Hooks execute in this order for each benchmark:
 
-1. `setupSuite` - runs once before all benchmarks in the describe block
-2. `setup` - runs before warmup
-3. warmup iterations (with `beforeEach`/`afterEach`)
-4. `beforeAll` - runs before actual benchmark
-5. benchmark iterations (with `beforeEach`/`afterEach`)
-6. `afterAll` - runs after benchmark
-7. `teardown` - runs after benchmark
-8. `teardownSuite` - runs once after all benchmarks in the describe block
+1. **Suite level (Jest context)** - runs once per describe block:
+   - `beforeAll` - runs once before all benchmarks
 
-**Important**: `setup` (BenchOptions) runs **before** `beforeAll` (fnOptions). Any initialization that other hooks depend on must be in `setup`, not `beforeAll`.
+2. **Per benchmark** - runs for each `it()`:
+   - `setupTask` - runs before warmup cycle
+   - `beforeAllIterations` - runs once before warmup iterations
+   - warmup iterations (with `beforeEachIteration`/`afterEachIteration`)
+   - `afterAllIterations` - runs once after warmup
+   - `teardownTask` - runs after warmup
+   - `setupTask` - runs before run cycle
+   - `beforeAllIterations` - runs once before run iterations
+   - run iterations (with `beforeEachIteration`/`afterEachIteration`)
+   - `afterAllIterations` - runs once after run
+   - `teardownTask` - runs after run
+
+3. **Suite level (Jest context)** - runs once per describe block:
+   - `afterAll` - runs once after all benchmarks
+
+**Execution Frequency**:
+
+- Suite hooks (`beforeAll`/`afterAll`): 1× per describe block
+- Task hooks (`setupTask`/`teardownTask`): 2× per benchmark (once for warmup, once for run)
+- Iteration group hooks (`beforeAllIterations`/`afterAllIterations`): 2× per benchmark (once per cycle)
+- Iteration hooks (`beforeEachIteration`/`afterEachIteration`): ~1000× per benchmark (all iterations)
+
+**Important**: `setupTask` runs **before** `beforeAllIterations`. Any initialization that other hooks depend on must be in `setupTask`, not `beforeAllIterations`.
 
 ### Nested Describe Blocks
 
@@ -126,7 +142,7 @@ Each inner `describe` block creates its own Bench instance and inherits hooks fr
 describe('Parent Suite', () => {
   let sharedState;
 
-  setupSuite(() => {
+  beforeAll(() => {
     sharedState = initializeShared();
   });
 
@@ -140,7 +156,7 @@ describe('Parent Suite', () => {
   describe('Child Suite 2', () => {
     let localState;
 
-    beforeAll(() => {
+    beforeAllIterations(() => {
       localState = initializeLocal();
     });
 
@@ -186,7 +202,7 @@ it(
 
 The API automatically monitors hook performance:
 
-- Warns when `beforeEach` hooks take >10ms (indicates expensive operations that should be in `setup`)
+- Warns when `beforeEachIteration` hooks take >10ms (indicates expensive operations that should be in `setupTask`)
 - Provides detailed timing information in output
 
 ### Hook Validation
