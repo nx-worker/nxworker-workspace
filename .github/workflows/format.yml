@@ -2,6 +2,11 @@ name: Format Code
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to format (defaults to current branch if not specified)'
+        required: false
+        type: string
 
 permissions:
   contents: write # needed to amend commits and force push
@@ -17,6 +22,8 @@ jobs:
           fetch-depth: 0
           # Use token that allows force push
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Use the branch input if provided, otherwise use the default branch
+          ref: ${{ inputs.branch || github.ref }}
 
       - name: Check if running on default branch
         id: check-branch
@@ -49,7 +56,13 @@ jobs:
           DEFAULT_BRANCH="${{ steps.check-branch.outputs.default-branch }}"
 
           # Get the current branch name
-          CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+          # If a branch was specified via workflow input, use that
+          # Otherwise, use the branch from GITHUB_REF
+          if [ -n "${{ inputs.branch }}" ]; then
+            CURRENT_BRANCH="${{ inputs.branch }}"
+          else
+            CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+          fi
 
           # Check if this branch has an open pull request and use its target branch
           BASE_BRANCH=$(gh pr view "$CURRENT_BRANCH" --json baseRefName --jq '.baseRefName' 2>/dev/null || echo "")
@@ -213,8 +226,17 @@ jobs:
 
       - name: Force push formatted commits
         run: |
+          # Determine the branch name to push to
+          # If a branch was specified via workflow input, use that
+          # Otherwise, use the branch from github.ref_name
+          if [ -n "${{ inputs.branch }}" ]; then
+            BRANCH_NAME="${{ inputs.branch }}"
+          else
+            BRANCH_NAME="${{ github.ref_name }}"
+          fi
+
           # Force push the reformatted branch
           # Use --force-with-lease for safety (protects against concurrent updates)
           # Note: --force-if-includes requires Git 2.30+, so we use just --force-with-lease
-          git push --force-with-lease origin "HEAD:${{ github.ref_name }}"
-          echo "✓ Successfully pushed formatted commits to ${{ github.ref_name }}"
+          git push --force-with-lease origin "HEAD:$BRANCH_NAME"
+          echo "✓ Successfully pushed formatted commits to $BRANCH_NAME"
