@@ -54,12 +54,12 @@ describe('tinybench-utils hook registration', () => {
     }) as typeof globalThis.afterAll;
 
     // Mock describe to execute callback immediately
-    globalThis.describe = jest.fn((name: string, callback: () => void) => {
+    globalThis.describe = jest.fn((_name: string, callback: () => void) => {
       callback();
-    }) as typeof globalThis.describe;
+    }) as unknown as typeof globalThis.describe;
 
     // Mock it to capture registration without executing
-    globalThis.it = jest.fn() as typeof globalThis.it;
+    globalThis.it = jest.fn() as unknown as typeof globalThis.it;
   });
 
   afterEach(() => {
