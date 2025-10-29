@@ -1,0 +1,31 @@
+{
+  "name": "@nxworker/test-utils",
+  "version": "0.0.1",
+  "description": "Test utilities for nxworker packages, including globally unique ID generation",
+  "keywords": [
+    "test",
+    "testing",
+    "utilities",
+    "nx"
+  ],
+  "author": "Lars Gyrup Brink Nielsen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-worker/nxworker-workspace.git",
+    "directory": "packages/test-utils"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-worker/nxworker-workspace/issues"
+  },
+  "homepage": "https://github.com/nx-worker/nxworker-workspace#readme",
+  "engines": {
+    "node": ">=18.0.0 <23.0.0"
+  },
+  "dependencies": {
+    "@swc/helpers": "~0.5.11"
+  },
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "typings": "./src/index.d.ts"
+}

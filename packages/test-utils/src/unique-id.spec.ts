@@ -1,4 +1,4 @@
-import { uniqueId } from './test-utils';
+import { uniqueId } from './unique-id';
 
 describe('uniqueId', () => {
   it('should generate a unique ID without prefix', () => {
