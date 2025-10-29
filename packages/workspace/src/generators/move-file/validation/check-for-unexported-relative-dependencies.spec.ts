@@ -3,6 +3,7 @@ import { Tree, addProjectConfiguration } from '@nx/devkit';
 import { checkForUnexportedRelativeDependencies } from './check-for-unexported-relative-dependencies';
 import { clearCache } from '../jscodeshift-utils';
 import { treeReadCache } from '../tree-cache';
+import { clearIndexExportsCache } from '../export-management/index-exports-cache';
 
 describe('checkForUnexportedRelativeDependencies', () => {
   let tree: Tree;
@@ -13,6 +14,8 @@ describe('checkForUnexportedRelativeDependencies', () => {
     clearCache();
     // Clear tree read cache as well
     treeReadCache.clear();
+    // Clear index exports cache
+    clearIndexExportsCache();
 
     tree = createTreeWithEmptyWorkspace();
 

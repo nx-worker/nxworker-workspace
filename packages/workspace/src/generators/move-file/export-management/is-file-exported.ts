@@ -2,19 +2,22 @@ import type { Tree } from '@nx/devkit';
 import type { ProjectConfiguration } from '@nx/devkit';
 import { getProjectEntryPointPaths } from '../project-analysis/get-project-entry-point-paths';
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
-import { escapeRegex } from '../security-utils/escape-regex';
-import { treeReadCache } from '../tree-cache';
+import { getIndexExports } from './index-exports-cache';
 
 /**
  * Checks if a file is exported from the project's entrypoint.
  *
- * This function scans project entrypoint files (index.ts, index.tsx, etc.)
- * and checks for export statements matching the given file.
+ * This function uses the index exports cache to scan project entrypoint files
+ * (index.ts, index.tsx, etc.) and checks for re-export statements matching the given file.
  *
  * Supported export patterns:
  * - export * from "path"
  * - export { Something } from "path"
  * - export Something from "path"
+ *
+ * Note: The cache system now parses local declarations, but this function currently
+ * only checks for re-exports (export ... from). It does not check if symbols from
+ * the file are individually defined/exported in the index file via local declarations.
  *
  * @param tree - The virtual file system tree.
  * @param project - Project configuration.
@@ -31,22 +34,32 @@ export function isFileExported(
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
   const fileWithoutExt = removeSourceFileExtension(file);
-  const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
     if (!cachedTreeExists(tree, indexPath)) {
       return false;
     }
-    const content = treeReadCache.read(tree, indexPath, 'utf-8');
-    if (!content) {
-      return false;
+
+    // Use the new cache to get re-exports
+    const indexExports = getIndexExports(tree, indexPath);
+
+    // Check if any re-export path matches the file
+    // The file path (e.g., 'lib/utils.ts') should match re-export paths like:
+    // - './lib/utils'
+    // - './lib/utils.ts'
+    // - '../lib/utils'
+    for (const reexport of indexExports.reexports) {
+      // Remove leading './' or '../' from reexport path
+      const normalizedReexport = reexport.replace(/^\.\.?\//, '');
+      // Remove extension if present
+      const reexportWithoutExt = removeSourceFileExtension(normalizedReexport);
+
+      // Compare without extensions
+      if (reexportWithoutExt === fileWithoutExt) {
+        return true;
+      }
     }
-    // Support: export ... from "path"
-    // Support: export * from "path"
-    // Support: export { Something } from "path"
-    const exportPattern = new RegExp(
-      `export\\s+(?:\\*|\\{[^}]+\\}|.+)\\s+from\\s+['"]\\.?\\.?/.*${escapedFile}['"]`,
-    );
-    return exportPattern.test(content);
+
+    return false;
   });
 }
