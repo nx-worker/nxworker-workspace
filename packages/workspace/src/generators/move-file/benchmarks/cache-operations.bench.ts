@@ -1,4 +1,5 @@
 import {
+  beforeAll,
   beforeEachIteration,
   describe,
   it,
@@ -18,17 +19,22 @@ describe('Cache Operations', () => {
   let tree: Tree;
   let testFiles: readonly string[];
 
-  setupTask(() => {
-    // Create fresh state for each task cycle (warmup and run)
-    fileExistenceCache = new Map();
+  // ✅ OPTIMIZED: Move expensive tree creation and file writes to suite-level beforeAll
+  // Runs once per suite instead of 1-2 times per benchmark
+  beforeAll(() => {
     projectRoot = 'libs/test-lib';
-    projectSourceFilesCache = new Map();
     tree = createTreeWithEmptyWorkspace();
     testFiles = Array.from(
       { length: 100 },
       (_, i) => `${projectRoot}/src/lib/file-${i}.ts`,
     );
     testFiles.forEach((file) => tree.write(file, 'export {};'));
+  });
+
+  setupTask(() => {
+    // Reset caches for each task cycle (warmup and run)
+    fileExistenceCache = new Map();
+    projectSourceFilesCache = new Map();
   });
 
   teardownTask(() => {

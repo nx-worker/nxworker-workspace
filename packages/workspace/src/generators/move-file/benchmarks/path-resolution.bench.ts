@@ -1,5 +1,5 @@
 import {
-  beforeAllIterations,
+  beforeAll,
   describe,
   it,
 } from '../../../../../../tools/tinybench-utils';
@@ -20,7 +20,9 @@ describe('Path Resolution', () => {
   describe('buildPatterns (100 files)', () => {
     let buildPatternsPrefixes: readonly string[];
 
-    beforeAllIterations(() => {
+    // ✅ OPTIMIZED: Move array creation to suite-level beforeAll
+    // Runs once per suite instead of 1-2 times per benchmark
+    beforeAll(() => {
       buildPatternsPrefixes = Array.from(
         { length: 100 },
         (_, i) => `libs/lib-${i}/`,

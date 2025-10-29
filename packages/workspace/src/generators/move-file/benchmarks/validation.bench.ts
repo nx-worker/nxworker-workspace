@@ -1,4 +1,5 @@
 import {
+  beforeAll,
   beforeAllIterations,
   describe,
   it,
@@ -22,11 +23,10 @@ describe('Validation Operations', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  setupTask(() => {
-    // Initialize all state fresh for each task cycle (warmup and run)
-    cachedTreeExists = (tree, filePath) =>
-      cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
-    fileExistenceCache = new Map<string, boolean>();
+  // ✅ OPTIMIZED: Move expensive tree creation and immutable configs to suite-level beforeAll
+  // Runs once per suite instead of 1-2 times per benchmark
+  beforeAll(() => {
+    tree = createTreeWithEmptyWorkspace();
     project = {
       name: 'lib1',
       root: 'packages/lib1',
@@ -34,10 +34,16 @@ describe('Validation Operations', () => {
       projectType: 'library',
     };
     targetFile = 'packages/lib1/src/lib/utils/helper.ts';
+  });
+
+  setupTask(() => {
+    // Reset caches and helper function for each task cycle (warmup and run)
+    fileExistenceCache = new Map<string, boolean>();
+    cachedTreeExists = (tree, filePath) =>
+      cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
     treeReadCache = new TreeReadCache();
     clearCache();
     sourceFiles = [];
-    tree = createTreeWithEmptyWorkspace();
   });
 
   teardownTask(() => {

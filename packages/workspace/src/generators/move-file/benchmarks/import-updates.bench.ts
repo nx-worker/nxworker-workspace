@@ -1,4 +1,5 @@
 import {
+  beforeAll,
   describe,
   it,
   setupTask,
@@ -16,9 +17,19 @@ describe('Import Updates', () => {
   let targetFile: string;
   let projects: Map<string, ProjectConfiguration>;
   let tree: Tree;
+  const fileContent = `
+        import { service1 } from './services/service1';
+        import { service2 } from './services/service2';
+        import { util1 } from './utils/util1';
 
-  setupTask(() => {
-    // Initialize tree and project data
+        export function myFunction() {
+          return service1() + service2() + util1();
+        }
+      `;
+
+  // ✅ OPTIMIZED: Move expensive tree creation, project configs, and file paths to suite-level beforeAll
+  // Runs once per suite instead of 1-2 times per benchmark
+  beforeAll(() => {
     tree = createTreeWithEmptyWorkspace();
     projects = new Map();
     projects.set('lib-a', {
@@ -35,18 +46,11 @@ describe('Import Updates', () => {
     });
     sourceFile = 'libs/lib-a/src/lib/source.ts';
     targetFile = 'libs/lib-b/src/lib/target.ts';
+  });
+
+  setupTask(() => {
+    // Reset cache and write source file for each task cycle (warmup and run)
     fileExistenceCache = new Map<string, boolean>();
-
-    // Write source file
-    const fileContent = `
-        import { service1 } from './services/service1';
-        import { service2 } from './services/service2';
-        import { util1 } from './utils/util1';
-
-        export function myFunction() {
-          return service1() + service2() + util1();
-        }
-      `;
     tree.write(sourceFile, fileContent);
   });
 

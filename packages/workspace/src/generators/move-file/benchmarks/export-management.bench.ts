@@ -1,4 +1,5 @@
 import {
+  beforeAll,
   beforeAllIterations,
   describe,
   it,
@@ -21,19 +22,24 @@ describe('Export Management', () => {
   let tree: Tree;
   let treeReadCache: TreeReadCache;
 
-  setupTask(() => {
-    // Initialize all state fresh for each task cycle (warmup and run)
-    cachedTreeExists = (tree, filePath) =>
-      cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
+  // ✅ OPTIMIZED: Move expensive tree creation and immutable configs to suite-level beforeAll
+  // Runs once per suite instead of 1-2 times per benchmark
+  beforeAll(() => {
+    tree = createTreeWithEmptyWorkspace();
     entryPoint = 'libs/my-lib/src/index.ts';
-    fileExistenceCache = new Map<string, boolean>();
     project = {
       root: 'libs/my-lib',
       sourceRoot: 'libs/my-lib/src',
       name: 'my-lib',
     };
+  });
+
+  setupTask(() => {
+    // Reset caches and helper function for each task cycle (warmup and run)
+    fileExistenceCache = new Map<string, boolean>();
+    cachedTreeExists = (tree, filePath) =>
+      cachedTreeExistsImpl(tree, filePath, fileExistenceCache);
     treeReadCache = new TreeReadCache();
-    tree = createTreeWithEmptyWorkspace();
   });
 
   teardownTask(() => {
