@@ -1,0 +1,23 @@
+{
+  "name": "@internal/test-util",
+  "version": "0.0.1",
+  "description": "Internal test utilities for nxworker workspace, including globally unique ID generation",
+  "keywords": [
+    "test",
+    "testing",
+    "utilities",
+    "internal"
+  ],
+  "author": "Lars Gyrup Brink Nielsen",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0 <23.0.0"
+  },
+  "dependencies": {
+    "@swc/helpers": "~0.5.11"
+  },
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "typings": "./src/index.d.ts"
+}
