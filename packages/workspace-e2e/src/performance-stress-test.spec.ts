@@ -1,4 +1,4 @@
-import { uniqueId } from 'lodash';
+import { uniqueId } from './test-utils';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
