@@ -44,9 +44,7 @@ export function isFileExported(
     // Use cached export analysis for index file
     const indexExports = getIndexExports(tree, indexPath);
     // Compare against file path without extension (as stored)
-    return (
-      indexExports.exports.has(`./${fileWithoutExt}`) ||
-      indexExports.reexports.has(`./${fileWithoutExt}`)
-    );
+    // Since local exports are not yet collected, rely on reexports for detection.
+    return indexExports.reexports.has(`./${fileWithoutExt}`);
   });
 }
