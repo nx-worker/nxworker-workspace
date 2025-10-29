@@ -114,9 +114,9 @@ describe('Move-File Generator E2E Stress Tests', () => {
       }
     });
 
-    afterEachIteration(() => {
+    beforeEachIteration(() => {
       const projectCount = libs.length;
-      // Move utility file back to first project
+      // Ensure utility file is in first project before each iteration
       const movedPath = join(
         projectDirectory,
         libs[projectCount - 1],
@@ -132,24 +132,20 @@ describe('Move-File Generator E2E Stress Tests', () => {
         utilityFile,
       );
 
-      try {
-        writeFileSync(originalPath, utilityContent);
-        rmSync(movedPath, { force: true });
+      writeFileSync(originalPath, utilityContent);
+      rmSync(movedPath, { force: true });
 
-        // Reset index file
-        const sourceIndexPath = join(
-          projectDirectory,
-          libs[0],
-          'src',
-          'index.ts',
-        );
-        writeFileSync(
-          sourceIndexPath,
-          `export * from './lib/${utilityFile.replace('.ts', '')}';\n`,
-        );
-      } catch {
-        // File might not have been moved yet, ignore
-      }
+      // Reset index file
+      const sourceIndexPath = join(
+        projectDirectory,
+        libs[0],
+        'src',
+        'index.ts',
+      );
+      writeFileSync(
+        sourceIndexPath,
+        `export * from './lib/${utilityFile.replace('.ts', '')}';\n`,
+      );
     });
 
     it('should efficiently move files across workspace with 10+ projects', () => {
@@ -241,8 +237,8 @@ describe('Move-File Generator E2E Stress Tests', () => {
       }
     });
 
-    afterEachIteration(() => {
-      // Move file back to source library
+    beforeEachIteration(() => {
+      // Ensure file is in source library before each iteration
       const movedPath = join(
         projectDirectory,
         targetLib,
@@ -258,24 +254,20 @@ describe('Move-File Generator E2E Stress Tests', () => {
         targetFile,
       );
 
-      try {
-        writeFileSync(originalPath, targetFileContent);
-        rmSync(movedPath, { force: true });
+      writeFileSync(originalPath, targetFileContent);
+      rmSync(movedPath, { force: true });
 
-        // Reset index file
-        const sourceIndexPath = join(
-          projectDirectory,
-          sourceLib,
-          'src',
-          'index.ts',
-        );
-        writeFileSync(
-          sourceIndexPath,
-          `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
-        );
-      } catch {
-        // File might not have been moved yet, ignore
-      }
+      // Reset index file
+      const sourceIndexPath = join(
+        projectDirectory,
+        sourceLib,
+        'src',
+        'index.ts',
+      );
+      writeFileSync(
+        sourceIndexPath,
+        `export * from './lib/${targetFile.replace('.ts', '')}';\n`,
+      );
     });
 
     it('should efficiently process workspace with 100+ large files', () => {

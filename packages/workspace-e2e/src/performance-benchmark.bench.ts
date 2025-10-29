@@ -97,9 +97,15 @@ describe('Move-File Generator E2E Performance', () => {
       );
     });
 
-    afterEachIteration(() => {
-      // Move files back to lib1 for next iteration
-      [smallFileName, mediumFileName, largeFileName].forEach((fileName) => {
+    beforeEachIteration(() => {
+      // Ensure files are in lib1 before each iteration
+      const fileContentMap: Map<string, string> = new Map([
+        [smallFileName, smallFileContent],
+        [mediumFileName, mediumFileContent],
+        [largeFileName, largeFileContent],
+      ]);
+
+      fileContentMap.forEach((content, fileName) => {
         const lib2Path = join(
           projectDirectory,
           benchmarkLib2,
@@ -114,13 +120,9 @@ describe('Move-File Generator E2E Performance', () => {
           'lib',
           fileName,
         );
-        try {
-          const content = readFileSync(lib2Path, 'utf-8');
-          writeFileSync(lib1Path, content);
-          rmSync(lib2Path, { force: true });
-        } catch {
-          // File might not have been moved yet, ignore
-        }
+        // Always write the file to lib1 and remove from lib2
+        writeFileSync(lib1Path, content);
+        rmSync(lib2Path, { force: true });
       });
     });
 
@@ -174,8 +176,8 @@ describe('Move-File Generator E2E Performance', () => {
       }
     });
 
-    afterEachIteration(() => {
-      // Move files back to lib1
+    beforeEachIteration(() => {
+      // Ensure files are in lib1 before each iteration
       fileContents.forEach((content, fileName) => {
         const lib2Path = join(
           projectDirectory,
@@ -191,12 +193,9 @@ describe('Move-File Generator E2E Performance', () => {
           'lib',
           fileName,
         );
-        try {
-          writeFileSync(lib1Path, content);
-          rmSync(lib2Path, { force: true });
-        } catch {
-          // File might not have been moved yet, ignore
-        }
+        // Always write the file to lib1 and remove from lib2
+        writeFileSync(lib1Path, content);
+        rmSync(lib2Path, { force: true });
       });
     });
 
