@@ -27,6 +27,7 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'html'],
   testEnvironment: '',
   testPathIgnorePatterns: ['/node_modules/', '\\.bench\\.ts$'],
+  transformIgnorePatterns: ['node_modules/(?!(tinybench)/)'],
   coverageDirectory: '../../coverage/packages/workspace',
   coverageThreshold: {
     global: {

@@ -451,7 +451,7 @@ Total:             601 tests
    - ~~Tool: Consider `benchmark.js` or custom comparison~~
    - **Implementation**: Using **tinybench** with **github-action-benchmark**
    - **Features**:
-     - Jest integration via custom benchmarkSuite wrapper
+     - Jest-like API with `describe()` and `it()` functions
      - Statistical analysis from tinybench (ops/sec reporting in benchmark.js format)
      - Automatic baseline comparison on all PRs via github-action-benchmark
      - GitHub Pages charts for performance trend tracking
@@ -461,7 +461,7 @@ Total:             601 tests
      - Nx task with proper caching configuration
    - **Benefits over custom scripts**:
      - Modern, actively maintained benchmarking library (vs archived benchmark.js)
-     - Jest integration for consistent test environment
+     - Jest-like API for consistent test environment
      - Statistical rigor: outlier detection, margin of error, confidence intervals
      - Visual tracking via GitHub Pages
      - Reduced maintenance (~1,064 lines of custom code removed)

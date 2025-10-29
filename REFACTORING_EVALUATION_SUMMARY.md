@@ -113,7 +113,7 @@ After Refactoring (Phase 11):
 3. ✅ **Add benchmark regression detection to CI** (3-4 hours) - **COMPLETE (2025-10-15), Updated (2025-10-21)**
    - ✅ Migrated from archived `jest-bench` to actively maintained **tinybench** (2025-10-21)
    - ✅ Integrated with **github-action-benchmark** for automated regression detection
-   - ✅ Jest integration via custom benchmarkSuite wrapper for consistent test environment
+   - ✅ Jest-like API with `describe()` and `it()` for consistent test environment
    - ✅ Statistical analysis from tinybench with ops/sec reporting in benchmark.js format
    - ✅ Automatic regression detection on PRs (150% threshold)
    - ✅ GitHub Pages charts for performance trend visualization
