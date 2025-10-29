@@ -21,6 +21,7 @@ export interface RegisteredBenchmark {
   benchOptions?: Omit<BenchOptions, 'name'>;
   itTimeout?: number;
   quiet?: boolean;
+  hookPerformanceThreshold?: number;
 }
 
 /**
@@ -84,6 +85,7 @@ export interface DescribeBlock {
   children: DescribeBlock[];
   parent?: DescribeBlock;
   quiet?: boolean;
+  hookPerformanceThreshold?: number;
 }
 
 /**

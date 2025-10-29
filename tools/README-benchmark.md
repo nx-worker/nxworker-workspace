@@ -201,10 +201,42 @@ it(
 
 ### Performance Monitoring
 
-The API automatically monitors hook performance:
+The API automatically monitors `beforeEachIteration` hook performance to detect expensive operations that could distort benchmark results:
 
-- Warns when `beforeEachIteration` hooks take >10ms (indicates expensive operations that should be in `beforeCycle`)
-- Provides detailed timing information in output
+- Warns when `beforeEachIteration` hooks exceed the configured threshold
+- **Default thresholds:**
+  - Local development: 10ms
+  - CI environments: 50ms (auto-detected)
+- Threshold is configurable per-suite or per-benchmark via `hookPerformanceThreshold` option
+- Set threshold to `0` to disable hook performance warnings (or use `quiet: true`)
+- Provides detailed timing information and threshold value in warning messages
+
+**Note:** This only monitors hook performance, not the benchmark function itself. Slow hooks add overhead to every iteration and can make benchmarks inaccurate.
+
+**Examples:**
+
+```typescript
+// Use default threshold (10ms locally, 50ms in CI)
+describe('Default Hook Monitoring', () => {
+  it('benchmark', () => doWork());
+});
+
+// Custom threshold for hook warnings in a suite
+describe(
+  'Relaxed Hook Monitoring',
+  () => {
+    it('benchmark', () => doWork());
+  },
+  { hookPerformanceThreshold: 100 },
+); // Only warn if beforeEachIteration hooks take >100ms
+
+// Disable hook performance warnings for a specific benchmark
+describe('Suite', () => {
+  it('no hook warnings', () => doWork(), {
+    hookPerformanceThreshold: 0, // Never warn about slow hooks
+  });
+});
+```
 
 ### Hook Validation
 

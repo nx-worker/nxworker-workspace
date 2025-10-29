@@ -16,6 +16,33 @@ const getJestBeforeAll = () => globalThis.beforeAll;
 const getJestAfterAll = () => globalThis.afterAll;
 
 /**
+ * Detects if running in a CI environment.
+ * Checks for common CI environment variables.
+ */
+function isCI(): boolean {
+  return Boolean(
+    process.env['CI'] || // Generic CI indicator
+      process.env['CONTINUOUS_INTEGRATION'] || // Alternative CI indicator
+      process.env['GITHUB_ACTIONS'] || // GitHub Actions
+      process.env['GITLAB_CI'] || // GitLab CI
+      process.env['CIRCLECI'] || // CircleCI
+      process.env['TRAVIS'] || // Travis CI
+      process.env['JENKINS_HOME'] || // Jenkins
+      process.env['BUILDKITE'] || // Buildkite
+      process.env['TF_BUILD'], // Azure Pipelines
+  );
+}
+
+/**
+ * Gets the default performance warning threshold based on environment.
+ * Returns 50ms in CI environments (where performance may be more variable),
+ * and 10ms in local development environments.
+ */
+function getDefaultPerformanceThreshold(): number {
+  return isCI() ? 50 : 10;
+}
+
+/**
  * @fileoverview
  *
  * ## Hook Execution Order
@@ -712,6 +739,20 @@ interface ItOptions extends Omit<BenchOptions, 'name'> {
    * If not specified, inherits from the parent describe block's quiet setting.
    */
   quiet?: boolean;
+
+  /**
+   * Optional threshold in milliseconds for beforeEachIteration hook performance warnings.
+   * If beforeEachIteration hooks take longer than this threshold, a warning will be displayed.
+   *
+   * Note: This only monitors hook performance, not the benchmark function itself.
+   * The benchmark function is expected to be fast - that's what we're measuring.
+   *
+   * Defaults to 10ms locally, 50ms in CI environments (auto-detected).
+   * If not specified, inherits from the parent describe block's setting.
+   *
+   * Set to 0 to disable hook performance warnings (or use quiet: true).
+   */
+  hookPerformanceThreshold?: number;
 }
 
 /**
@@ -754,6 +795,20 @@ interface ItOptions extends Omit<BenchOptions, 'name'> {
  *   }, {
  *     quiet: true  // No warnings about slow hooks
  *   });
+ *
+ *   // Custom threshold for beforeEachIteration hook warnings
+ *   it('benchmark with relaxed hook threshold', () => {
+ *     doWork();
+ *   }, {
+ *     hookPerformanceThreshold: 100  // Only warn if beforeEachIteration hooks take >100ms
+ *   });
+ *
+ *   // Disable beforeEachIteration hook warnings
+ *   it('benchmark with hook warnings disabled', () => {
+ *     doWork();
+ *   }, {
+ *     hookPerformanceThreshold: 0  // Never warn about slow hooks
+ *   });
  * });
  * ```
  */
@@ -766,12 +821,23 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
     throw new Error('it() cannot be called inside an it() callback');
   }
 
-  // Extract and validate itTimeout and quiet options
-  const { itTimeout, quiet, ...benchOptionsWithoutTimeout } = options || {};
+  // Extract and validate itTimeout, quiet, and hookPerformanceThreshold options
+  const {
+    itTimeout,
+    quiet,
+    hookPerformanceThreshold,
+    ...benchOptionsWithoutTimeout
+  } = options || {};
   validateTimeout(itTimeout, 'it');
 
   // Determine quiet flag: explicit option > parent describe quiet > default (false)
   const effectiveQuiet = quiet ?? currentBlock.quiet ?? false;
+
+  // Determine performance threshold: explicit option > parent threshold > environment default
+  const effectiveThreshold =
+    hookPerformanceThreshold ??
+    currentBlock.hookPerformanceThreshold ??
+    getDefaultPerformanceThreshold();
 
   // Collect hooks from current block and all ancestors
   const beforeAllIterationsHooks: Array<
@@ -846,13 +912,14 @@ export function it(name: string, fn: Fn, options?: ItOptions): void {
       }
 
       // Warn if beforeEachIteration takes too long (indicates expensive operations)
-      // Only measure and warn if quiet flag is not set
-      if (!effectiveQuiet) {
+      // Only measure and warn if quiet flag is not set and threshold is positive
+      if (!effectiveQuiet && effectiveThreshold > 0) {
         const duration = performance.now() - startTime;
-        if (duration > 10) {
-          // More than 10ms is suspiciously slow for per-iteration setup
+        if (duration > effectiveThreshold) {
+          // Duration exceeds the configured threshold
           console.warn(
-            `⚠️ Performance Warning: beforeEachIteration hook took ${duration.toFixed(2)}ms. ` +
+            `⚠️ Performance Warning: beforeEachIteration hook took ${duration.toFixed(2)}ms ` +
+              `(threshold: ${effectiveThreshold}ms). ` +
               `This runs THOUSANDS of times (including warmup iterations) and may impact benchmark accuracy. ` +
               `Consider moving expensive operations to beforeCycle() or beforeAllIterations().`,
           );
@@ -957,6 +1024,20 @@ interface DescribeOptions {
    * Child describe blocks inherit this setting from their parent.
    */
   quiet?: boolean;
+
+  /**
+   * Optional threshold in milliseconds for beforeEachIteration hook performance warnings.
+   * If beforeEachIteration hooks take longer than this threshold, a warning will be displayed.
+   *
+   * Note: This only monitors hook performance, not benchmark functions.
+   * Slow hooks can distort benchmark results by adding overhead to every iteration.
+   *
+   * Defaults to 10ms locally, 50ms in CI environments (auto-detected via CI env var).
+   * Child describe blocks inherit this setting from their parent.
+   *
+   * Set to 0 to disable hook performance warnings (or use quiet: true).
+   */
+  hookPerformanceThreshold?: number;
 }
 
 /**
@@ -1011,6 +1092,24 @@ interface DescribeOptions {
  *   });
  * }, { quiet: true });
  * ```
+ *
+ * @example
+ * Custom threshold for beforeEachIteration hook warnings:
+ * ```ts
+ * // In CI environments, use a more relaxed threshold for hook warnings
+ * describe('CI Performance Tests', () => {
+ *   it('benchmark', () => {
+ *     doWork();
+ *   });
+ * }, { hookPerformanceThreshold: 100 });  // Only warn if beforeEachIteration hooks take >100ms
+ *
+ * // Disable hook performance warnings completely
+ * describe('No Hook Warning Tests', () => {
+ *   it('benchmark', () => {
+ *     doWork();
+ *   });
+ * }, { hookPerformanceThreshold: 0 });  // Never warn about slow hooks
+ * ```
  */
 export function describe(
   name: string,
@@ -1020,6 +1119,12 @@ export function describe(
   const currentBlock = getCurrentDescribeBlock();
   // Determine quiet flag: explicit option > parent quiet > default (false)
   const effectiveQuiet = options?.quiet ?? currentBlock?.quiet ?? false;
+
+  // Determine performance threshold: explicit option > parent threshold > environment default
+  const effectiveThreshold =
+    options?.hookPerformanceThreshold ??
+    currentBlock?.hookPerformanceThreshold ??
+    getDefaultPerformanceThreshold();
 
   const block: DescribeBlock = {
     name,
@@ -1035,6 +1140,7 @@ export function describe(
     children: [],
     parent: currentBlock,
     quiet: effectiveQuiet,
+    hookPerformanceThreshold: effectiveThreshold,
   };
 
   if (currentBlock) {
