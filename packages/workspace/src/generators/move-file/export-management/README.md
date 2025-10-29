@@ -8,10 +8,10 @@ This module provides functions for managing exports in project entry points (ind
 
 ## Functions
 
-- **index-exports-cache.ts** - Cache system for parsing and storing export information from index files
-- **is-file-exported.ts** - Check if a file is exported from a project's entry point
-- **ensure-file-exported.ts** - Ensure a file is exported from a project's entry point
-- **remove-file-export.ts** - Remove an export statement from a project's entry point
+- **index-exports-cache.ts** - Cache system for parsing and storing export information (both re-exports and local exports) from index files
+- **is-file-exported.ts** - Check if a file is re-exported from a project's entry point
+- **ensure-file-exported.ts** - Add an export statement to a project's entry point if not already present
+- **remove-file-export.ts** - Remove export statements for a file from a project's entry point
 - **should-export-file.ts** - Determine if a file should be exported based on generator options
 - **ensure-export-if-needed.ts** - Conditionally export a file based on strategy
 
@@ -104,7 +104,7 @@ All export management functions have comprehensive unit tests covering:
 - Cache functionality and invalidation
 - Edge cases (no entry point, duplicate exports, etc.)
 
-Total: **82 tests** (52 original + 29 index-exports-cache + 1 cache clearing test)
+**Total: 80+ tests** including comprehensive index-exports-cache coverage
 
 ## Performance
 
@@ -115,7 +115,7 @@ The index exports cache uses jscodeshift for AST parsing, which provides:
 - Integration with existing AST cache
 - Efficient cache invalidation when files change
 
-See `benchmarks/index-exports-cache.bench.ts` for performance benchmarks.
+See `../benchmarks/index-exports-cache.bench.ts` for performance benchmarks.
 
 ## Formatting
 
