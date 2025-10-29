@@ -3,8 +3,6 @@ import {
   beforeEachIteration,
   describe,
   it,
-  setupTask,
-  teardownTask,
 } from '../../../../../../tools/tinybench-utils';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { cachedTreeExists } from '../cache/cached-tree-exists';
@@ -20,7 +18,7 @@ describe('Cache Operations', () => {
   let testFiles: readonly string[];
 
   // ✅ OPTIMIZED: Move expensive tree creation and file writes to suite-level beforeAll
-  // Runs once per suite instead of 1-2 times per benchmark
+  // Runs once per suite instead of once per benchmark
   beforeAll(() => {
     projectRoot = 'libs/test-lib';
     tree = createTreeWithEmptyWorkspace();
@@ -31,18 +29,13 @@ describe('Cache Operations', () => {
     testFiles.forEach((file) => tree.write(file, 'export {};'));
   });
 
-  setupTask(() => {
-    // Reset caches for each task cycle (warmup and run)
-    fileExistenceCache = new Map();
-    projectSourceFilesCache = new Map();
-  });
-
-  teardownTask(() => {
-    fileExistenceCache.clear();
-    projectSourceFilesCache.clear();
-  });
-
   describe('Cache hit', () => {
+    // ✅ OPTIMIZED: With warmup disabled, setup runs once per benchmark (not per cycle)
+    // Use nested beforeAll to make this explicit
+    beforeAll(() => {
+      fileExistenceCache = new Map();
+      projectSourceFilesCache = new Map();
+    });
     beforeEachIteration(() => {
       // Pre-populate cache before each iteration to ensure we measure cache hits
       testFiles.forEach((file) => fileExistenceCache.set(file, true));
@@ -55,11 +48,20 @@ describe('Cache Operations', () => {
           cachedTreeExists(tree, file, fileExistenceCache),
         );
       },
-      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
+      {
+        warmup: false, // Disable warmup: cache state is explicitly controlled per iteration
+      },
     );
   });
 
   describe('Cache miss', () => {
+    // ✅ OPTIMIZED: With warmup disabled, setup runs once per benchmark (not per cycle)
+    // Use nested beforeAll to make this explicit
+    beforeAll(() => {
+      fileExistenceCache = new Map();
+      projectSourceFilesCache = new Map();
+    });
+
     beforeEachIteration(() => {
       // Clear cache before each iteration to ensure we measure cache misses
       fileExistenceCache.clear();
@@ -72,11 +74,20 @@ describe('Cache Operations', () => {
           cachedTreeExists(tree, file, fileExistenceCache),
         );
       },
-      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
+      {
+        warmup: false, // Disable warmup: cache state is explicitly controlled per iteration
+      },
     );
   });
 
   describe('Source file retrieval', () => {
+    // ✅ OPTIMIZED: With warmup disabled, setup runs once per benchmark (not per cycle)
+    // Use nested beforeAll to make this explicit
+    beforeAll(() => {
+      fileExistenceCache = new Map();
+      projectSourceFilesCache = new Map();
+    });
+
     beforeEachIteration(() => {
       // Clear caches before each iteration to ensure consistent measurement
       fileExistenceCache.clear();
@@ -93,11 +104,20 @@ describe('Cache Operations', () => {
           fileExistenceCache,
         );
       },
-      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
+      {
+        warmup: false, // Disable warmup: cache state is explicitly controlled per iteration
+      },
     );
   });
 
   describe('Cache update', () => {
+    // ✅ OPTIMIZED: With warmup disabled, setup runs once per benchmark (not per cycle)
+    // Use nested beforeAll to make this explicit
+    beforeAll(() => {
+      fileExistenceCache = new Map();
+      projectSourceFilesCache = new Map();
+    });
+
     beforeEachIteration(() => {
       // Pre-populate cache with the old path that will be updated
       projectSourceFilesCache.clear();
@@ -118,7 +138,9 @@ describe('Cache Operations', () => {
           projectSourceFilesCache,
         );
       },
-      { warmup: false }, // Disable warmup since we're controlling cache state explicitly
+      {
+        warmup: false, // Disable warmup: cache state is explicitly controlled per iteration
+      },
     );
   });
 });

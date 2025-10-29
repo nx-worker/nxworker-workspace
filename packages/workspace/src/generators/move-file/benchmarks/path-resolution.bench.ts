@@ -10,6 +10,7 @@ import { removeSourceFileExtension } from '../path-utils/remove-source-file-exte
 import { toAbsoluteWorkspacePath } from '../path-utils/to-absolute-workspace-path';
 
 describe('Path Resolution', () => {
+  // ✅ Pure functions with warmup enabled for realistic JIT-optimized measurements
   describe('buildFileNames', () => {
     it('should build file names correctly', () => {
       const baseNames = ['index', 'main'];
