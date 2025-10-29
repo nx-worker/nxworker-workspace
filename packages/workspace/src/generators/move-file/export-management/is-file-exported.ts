@@ -2,8 +2,9 @@ import type { Tree } from '@nx/devkit';
 import type { ProjectConfiguration } from '@nx/devkit';
 import { getProjectEntryPointPaths } from '../project-analysis/get-project-entry-point-paths';
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
-import { escapeRegex } from '../security-utils/escape-regex';
+
 import { treeReadCache } from '../tree-cache';
+import { getIndexExports } from './index-exports-cache';
 
 /**
  * Checks if a file is exported from the project's entrypoint.
@@ -31,7 +32,6 @@ export function isFileExported(
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
   const fileWithoutExt = removeSourceFileExtension(file);
-  const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
     if (!cachedTreeExists(tree, indexPath)) {
@@ -41,12 +41,10 @@ export function isFileExported(
     if (!content) {
       return false;
     }
-    // Support: export ... from "path"
-    // Support: export * from "path"
-    // Support: export { Something } from "path"
-    const exportPattern = new RegExp(
-      `export\\s+(?:\\*|\\{[^}]+\\}|.+)\\s+from\\s+['"]\\.?\\.?/.*${escapedFile}['"]`,
-    );
-    return exportPattern.test(content);
+    // Use cached export analysis for index file
+    const indexExports = getIndexExports(tree, indexPath);
+    // Compare against file path without extension (as stored)
+    // Since local exports are not yet collected, rely on reexports for detection.
+    return indexExports.reexports.has(`./${fileWithoutExt}`);
   });
 }
