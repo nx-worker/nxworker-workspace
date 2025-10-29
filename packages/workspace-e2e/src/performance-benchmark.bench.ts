@@ -24,8 +24,9 @@ describe('Move-File Generator E2E Performance', () => {
 
   beforeAll(async () => {
     projectDirectory = await createTestProject();
-    benchmarkLib1 = uniqueId('bench-lib1-');
-    benchmarkLib2 = uniqueId('bench-lib2-');
+    const timestamp = Date.now().toString(36);
+    benchmarkLib1 = `bench-lib1-${timestamp}`;
+    benchmarkLib2 = `bench-lib2-${timestamp}`;
 
     // The plugin has been built and published to a local registry in the jest globalSetup
     // Install the plugin built with the latest source code into the test repo

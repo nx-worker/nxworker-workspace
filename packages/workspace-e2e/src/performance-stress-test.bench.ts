@@ -56,9 +56,10 @@ describe('Move-File Generator E2E Stress Tests', () => {
       const projectCount = 10;
       libs = [];
 
-      // Create multiple projects
+      // Create multiple projects with short unique names
+      const timestamp = Date.now().toString(36);
       for (let i = 0; i < projectCount; i++) {
-        const libName = uniqueId(`stress-lib${i}-`);
+        const libName = `stress-lib${i}-${timestamp}`;
         libs.push(libName);
 
         execSync(
@@ -171,8 +172,9 @@ describe('Move-File Generator E2E Stress Tests', () => {
 
     beforeAll(() => {
       const fileCount = 100;
-      sourceLib = uniqueId('stress-source-');
-      targetLib = uniqueId('stress-target-');
+      const timestamp = Date.now().toString(36);
+      sourceLib = `stress-source-${timestamp}`;
+      targetLib = `stress-target-${timestamp}`;
 
       // Create source and target libraries
       for (const lib of [sourceLib, targetLib]) {
