@@ -5,13 +5,13 @@ describe('uniqueId', () => {
     const id = uniqueId();
     expect(id).toBeTruthy();
     expect(typeof id).toBe('string');
-    // UUID without dashes should be 32 hex characters
-    expect(id).toMatch(/^[0-9a-f]{32}$/);
+    // Random hex string should be 16 hex characters (8 bytes)
+    expect(id).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('should generate a unique ID with prefix', () => {
     const id = uniqueId('test-');
-    expect(id).toMatch(/^test-[0-9a-f]{32}$/);
+    expect(id).toMatch(/^test-[0-9a-f]{16}$/);
   });
 
   it('should generate different IDs on each call', () => {
@@ -22,14 +22,14 @@ describe('uniqueId', () => {
 
   it('should handle empty string prefix', () => {
     const id = uniqueId('');
-    expect(id).toMatch(/^[0-9a-f]{32}$/);
+    expect(id).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('should maintain prefix exactly as provided', () => {
     const prefix = 'myLib123-';
     const id = uniqueId(prefix);
     expect(id.startsWith(prefix)).toBe(true);
-    expect(id.substring(prefix.length)).toMatch(/^[0-9a-f]{32}$/);
+    expect(id.substring(prefix.length)).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('should generate globally unique IDs across multiple calls', () => {

@@ -12,12 +12,13 @@ import { randomBytes } from 'node:crypto';
  *
  * @example
  * ```ts
- * uniqueId('lib-') // => 'lib-a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
- * uniqueId()       // => 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+ * uniqueId('lib-') // => 'lib-a1b2c3d4e5f6a7b8'
+ * uniqueId()       // => 'a1b2c3d4e5f6a7b8'
  * ```
  */
 export function uniqueId(prefix = ''): string {
-  // Generate 16 random bytes and convert to hex string (32 characters)
-  const randomHex = randomBytes(16).toString('hex');
+  // Generate 8 random bytes and convert to hex string (16 characters)
+  // Limited to 16 characters to prevent generating paths that are too long
+  const randomHex = randomBytes(8).toString('hex');
   return `${prefix}${randomHex}`;
 }
