@@ -8,6 +8,7 @@ import { uniqueId } from '@internal/test-util';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 
 /**
  * E2E Performance benchmarks for the move-file generator.
@@ -24,9 +25,9 @@ describe('Move-File Generator E2E Performance', () => {
 
   beforeAll(async () => {
     projectDirectory = await createTestProject();
-    const timestamp = Date.now().toString(36);
-    benchmarkLib1 = `bench-lib1-${timestamp}`;
-    benchmarkLib2 = `bench-lib2-${timestamp}`;
+    const suffix = randomBytes(4).toString('hex');
+    benchmarkLib1 = `bench-lib1-${suffix}`;
+    benchmarkLib2 = `bench-lib2-${suffix}`;
 
     // The plugin has been built and published to a local registry in the jest globalSetup
     // Install the plugin built with the latest source code into the test repo

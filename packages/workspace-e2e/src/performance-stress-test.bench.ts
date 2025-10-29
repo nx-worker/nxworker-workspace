@@ -8,6 +8,7 @@ import { uniqueId } from '@internal/test-util';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 
 /**
  * E2E Performance stress tests for the move-file generator with jscodeshift optimizations.
@@ -57,9 +58,9 @@ describe('Move-File Generator E2E Stress Tests', () => {
       libs = [];
 
       // Create multiple projects with short unique names
-      const timestamp = Date.now().toString(36);
+      const suffix = randomBytes(4).toString('hex');
       for (let i = 0; i < projectCount; i++) {
-        const libName = `stress-lib${i}-${timestamp}`;
+        const libName = `stress-lib${i}-${suffix}`;
         libs.push(libName);
 
         execSync(
@@ -172,9 +173,9 @@ describe('Move-File Generator E2E Stress Tests', () => {
 
     beforeAll(() => {
       const fileCount = 100;
-      const timestamp = Date.now().toString(36);
-      sourceLib = `stress-source-${timestamp}`;
-      targetLib = `stress-target-${timestamp}`;
+      const suffix = randomBytes(4).toString('hex');
+      sourceLib = `stress-source-${suffix}`;
+      targetLib = `stress-target-${suffix}`;
 
       // Create source and target libraries
       for (const lib of [sourceLib, targetLib]) {
