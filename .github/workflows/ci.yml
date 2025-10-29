@@ -217,10 +217,10 @@ jobs:
       # Always exclude task dependencies (--exclude-task-dependencies) because the build job already built all projects
       # and uploaded artifacts. This prevents rebuilding dependencies in each e2e matrix job, saving time
       # and ensuring all e2e jobs use the exact same build artifacts for consistency.
-      # Exclude performance benchmark files (*.bench.ts) from regular e2e runs (run separately in e2e-benchmark job)
+      # Exclude performance benchmark files (*.bench.ts and performance-*.spec.ts) from regular e2e runs (run separately in e2e-benchmark job)
       - name: Run e2e tests
         shell: bash
-        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='\.bench\.ts$'
+        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='\.bench\.ts$|performance-benchmark\.spec\.ts$|performance-stress-test\.spec\.ts$'
 
   # Summary check that aggregates all e2e matrix results for branch protection
   check-e2e:
