@@ -30,4 +30,7 @@ export default {
   transformIgnorePatterns: ['node_modules/(?!(tinybench)/)'],
   // Increase timeout for e2e benchmarks
   testTimeout: 600000, // 10 minutes
+  // Global setup/teardown to start/stop local registry and publish package
+  globalSetup: '<rootDir>/tools/scripts/start-local-registry.ts',
+  globalTeardown: '<rootDir>/tools/scripts/stop-local-registry.ts',
 };
