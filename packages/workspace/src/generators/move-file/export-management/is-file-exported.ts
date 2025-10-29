@@ -2,7 +2,7 @@ import type { Tree } from '@nx/devkit';
 import type { ProjectConfiguration } from '@nx/devkit';
 import { getProjectEntryPointPaths } from '../project-analysis/get-project-entry-point-paths';
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
-import { escapeRegex } from '../security-utils/escape-regex';
+
 import { treeReadCache } from '../tree-cache';
 import { getIndexExports } from './index-exports-cache';
 
@@ -32,7 +32,6 @@ export function isFileExported(
   const indexPaths = getProjectEntryPointPaths(tree, project);
 
   const fileWithoutExt = removeSourceFileExtension(file);
-  const escapedFile = escapeRegex(fileWithoutExt);
 
   return indexPaths.some((indexPath) => {
     if (!cachedTreeExists(tree, indexPath)) {

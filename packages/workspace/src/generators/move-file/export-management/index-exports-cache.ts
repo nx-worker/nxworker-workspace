@@ -1,5 +1,4 @@
 import type { Tree } from '@nx/devkit';
-import { astCache } from '../ast-cache';
 import { treeReadCache } from '../tree-cache';
 
 /**
@@ -10,8 +9,12 @@ export interface IndexExports {
   reexports: Set<string>; // re-exported modules (file paths without extension)
 }
 
+interface CachedIndexExports extends IndexExports {
+  content: string; // content snapshot used to build this cache entry
+}
+
 // Internal cache keyed by normalized index file path
-const indexExportsCache = new Map<string, IndexExports>();
+const indexExportsCache = new Map<string, CachedIndexExports>();
 
 /** Clears all cached index export data. */
 export function clearIndexExportsCache(): void {
@@ -28,10 +31,10 @@ export function invalidateIndexExportsCacheEntry(indexPath: string): void {
  * Lightweight regex based extraction – sufficient for current export patterns.
  */
 export function getIndexExports(tree: Tree, indexPath: string): IndexExports {
-  const cached = indexExportsCache.get(indexPath);
-  if (cached) return cached;
-
   const content = treeReadCache.read(tree, indexPath, 'utf-8') || '';
+
+  const cached = indexExportsCache.get(indexPath);
+  if (cached && cached.content === content) return cached;
 
   const exports = new Set<string>();
   const reexports = new Set<string>();
@@ -52,10 +55,15 @@ export function getIndexExports(tree: Tree, indexPath: string): IndexExports {
   // Capture exported local files: export * from './lib/file'; we store path without extension for comparison ease.
   for (const spec of reexports) {
     const withoutExt = spec.replace(/\.(ts|tsx|js|jsx)$/i, '');
-    exports.add(withoutExt);
+    // Ensure stored paths are normalized to start with './'
+    const normalized =
+      withoutExt.startsWith('./') || withoutExt.startsWith('../')
+        ? withoutExt
+        : `./${withoutExt}`;
+    exports.add(normalized);
   }
 
-  const result: IndexExports = { exports, reexports };
+  const result: CachedIndexExports = { exports, reexports, content };
   indexExportsCache.set(indexPath, result);
   return result;
 }
