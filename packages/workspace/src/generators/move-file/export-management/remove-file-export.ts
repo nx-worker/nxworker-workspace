@@ -73,6 +73,7 @@ export function removeFileExport(
       tree.write(indexPath, updatedContent);
       treeReadCache.invalidateFile(indexPath);
       astCache.invalidate(indexPath);
+      try { require('./index-exports-cache').invalidateIndexExportsCacheEntry(indexPath); } catch {}
       logger.verbose(`Removed export from ${indexPath}`);
     }
   });

@@ -1,0 +1,37 @@
+ÔùÅ Validation Warning:
+
+  Unknown option "reporters" with value ["default"] was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+  console.log
+    [Export Management > Export detection] should detect exports x 62,156 ops/sec ┬▒1.66% (55877 runs sampled)
+
+      at Object.<anonymous> (tools/tinybench-utils.ts:1323:17)
+
+  console.log
+    [Export Management > Export addition] should add exports x 61,446 ops/sec ┬▒1.30% (54407 runs sampled)
+
+      at Object.<anonymous> (tools/tinybench-utils.ts:1323:17)
+
+  console.log
+    [Export Management > Export removal] should remove exports x 62,213 ops/sec ┬▒4.02% (56818 runs sampled)
+
+      at Object.<anonymous> (tools/tinybench-utils.ts:1323:17)
+
+PASS benchmarks packages/workspace/src/generators/move-file/benchmarks/export-management.bench.ts
+  Export Management
+    Export detection
+      ÔêÜ should detect exports (13 ms)
+    Export addition
+      ÔêÜ should add exports (1 ms)
+    Export removal
+      ÔêÜ should remove exports (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        4.375 s, estimated 5 s
+Ran all test suites matching /export-management/i.

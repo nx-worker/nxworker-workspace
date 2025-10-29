@@ -4,6 +4,7 @@ import { getProjectEntryPointPaths } from '../project-analysis/get-project-entry
 import { removeSourceFileExtension } from '../path-utils/remove-source-file-extension';
 import { escapeRegex } from '../security-utils/escape-regex';
 import { treeReadCache } from '../tree-cache';
+import { getIndexExports } from './index-exports-cache';
 
 /**
  * Checks if a file is exported from the project's entrypoint.
@@ -41,12 +42,12 @@ export function isFileExported(
     if (!content) {
       return false;
     }
-    // Support: export ... from "path"
-    // Support: export * from "path"
-    // Support: export { Something } from "path"
-    const exportPattern = new RegExp(
-      `export\\s+(?:\\*|\\{[^}]+\\}|.+)\\s+from\\s+['"]\\.?\\.?/.*${escapedFile}['"]`,
+    // Use cached export analysis for index file
+    const indexExports = getIndexExports(tree, indexPath);
+    // Compare against file path without extension (as stored)
+    return (
+      indexExports.exports.has(`./${fileWithoutExt}`) ||
+      indexExports.reexports.has(`./${fileWithoutExt}`)
     );
-    return exportPattern.test(content);
   });
 }
