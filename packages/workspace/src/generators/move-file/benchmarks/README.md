@@ -80,13 +80,13 @@ If you need to accept a performance regression (e.g., trading performance for co
 
 Benchmarks use the [tinybench](https://www.npmjs.com/package/tinybench) library ([API reference](https://tinylibs.github.io/tinybench/)), which provides:
 
-- Jest integration via custom `benchmarkSuite` wrapper
+- Jest-like API with `describe()` and `it()` functions
 - Fast and accurate benchmarking with statistical rigor
 - Multiple iterations with automatic warmup
 - Standard deviation and margin of error calculation
 - Standard ops/sec reporting compatible with github-action-benchmark
 
-Each benchmark file uses `benchmarkSuite` from `tools/tinybench-utils` for clean, Jest-compatible syntax.
+Each benchmark file uses the Jest-like API from `tools/tinybench-utils` with familiar `describe()` and `it()` syntax.
 
 ## Interpreting Results
 
