@@ -1,14 +1,14 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 /**
  * Generate a globally unique ID with an optional prefix.
  *
  * This function replaces lodash's `uniqueId` to provide true global uniqueness
- * using Node.js's `randomUUID` from the crypto module. Unlike lodash's counter-based
+ * using Node.js's `randomBytes` from the crypto module. Unlike lodash's counter-based
  * implementation, this ensures IDs are unique across multiple test runs and processes.
  *
- * @param prefix - Optional string prefix to prepend to the UUID
- * @returns A unique string in the format: `{prefix}{uuid-without-dashes}`
+ * @param prefix - Optional string prefix to prepend to the random hex string
+ * @returns A unique string in the format: `{prefix}{random-hex-string}`
  *
  * @example
  * ```ts
@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto';
  * ```
  */
 export function uniqueId(prefix = ''): string {
-  // Generate UUID and remove dashes to match the numeric-style format of lodash
-  const uuid = randomUUID().replace(/-/g, '');
-  return `${prefix}${uuid}`;
+  // Generate 16 random bytes and convert to hex string (32 characters)
+  const randomHex = randomBytes(16).toString('hex');
+  return `${prefix}${randomHex}`;
 }
