@@ -3,14 +3,6 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/test-utils/src",
   "projectType": "library",
-  "release": {
-    "version": {
-      "generatorOptions": {
-        "packageRoot": "dist/{projectRoot}",
-        "currentVersionResolver": "git-tag"
-      }
-    }
-  },
   "tags": [],
   "targets": {
     "build": {
@@ -20,14 +12,7 @@
         "outputPath": "dist/packages/test-utils",
         "main": "packages/test-utils/src/index.ts",
         "tsConfig": "packages/test-utils/tsconfig.lib.json",
-        "assets": [
-          "packages/test-utils/*.md"
-        ]
-      }
-    },
-    "nx-release-publish": {
-      "options": {
-        "packageRoot": "dist/{projectRoot}"
+        "assets": ["packages/test-utils/*.md"]
       }
     },
     "test": {

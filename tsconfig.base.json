@@ -15,7 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@nxworker/test-utils": ["packages/test-utils/src/index.ts"],
+      "@internal/test-util": ["packages/test-utils/src/index.ts"],
       "@nxworker/workspace": ["packages/workspace/src/index.ts"]
     },
     "allowUnreachableCode": false,

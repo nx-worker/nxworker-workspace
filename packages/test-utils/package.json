@@ -1,24 +1,16 @@
 {
-  "name": "@nxworker/test-utils",
+  "name": "@internal/test-util",
   "version": "0.0.1",
-  "description": "Test utilities for nxworker packages, including globally unique ID generation",
+  "description": "Internal test utilities for nxworker workspace, including globally unique ID generation",
   "keywords": [
     "test",
     "testing",
     "utilities",
-    "nx"
+    "internal"
   ],
   "author": "Lars Gyrup Brink Nielsen",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-worker/nxworker-workspace.git",
-    "directory": "packages/test-utils"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-worker/nxworker-workspace/issues"
-  },
-  "homepage": "https://github.com/nx-worker/nxworker-workspace#readme",
+  "private": true,
   "engines": {
     "node": ">=18.0.0 <23.0.0"
   },
