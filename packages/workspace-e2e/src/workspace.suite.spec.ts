@@ -8,20 +8,27 @@
  * Parent Issue: #319 - Adopt new end-to-end test plan
  * This Issue: #321 - Add orchestrator spec for e2e target
  * Scenarios: #322 - Implement scenario modules
+ * Infrastructure: #332 - Implement infrastructure scenarios
  */
 
-import { startLocalRegistry } from '@internal/e2e-util';
-import type { StopRegistryFn, VerdaccioConfig } from '@internal/e2e-util';
+import type { VerdaccioConfig } from '@internal/e2e-util';
+import { run as runRegStart } from './scenarios/reg-start';
+import { run as runPublish } from './scenarios/publish';
+import { run as runInstall } from './scenarios/install';
+import type { InfrastructureScenarioContext } from './scenarios/types';
 
 /**
  * Orchestrator State
  *
  * Shared state across all scenarios:
- * - Registry lifecycle handle
  * - Verdaccio configuration (port, storage path)
+ * - Infrastructure failure flag (for fast-fail behavior)
+ *
+ * Note: Registry is managed by Jest global setup/teardown, not by the orchestrator.
  */
-let stopRegistry: StopRegistryFn | undefined;
 let verdaccioConfig: VerdaccioConfig;
+let registryUrl: string;
+let infrastructureFailed = false;
 
 /**
  * Scenario execution helper
@@ -76,40 +83,34 @@ describe('E2E Test Suite (Orchestrator)', () => {
   /**
    * Global Setup
    *
-   * 1. Start Verdaccio local registry (with port fallback)
-   * 2. Publish plugin to local registry
-   * 3. Confirm package availability
+   * The Verdaccio registry and plugin publishing are handled by Jest global setup
+   * (tools/scripts/start-local-registry.ts). This beforeAll just configures
+   * the registry URL for the scenarios.
    *
-   * Registry is reused across all scenarios for efficiency.
+   * Registry lifecycle:
+   * 1. Jest global setup starts Verdaccio on port 4873
+   * 2. Jest global setup publishes @nxworker/workspace@0.0.0-e2e with tag 'e2e'
+   * 3. Orchestrator scenarios use the running registry
+   * 4. Jest global teardown stops Verdaccio
    */
   beforeAll(async () => {
-    // Configure and start local registry with default port and fallback
+    // Reference the registry started by Jest global setup
     verdaccioConfig = {
       port: 4873,
       maxFallbackAttempts: 2,
     };
 
-    stopRegistry = await startLocalRegistry(verdaccioConfig);
-
-    // TODO: Publish plugin to local registry (Setup Phase)
-    // This will be implemented alongside scenario modules in #322
-    // Purpose: Make @nxworker/workspace available for all scenarios
-    // Expected: Run `nx release` commands to publish @nxworker/workspace@0.0.0-e2e
-    // Note: This is setup publishing. The PUBLISH scenario tests the publish mechanism separately.
-
-    // TODO: Confirm package availability
-    // Expected: Verify package exists in registry via npm view @nxworker/workspace or similar
+    registryUrl = `http://localhost:${verdaccioConfig.port}`;
   }, 120000); // 2 minute timeout for setup
 
   /**
    * Global Teardown
    *
-   * Stop Verdaccio registry and clean up.
+   * Registry cleanup is handled by Jest global teardown.
+   * No action needed here.
    */
   afterAll(async () => {
-    if (stopRegistry) {
-      stopRegistry();
-    }
+    // Registry cleanup handled by Jest global teardown (tools/scripts/stop-local-registry.ts)
   });
 
   /**
@@ -124,11 +125,24 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('REG-START: Start Verdaccio and confirm package availability', async () => {
-    // TODO: Implement in #322
-    // Purpose: Verify registry is running and plugin package is available
-    // Expected: npm view @nxworker/workspace returns package info
-    expect(verdaccioConfig).toBeDefined();
-    expect(verdaccioConfig?.port).toBeGreaterThan(0);
+    // Skip if infrastructure already failed
+    if (infrastructureFailed) {
+      console.warn(
+        'Skipping REG-START: infrastructure already failed in earlier scenario',
+      );
+      return;
+    }
+
+    try {
+      const context: InfrastructureScenarioContext = {
+        verdaccioConfig,
+        registryUrl,
+      };
+      await runRegStart(context);
+    } catch (error) {
+      infrastructureFailed = true;
+      throw error;
+    }
   });
 
   // ============================================================================
@@ -136,11 +150,24 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('PUBLISH: Local publish of plugin (dry + actual)', async () => {
-    // TODO: Implement in #322
-    // Purpose: Test the publish mechanism/process (not setup publishing)
-    // Expected: nx release --dry-run succeeds, verify publish flow works correctly
-    // Note: Actual setup publishing happens in beforeAll. This tests the mechanism.
-    expect(true).toBe(true); // Placeholder
+    // Skip if infrastructure already failed
+    if (infrastructureFailed) {
+      console.warn(
+        'Skipping PUBLISH: infrastructure failed in earlier scenario',
+      );
+      return;
+    }
+
+    try {
+      const context: InfrastructureScenarioContext = {
+        verdaccioConfig,
+        registryUrl,
+      };
+      await runPublish(context);
+    } catch (error) {
+      infrastructureFailed = true;
+      throw error;
+    }
   });
 
   // ============================================================================
@@ -148,17 +175,39 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('INSTALL: Create new workspace, install plugin, import check', async () => {
-    // TODO: Implement in #322
-    // Purpose: Verify plugin can be installed into a fresh workspace
-    // Expected: npm install @nxworker/workspace succeeds, import works
-    expect(true).toBe(true);
-  });
+    // Skip if infrastructure already failed
+    if (infrastructureFailed) {
+      console.warn(
+        'Skipping INSTALL: infrastructure failed in earlier scenario',
+      );
+      return;
+    }
+
+    try {
+      const context: InfrastructureScenarioContext = {
+        verdaccioConfig,
+        registryUrl,
+      };
+      await runInstall(context);
+    } catch (error) {
+      infrastructureFailed = true;
+      throw error;
+    }
+  }, 120000); // 2 minute timeout for workspace creation + install
 
   // ============================================================================
   // BASIC GENERATOR
   // ============================================================================
 
   it('MOVE-SMALL: Move single file lib→lib (2 libs) default options', async () => {
+    // Skip if infrastructure failed (fast-fail)
+    if (infrastructureFailed) {
+      console.warn(
+        'Skipping MOVE-SMALL: infrastructure failed in earlier scenario',
+      );
+      return;
+    }
+
     // TODO: Implement in #322
     // Purpose: Verify basic move-file generator functionality
     // Expected: File moved, imports updated, source file removed
@@ -170,9 +219,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('APP-TO-LIB: Move file from application to library', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify cross-project move from app to lib
-    // Expected: File moved from app to lib, imports updated correctly
     expect(true).toBe(true);
   });
 
@@ -181,9 +229,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('MOVE-PROJECT-DIR: Move with projectDirectory specified', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify explicit projectDirectory option works
-    // Expected: File moved to specified directory
     expect(true).toBe(true);
   });
 
@@ -192,9 +239,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('MOVE-DERIVE-DIR: Move with deriveProjectDirectory=true', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify deriveProjectDirectory option works
-    // Expected: Project directory derived from source file path
     expect(true).toBe(true);
   });
 
@@ -203,9 +249,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('MOVE-SKIP-EXPORT: Move exported file with skipExport flag', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify skipExport option prevents index updates
-    // Expected: File moved but index.ts not updated
     expect(true).toBe(true);
   });
 
@@ -214,9 +259,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('MOVE-SKIP-FORMAT: Move file with skipFormat=true', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify skipFormat option skips Prettier formatting
-    // Expected: File moved without formatting applied
     expect(true).toBe(true);
   });
 
@@ -225,9 +269,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('MOVE-UNICODE: Move file with Unicode characters in path', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify Unicode path handling
-    // Expected: File with Unicode characters moved correctly
     expect(true).toBe(true);
   });
 
@@ -236,9 +279,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('MOVE-REMOVE-EMPTY: Move last source files triggering project removal', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify empty project cleanup after moving all files
-    // Expected: Source project removed after last file moved
     expect(true).toBe(true);
   });
 
@@ -247,9 +289,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('PATH-ALIASES: Workspace with 3 libs; multiple alias moves', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify path alias handling across multiple libraries
-    // Expected: Aliases updated correctly after moves
     expect(true).toBe(true);
   });
 
@@ -258,9 +299,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('EXPORTS: Move exported file and verify index updated', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify index.ts export updates after move
-    // Expected: Source index.ts export removed, target index.ts export added
     expect(true).toBe(true);
   });
 
@@ -269,9 +309,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('REPEAT-MOVE: Re-run MOVE-PROJECT-DIR ensuring no duplicates', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify idempotence (running generator twice has no side effects)
-    // Expected: Second run produces no changes
     expect(true).toBe(true);
   });
 
@@ -280,9 +319,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('GRAPH-REACTION: Force project graph rebuild after moves', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify Nx project graph updates correctly after moves
-    // Expected: Graph reflects new file locations and dependencies
     expect(true).toBe(true);
   });
 
@@ -291,9 +329,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('SCALE-LIBS: Generate 10+ libs then one lib→lib move', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: Verify performance with larger workspace
-    // Expected: Move completes successfully with 10+ libraries
     expect(true).toBe(true);
   });
 
@@ -302,9 +339,8 @@ describe('E2E Test Suite (Orchestrator)', () => {
   // ============================================================================
 
   it('SMOKE-SENTINEL: Combined publish+install+single move', async () => {
+    if (infrastructureFailed) return;
     // TODO: Implement in #322
-    // Purpose: End-to-end smoke test covering full workflow
-    // Expected: Publish → install → generate → move all succeed
     expect(true).toBe(true);
   });
 });
