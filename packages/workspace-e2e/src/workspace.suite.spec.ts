@@ -29,11 +29,24 @@ let verdaccioConfig: VerdaccioConfig;
  * Creates a test workspace, executes the scenario, and cleans up.
  * Workspace configuration can be customized per scenario.
  *
- * This function is ready for use when scenario implementations are added in #322.
+ * NOTE: Currently commented out to avoid expensive workspace creation
+ * during the orchestrator setup phase. Uncomment when implementing
+ * scenarios in #322.
  *
  * @param scenarioId - Scenario identifier (e.g., 'REG-START')
  * @param config - Workspace configuration
  * @param scenarioFn - Scenario implementation function
+ *
+ * @example
+ * await executeScenario('MOVE-SMALL', { name: 'move-small', libs: 2 },
+ *   async (workspace) => {
+ *     // Run move-file generator and verify results
+ *     await tree.commands.generate('move-file', {
+ *       source: 'packages/lib-a/src/util.ts',
+ *       destination: 'packages/lib-b/src/util.ts'
+ *     });
+ *   }
+ * );
  */
 /* Uncomment when scenarios are implemented in #322
 import { createWorkspace, cleanupWorkspace } from '@internal/e2e-util';
@@ -78,12 +91,14 @@ describe('E2E Test Suite (Orchestrator)', () => {
 
     stopRegistry = await startLocalRegistry(verdaccioConfig);
 
-    // TODO: Publish plugin to local registry
+    // TODO: Publish plugin to local registry (Setup Phase)
     // This will be implemented alongside scenario modules in #322
-    // Expected: Run `nx release` commands to publish @nxworker/workspace
+    // Purpose: Make @nxworker/workspace available for all scenarios
+    // Expected: Run `nx release` commands to publish @nxworker/workspace@0.0.0-e2e
+    // Note: This is setup publishing. The PUBLISH scenario tests the publish mechanism separately.
 
     // TODO: Confirm package availability
-    // Expected: Verify package exists in registry via npm view or similar
+    // Expected: Verify package exists in registry via npm view @nxworker/workspace or similar
   }, 120000); // 2 minute timeout for setup
 
   /**
@@ -122,8 +137,9 @@ describe('E2E Test Suite (Orchestrator)', () => {
 
   it('PUBLISH: Local publish of plugin (dry + actual)', async () => {
     // TODO: Implement in #322
-    // Purpose: Verify plugin can be published to local registry
-    // Expected: nx release --dry-run succeeds, then actual publish succeeds
+    // Purpose: Test the publish mechanism/process (not setup publishing)
+    // Expected: nx release --dry-run succeeds, verify publish flow works correctly
+    // Note: Actual setup publishing happens in beforeAll. This tests the mechanism.
     expect(true).toBe(true); // Placeholder
   });
 
