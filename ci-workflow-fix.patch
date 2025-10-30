@@ -1,0 +1,20 @@
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -101,9 +101,6 @@ jobs:
+       - uses: ./.github/actions/setup-node-and-install
+         with:
+           node-version: ${{ matrix.node-version }}
+-
+-      - name: Create .nx/cache/terminalOutputs directory
+-        run: mkdir -p .nx/cache/terminalOutputs
+
+       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
+       # Exclude benchmark tests (*.bench.spec.ts and performance-benchmark.spec.ts) from regular test runs
+@@ -110,7 +107,6 @@ jobs:
+       - name: Run tests
+         shell: bash
+         run: |
+-          mkdir -p .nx/cache/terminalOutputs
+           COVERAGE_FLAG=""
+           if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
+             COVERAGE_FLAG="--coverage"
