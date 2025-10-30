@@ -1,0 +1,28 @@
+{
+  "name": "@internal/e2e-util",
+  "version": "0.0.1",
+  "description": "Internal e2e test harness utilities for nxworker workspace",
+  "keywords": [
+    "e2e",
+    "test",
+    "testing",
+    "utilities",
+    "internal",
+    "verdaccio"
+  ],
+  "author": "Lars Gyrup Brink Nielsen",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0 <23.0.0"
+  },
+  "dependencies": {
+    "@swc/helpers": "~0.5.11",
+    "@internal/test-util": "*",
+    "@nx/devkit": "*",
+    "@nx/js": "*"
+  },
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "typings": "./src/index.d.ts"
+}

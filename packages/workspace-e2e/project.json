@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "packages/workspace-e2e/src",
-  "implicitDependencies": ["workspace"],
+  "implicitDependencies": ["workspace", "e2e-util"],
   "targets": {
     "e2e": {
       "executor": "@nx/jest:jest",

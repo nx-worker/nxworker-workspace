@@ -15,6 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@internal/e2e-util": ["packages/e2e-util/src/index.ts"],
       "@internal/test-util": ["packages/test-utils/src/index.ts"],
       "@nxworker/workspace": ["packages/workspace/src/index.ts"]
     },
