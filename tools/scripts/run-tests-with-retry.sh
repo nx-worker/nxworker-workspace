@@ -49,10 +49,12 @@ run_test_command() {
     echo "==> Detected Nx cache ENOENT error (known bug in Nx 19.8.14)"
 
     # Check if tests actually passed before the error
-    # Look for test summary lines that indicate success
+    # Nx shows success with ✅ symbols and no ❌ failure symbols
+    # Also check for Jest test summary lines
     # Redirect stderr to suppress "Broken pipe" error when grep exits early
-    if echo "$output" 2>/dev/null | grep -q "Test Suites:.*passed"; then
-      echo "==> Tests passed but cache write failed - this is the Nx bug"
+    if echo "$output" 2>/dev/null | grep -qE "(✅|Test Suites:.*passed)" && \
+       ! echo "$output" 2>/dev/null | grep -qE "❌"; then
+      echo "==> Tests passed but cache write failed - treating as success"
       return 2  # Special return code: tests passed but cache failed
     fi
   fi
