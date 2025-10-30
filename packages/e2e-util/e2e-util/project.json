@@ -1,0 +1,26 @@
+{
+  "name": "e2e-util-e2e-util",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/e2e-util/e2e-util/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:swc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/e2e-util/e2e-util",
+        "main": "packages/e2e-util/e2e-util/src/index.ts",
+        "tsConfig": "packages/e2e-util/e2e-util/tsconfig.lib.json",
+        "assets": ["packages/e2e-util/e2e-util/*.md"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/e2e-util/e2e-util/jest.config.ts"
+      }
+    }
+  }
+}
