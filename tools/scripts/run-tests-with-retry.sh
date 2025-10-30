@@ -15,7 +15,8 @@ EXIT_CODE=0
 is_cache_enoent_error() {
   local output="$1"
   # Check for the specific ENOENT error pattern related to terminalOutputs
-  if echo "$output" | grep -q "ENOENT.*\.nx/cache/terminalOutputs"; then
+  # Redirect stderr to suppress "Broken pipe" error when grep exits early
+  if echo "$output" 2>/dev/null | grep -q "ENOENT.*\.nx/cache/terminalOutputs"; then
     return 0  # true - this is the cache error
   fi
   return 1  # false - not the cache error
@@ -49,7 +50,8 @@ run_test_command() {
 
     # Check if tests actually passed before the error
     # Look for test summary lines that indicate success
-    if echo "$output" | grep -q "Test Suites:.*passed"; then
+    # Redirect stderr to suppress "Broken pipe" error when grep exits early
+    if echo "$output" 2>/dev/null | grep -q "Test Suites:.*passed"; then
       echo "==> Tests passed but cache write failed - this is the Nx bug"
       return 2  # Special return code: tests passed but cache failed
     fi
