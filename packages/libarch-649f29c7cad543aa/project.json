@@ -1,9 +1,0 @@
-{
-  "name": "libarch-649f29c7cad543aa",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/libarch-649f29c7cad543aa/src",
-  "projectType": "library",
-  "tags": [],
-  "// targets": "to see all targets run: nx show project libarch-649f29c7cad543aa --web",
-  "targets": {}
-}
