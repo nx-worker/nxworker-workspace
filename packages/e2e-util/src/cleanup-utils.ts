@@ -5,7 +5,7 @@
  */
 
 import { rmSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { logger } from '@nx/devkit';
 
 /**

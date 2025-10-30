@@ -6,7 +6,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { join, dirname } from 'node:path';
+import { join, dirname } from 'node:path/posix';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { uniqueId } from '@internal/test-util';
 import { logger } from '@nx/devkit';
