@@ -114,7 +114,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
             COVERAGE_FLAG="--coverage"
           fi
-          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=stream --parallel=2 -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static --parallel=1 --skip-nx-cache -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
 
   # Summary check that aggregates all test matrix results for branch protection
   check-test:
