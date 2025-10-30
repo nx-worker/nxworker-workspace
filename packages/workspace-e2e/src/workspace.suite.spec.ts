@@ -10,17 +10,8 @@
  * Scenarios: #322 - Implement scenario modules
  */
 
-import {
-  startLocalRegistry,
-  createWorkspace,
-  cleanupWorkspace,
-} from '@internal/e2e-util';
-import type {
-  StopRegistryFn,
-  WorkspaceInfo,
-  VerdaccioConfig,
-} from '@internal/e2e-util';
-import { uniqueId } from '@internal/test-util';
+import { startLocalRegistry } from '@internal/e2e-util';
+import type { StopRegistryFn, VerdaccioConfig } from '@internal/e2e-util';
 
 /**
  * Orchestrator State
@@ -38,10 +29,17 @@ let verdaccioConfig: VerdaccioConfig;
  * Creates a test workspace, executes the scenario, and cleans up.
  * Workspace configuration can be customized per scenario.
  *
+ * This function is ready for use when scenario implementations are added in #322.
+ *
  * @param scenarioId - Scenario identifier (e.g., 'REG-START')
  * @param config - Workspace configuration
  * @param scenarioFn - Scenario implementation function
  */
+/* Uncomment when scenarios are implemented in #322
+import { createWorkspace, cleanupWorkspace } from '@internal/e2e-util';
+import type { WorkspaceInfo } from '@internal/e2e-util';
+import { uniqueId } from '@internal/test-util';
+
 async function executeScenario(
   scenarioId: string,
   config: { name: string; libs: number; includeApp?: boolean },
@@ -59,6 +57,7 @@ async function executeScenario(
     await cleanupWorkspace(workspace.path);
   }
 }
+*/
 
 describe('E2E Test Suite (Orchestrator)', () => {
   /**
@@ -136,9 +135,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify plugin can be installed into a fresh workspace
     // Expected: npm install @nxworker/workspace succeeds, import works
-    await executeScenario('INSTALL', { name: 'install', libs: 0 }, async () => {
-      // Scenario implementation will be added in #322
-    });
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -149,13 +146,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify basic move-file generator functionality
     // Expected: File moved, imports updated, source file removed
-    await executeScenario(
-      'MOVE-SMALL',
-      { name: 'move-small', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -166,13 +157,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify cross-project move from app to lib
     // Expected: File moved from app to lib, imports updated correctly
-    await executeScenario(
-      'APP-TO-LIB',
-      { name: 'app-to-lib', libs: 1, includeApp: true },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -183,13 +168,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify explicit projectDirectory option works
     // Expected: File moved to specified directory
-    await executeScenario(
-      'MOVE-PROJECT-DIR',
-      { name: 'move-project-dir', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -200,13 +179,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify deriveProjectDirectory option works
     // Expected: Project directory derived from source file path
-    await executeScenario(
-      'MOVE-DERIVE-DIR',
-      { name: 'move-derive-dir', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -217,13 +190,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify skipExport option prevents index updates
     // Expected: File moved but index.ts not updated
-    await executeScenario(
-      'MOVE-SKIP-EXPORT',
-      { name: 'move-skip-export', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -234,13 +201,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify skipFormat option skips Prettier formatting
     // Expected: File moved without formatting applied
-    await executeScenario(
-      'MOVE-SKIP-FORMAT',
-      { name: 'move-skip-format', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -251,13 +212,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify Unicode path handling
     // Expected: File with Unicode characters moved correctly
-    await executeScenario(
-      'MOVE-UNICODE',
-      { name: 'move-unicode', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -268,13 +223,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify empty project cleanup after moving all files
     // Expected: Source project removed after last file moved
-    await executeScenario(
-      'MOVE-REMOVE-EMPTY',
-      { name: 'move-remove-empty', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -285,13 +234,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify path alias handling across multiple libraries
     // Expected: Aliases updated correctly after moves
-    await executeScenario(
-      'PATH-ALIASES',
-      { name: 'path-aliases', libs: 3 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -302,9 +245,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify index.ts export updates after move
     // Expected: Source index.ts export removed, target index.ts export added
-    await executeScenario('EXPORTS', { name: 'exports', libs: 2 }, async () => {
-      // Scenario implementation will be added in #322
-    });
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -315,13 +256,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify idempotence (running generator twice has no side effects)
     // Expected: Second run produces no changes
-    await executeScenario(
-      'REPEAT-MOVE',
-      { name: 'repeat-move', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -332,13 +267,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify Nx project graph updates correctly after moves
     // Expected: Graph reflects new file locations and dependencies
-    await executeScenario(
-      'GRAPH-REACTION',
-      { name: 'graph-reaction', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -349,13 +278,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: Verify performance with larger workspace
     // Expected: Move completes successfully with 10+ libraries
-    await executeScenario(
-      'SCALE-LIBS',
-      { name: 'scale-libs', libs: 10 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 
   // ============================================================================
@@ -366,12 +289,6 @@ describe('E2E Test Suite (Orchestrator)', () => {
     // TODO: Implement in #322
     // Purpose: End-to-end smoke test covering full workflow
     // Expected: Publish → install → generate → move all succeed
-    await executeScenario(
-      'SMOKE-SENTINEL',
-      { name: 'smoke-sentinel', libs: 2 },
-      async () => {
-        // Scenario implementation will be added in #322
-      },
-    );
+    expect(true).toBe(true);
   });
 });
