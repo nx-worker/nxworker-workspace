@@ -73,6 +73,7 @@
         "production",
         "{projectRoot}/**/*.bench.ts",
         "{workspaceRoot}/jest-bench.config.ts",
+        "{workspaceRoot}/jest-bench-e2e.config.ts",
         "{workspaceRoot}/jest.preset.js",
         "osPlatform"
       ],

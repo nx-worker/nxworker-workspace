@@ -102,7 +102,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      # Exclude benchmark tests (*.bench.spec.ts and performance-benchmark.spec.ts) from regular test runs
+      # Exclude benchmark tests (*.bench.ts) from regular test runs
       # Run with coverage on ubuntu-24.04-arm with Node 22 to enforce coverage thresholds
       - name: Run tests
         shell: bash
@@ -111,7 +111,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
             COVERAGE_FLAG="--coverage"
           fi
-          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static -- --testPathIgnorePatterns='\.bench\.ts$'
 
   # Summary check that aggregates all test matrix results for branch protection
   check-test:
@@ -217,10 +217,10 @@ jobs:
       # Always exclude task dependencies (--exclude-task-dependencies) because the build job already built all projects
       # and uploaded artifacts. This prevents rebuilding dependencies in each e2e matrix job, saving time
       # and ensuring all e2e jobs use the exact same build artifacts for consistency.
-      # Exclude performance-benchmark.spec.ts from regular e2e runs (run separately in benchmark job)
+      # Exclude performance benchmark files (*.bench.ts) from regular e2e runs (run separately in e2e-benchmark job)
       - name: Run e2e tests
         shell: bash
-        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark'
+        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='\.bench\.ts$'
 
   # Summary check that aggregates all e2e matrix results for branch protection
   check-e2e:
@@ -350,6 +350,162 @@ jobs:
           path: ./benchmarks/workspace
           key: ${{ format('{0}-benchmark-main-{1}', runner.os, github.run_id) }}
 
-      - name: Run e2e performance benchmarks
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx nx e2e workspace-e2e --testPathPattern='performance-benchmark\.spec\.ts$' --output-style=static
+  # Determine the GitHub runner image matrix for the e2e-benchmark job based on event type
+  set-e2e-benchmark-matrix:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      # Fast matrix: Ubuntu only for PRs
+      MATRIX_FAST: |
+        include:
+          - os: ubuntu-24.04-arm
+      # Full matrix: all OSes for push to main and workflow_dispatch
+      MATRIX_FULL: |
+        include:
+          - os: macos-latest
+          - os: windows-latest
+          - os: ubuntu-24.04-arm
+    steps:
+      - id: set-matrix
+        name: Set matrix output property
+        shell: bash
+        run: |
+          # Set the matrix output property
+          set -eo pipefail
+
+          # Select the matrix YAML based on event type
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            printf '%s\n' "$MATRIX_FAST" > matrix.yml
+          else
+            printf '%s\n' "$MATRIX_FULL" > matrix.yml
+          fi
+
+          # Convert the chosen YAML matrix to JSON using js-yaml
+          MATRIX_JSON=$(npx --yes js-yaml matrix.yml | tr -d '\n')
+          # Publish the JSON matrix via step outputs for downstream jobs
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
+  # E2E Benchmark job
+  e2e-benchmark:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    needs:
+      - build
+      - set-e2e-benchmark-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.set-e2e-benchmark-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - uses: ./.github/actions/set-nx-shas
+
+      - uses: ./.github/actions/setup-node-and-install
+
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-artifacts
+          path: dist/
+
+      # Download previous benchmark result from cache (if exists)
+      # Always compare against main branch baseline to detect cumulative performance regressions
+      # across multiple commits in a PR
+      - name: Resolve benchmark cache key
+        id: benchmark-cache-key
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            suffix="${{ github.event.pull_request.id }}"
+          else
+            branch="${{ github.ref_name }}"
+            suffix="${branch//\//-}"
+          fi
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+
+      - name: Download previous benchmark data
+        id: benchmark-cache-restore
+        uses: actions/cache@v4
+        with:
+          path: ./benchmarks/workspace-e2e
+          # Include run id and OS to ensure each save uses a unique cache key
+          key: ${{ format('{0}-e2e-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+          # Always restore from main branch baseline first to ensure we compare against
+          # the last successful benchmark on main, not against previous commits on the same PR/branch
+          restore-keys: |
+            ${{ format('{0}-e2e-benchmark-main-', runner.os) }}
+
+      # Run all e2e benchmark tests using Nx task
+      - name: Run e2e benchmarks
+        shell: bash
+        run: |
+          # Skip cache to ensure fresh benchmark results and capture all output
+          npx nx benchmark workspace-e2e 2>&1 | sed -E 's/^[[:space:]]*//' | tee e2e-benchmark.txt
+
+      # Check if PR has the 'override-benchmark-threshold' label
+      - name: Check for override-benchmark-threshold label
+        id: check-label
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          # Check if PR has the label (default to false if check fails)
+          if labels=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' 2>/dev/null); then
+            if echo "$labels" | grep -q "override-benchmark-threshold"; then
+              echo "has_label=true" >> "$GITHUB_OUTPUT"
+              echo "PR has override-benchmark-threshold label - will not fail on performance degradation"
+            else
+              echo "has_label=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # If gh command fails, default to false (will fail on alert)
+            echo "has_label=false" >> "$GITHUB_OUTPUT"
+            echo "Warning: Could not check PR labels, defaulting to fail-on-alert behavior"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Continuous E2E Benchmark
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Move-File Generator E2E Benchmarks (${{ matrix.os }})
+          tool: 'benchmarkjs'
+          output-file-path: e2e-benchmark.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Store benchmark data in external JSON file
+          external-data-json-path: ./benchmarks/workspace-e2e/benchmark-${{ runner.os }}.json
+          # Disable GitHub Pages integration
+          save-data-file: true
+          skip-fetch-gh-pages: true
+          alert-threshold: '140%'
+          comment-on-alert: true
+          # Only fail on alert if PR doesn't have the override-benchmark-threshold label
+          # For non-PR events (push to main), always fail on alert
+          # If check-label step is skipped (non-PR) or fails, the expression evaluates to true (fail on alert)
+          fail-on-alert: ${{ github.event_name != 'pull_request' || (steps.check-label.outputs.has_label || 'false') != 'true' }}
+          alert-comment-cc-users: '@LayZeeDK'
+          summary-always: true
+
+      - name: '[PR] Save benchmark cache'
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix != 'main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./benchmarks/workspace-e2e
+          key: ${{ format('{0}-e2e-benchmark-{1}-{2}', runner.os, steps.benchmark-cache-key.outputs.suffix, github.run_id) }}
+
+      - name: '[Merge] Save benchmark cache'
+        if: ${{ success() && steps.benchmark-cache-key.outputs.suffix == 'main' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./benchmarks/workspace-e2e
+          key: ${{ format('{0}-e2e-benchmark-main-{1}', runner.os, github.run_id) }}
