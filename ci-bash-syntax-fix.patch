@@ -1,0 +1,21 @@
+Fix bash syntax error in CI workflow - missing 'fi' to close if statement
+
+The test job has a bash syntax error where the if statement on line 110
+is missing its closing 'fi' statement. This causes the workflow to fail
+with "syntax error: unexpected end of file".
+
+Apply this patch to fix the issue:
+
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -108,6 +108,7 @@ jobs:
+         run: |
+           COVERAGE_FLAG=""
+           if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
+             COVERAGE_FLAG="--coverage"
++          fi
+           npx nx reset
+           bash tools/scripts/run-tests-with-retry.sh npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static --parallel=1 --skip-nx-cache -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+
+To apply this fix manually, edit .github/workflows/ci.yml and add the 'fi' line
+after line 111 (after COVERAGE_FLAG="--coverage") and before line 112 (before npx nx reset).
