@@ -17,6 +17,18 @@
     "paths": {
       "@internal/e2e-util": ["packages/e2e-util/src/index.ts"],
       "@internal/test-util": ["packages/test-utils/src/index.ts"],
+      "@nxworker/libarch-a640df025d17bb82": [
+        "packages/libarch-a640df025d17bb82/src/index.ts"
+      ],
+      "@nxworker/libfail-d7a1e40c277624e5": [
+        "packages/libfail-d7a1e40c277624e5/src/index.ts"
+      ],
+      "@nxworker/libnode-1da19f6fafd88a1f": [
+        "packages/libnode-1da19f6fafd88a1f/src/index.ts"
+      ],
+      "@nxworker/libtest-3f696c1708a4f2a9": [
+        "packages/libtest-3f696c1708a4f2a9/src/index.ts"
+      ],
       "@nxworker/workspace": ["packages/workspace/src/index.ts"]
     },
     "allowUnreachableCode": false,
