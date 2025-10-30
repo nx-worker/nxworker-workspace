@@ -8,8 +8,9 @@ import {
 
 // These are integration tests that actually create Nx workspaces
 // They may take longer to run but provide confidence that the harness works correctly
+// Skip in e2e-util tests - they run in workspace-e2e context
 
-describe('workspace-scaffold utilities', () => {
+describe.skip('workspace-scaffold utilities', () => {
   const testBaseDir = join(process.cwd(), 'tmp', 'scaffold-tests');
   const createdWorkspaces: string[] = [];
 

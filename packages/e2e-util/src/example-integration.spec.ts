@@ -19,7 +19,9 @@ import {
 
 describe('harness utilities integration example', () => {
   // Integration tests that create real workspaces
-  describe('end-to-end workflow', () => {
+  // These require Verdaccio globalSetup and take a long time
+  // Skip in e2e-util tests - they run in workspace-e2e context
+  describe.skip('end-to-end workflow', () => {
     let workspacePath: string;
 
     afterAll(async () => {
