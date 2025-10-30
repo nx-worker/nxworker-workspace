@@ -26,6 +26,9 @@ export default {
     ],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
+  moduleNameMapper: {
+    '^@internal/test-util$': '<rootDir>/packages/test-utils/src/index.ts',
+  },
   coverageDirectory: './coverage/e2e-benchmarks',
   transformIgnorePatterns: ['node_modules/(?!(tinybench)/)'],
   // Increase timeout for e2e benchmarks

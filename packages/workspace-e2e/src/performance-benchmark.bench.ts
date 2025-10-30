@@ -1,6 +1,6 @@
 import {
-  afterEachIteration,
   beforeAll,
+  beforeEachIteration,
   describe,
   it,
 } from '../../../tools/tinybench-utils';
