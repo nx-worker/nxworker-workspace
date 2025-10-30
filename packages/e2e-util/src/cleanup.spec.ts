@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { cleanupWorkspace, clearNxCache, cleanupWorkspaces } from './cleanup';
 

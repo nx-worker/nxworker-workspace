@@ -1,5 +1,5 @@
 import { rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { execSync } from 'node:child_process';
 import { logger } from '@nx/devkit';
 

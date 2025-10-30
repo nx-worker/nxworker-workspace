@@ -329,6 +329,16 @@ When organizing code in the `@nxworker/workspace` package:
 
 **Rationale:** Explicit imports improve tree-shaking, make dependencies clear, and reduce the risk of circular dependencies. Package entrypoint barrel exports are needed for proper public API exposure.
 
+### Path Imports
+
+When working with path operations in code and tests:
+
+- **Prefer `node:path/posix`** for all path operations unless the code is Windows-specific
+- **Use `import { join, dirname } from 'node:path/posix'`** instead of `import { join, dirname } from 'node:path'`
+- **Exception:** Use `node:path` only for Windows-specific logic or tests
+
+**Rationale:** Using POSIX paths ensures consistent cross-platform behavior and prevents path separator issues. POSIX paths work correctly on both Unix-like systems and Windows (which handles forward slashes in most contexts).
+
 ## File Inventory Cheat Sheet
 
 - **Repo root:** `.editorconfig`, `.eslintrc.json`, `.eslintignore`, `.prettierrc`, `.prettierignore`, `.node-version`, `.verdaccio/`, `.github/workflows/ci.yml`, `jest.config.ts`, `jest.preset.js`, `nx.json`, `package.json`, `package-lock.json`, `project.json`, `README.md`, `tsconfig.base.json`, `tools/`, `packages/`.
