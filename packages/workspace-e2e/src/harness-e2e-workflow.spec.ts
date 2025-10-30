@@ -5,7 +5,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { writeFileSync } from 'node:fs';
 import {
   startRegistry,

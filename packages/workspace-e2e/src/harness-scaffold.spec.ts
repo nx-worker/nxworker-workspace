@@ -4,7 +4,7 @@
  * These tests actually create Nx workspaces and verify the scaffold functionality.
  */
 
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import {
   createWorkspace,

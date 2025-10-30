@@ -21,13 +21,17 @@ describe('Verdaccio Controller Integration', () => {
 
   describe('startRegistry', () => {
     it('should start the registry and return registry info', async () => {
+      const portPreferred = 4873;
+      const maxFallbackAttempts = 2;
       const registry = await startRegistry({
-        portPreferred: 4873,
-        maxFallbackAttempts: 2,
+        portPreferred,
+        maxFallbackAttempts,
       });
 
-      expect(registry.port).toBeGreaterThanOrEqual(4873);
-      expect(registry.port).toBeLessThanOrEqual(4875); // 4873 + 2 fallback attempts
+      expect(registry.port).toBeGreaterThanOrEqual(portPreferred);
+      expect(registry.port).toBeLessThanOrEqual(
+        portPreferred + maxFallbackAttempts,
+      );
       expect(registry.url).toBe(`http://localhost:${registry.port}`);
       expect(typeof registry.stop).toBe('function');
 

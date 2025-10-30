@@ -1,9 +1,0 @@
-{
-  "name": "libfail-d7a1e40c277624e5",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/libfail-d7a1e40c277624e5/src",
-  "projectType": "library",
-  "tags": [],
-  "// targets": "to see all targets run: nx show project libfail-d7a1e40c277624e5 --web",
-  "targets": {}
-}
