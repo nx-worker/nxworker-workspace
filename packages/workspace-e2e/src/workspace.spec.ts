@@ -2,7 +2,7 @@ import { uniqueId } from '@internal/test-util';
 import { cleanupWorkspace } from '@internal/e2e-util';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const itSkipWindows = process.platform === 'win32' ? it.skip : it;
 const itWindowsOnly = process.platform === 'win32' ? it : it.skip;

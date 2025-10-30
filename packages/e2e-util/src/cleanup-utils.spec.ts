@@ -4,6 +4,7 @@
 
 import { cleanupWorkspace, clearNxCache } from './cleanup-utils';
 import { rmSync, existsSync } from 'node:fs';
+import { normalize } from 'node:path';
 
 // Mock node:fs
 jest.mock('node:fs');
@@ -203,7 +204,7 @@ describe('Cleanup Utilities', () => {
       await clearNxCache();
 
       expect(mockRmSync).toHaveBeenCalledWith(
-        expect.stringContaining('.nx/cache'),
+        expect.stringContaining(normalize('.nx/cache')),
         {
           recursive: true,
           force: true,
@@ -239,10 +240,13 @@ describe('Cleanup Utilities', () => {
 
         await clearNxCache();
 
-        expect(mockRmSync).toHaveBeenCalledWith('/test/project/.nx/cache', {
-          recursive: true,
-          force: true,
-        });
+        expect(mockRmSync).toHaveBeenCalledWith(
+          normalize('/test/project/.nx/cache'),
+          {
+            recursive: true,
+            force: true,
+          },
+        );
       } finally {
         process.cwd = originalCwd as () => string;
       }

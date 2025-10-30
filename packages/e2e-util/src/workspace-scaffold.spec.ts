@@ -5,6 +5,7 @@
 import { createWorkspace, addSourceFile } from './workspace-scaffold';
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { normalize } from 'node:path';
 import { uniqueId } from '@internal/test-util';
 
 // Mock node modules
@@ -229,7 +230,7 @@ describe('Workspace Scaffold Helper', () => {
         expect.objectContaining({ recursive: true }),
       );
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('lib-a/src/lib/util.ts'),
+        expect.stringContaining(normalize('lib-a/src/lib/util.ts')),
         'export const util = () => 42;',
         'utf-8',
       );
@@ -244,7 +245,7 @@ describe('Workspace Scaffold Helper', () => {
       );
 
       expect(mockMkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('deep/nested'),
+        expect.stringContaining(normalize('deep/nested')),
         expect.objectContaining({ recursive: true }),
       );
     });
@@ -304,7 +305,7 @@ describe('Workspace Scaffold Helper', () => {
       );
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('app-main/src/main.ts'),
+        expect.stringContaining(normalize('app-main/src/main.ts')),
         'console.log("Hello");',
         'utf-8',
       );

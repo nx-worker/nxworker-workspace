@@ -329,6 +329,39 @@ When organizing code in the `@nxworker/workspace` package:
 
 **Rationale:** Explicit imports improve tree-shaking, make dependencies clear, and reduce the risk of circular dependencies. Package entrypoint barrel exports are needed for proper public API exposure.
 
+### Cross-Platform Path Handling
+
+When writing code that manipulates file paths:
+
+- **Prefer `node:path/posix`** for path construction and manipulation, except when directly interfacing with the file system on Windows
+- **Use `node:path` (platform-aware)** only when you need platform-specific behavior (e.g., when constructing paths for `fs` operations)
+- **In tests**, use `path.normalize()` when asserting on file paths to ensure cross-platform compatibility
+- **Avoid hardcoded path separators** (`/` or `\`) in path construction; use path utilities instead
+
+**Rationale:** POSIX paths (forward slashes) work consistently across all platforms in most Node.js contexts. Windows file system operations automatically convert POSIX paths to Windows paths. Using POSIX paths by default reduces cross-platform issues and makes code more portable. Tests that assert on file paths must account for platform differences to pass on both Windows and Unix-like systems.
+
+**Examples:**
+
+```typescript
+// Good: Use node:path/posix for cross-platform path construction
+import { join } from 'node:path/posix';
+const importPath = join('src', 'lib', 'util.ts'); // Always 'src/lib/util.ts'
+
+// Good: Use node:path for file system operations
+import { join as joinNative } from 'node:path';
+import { readFileSync } from 'node:fs';
+const filePath = joinNative(projectRoot, 'package.json');
+const content = readFileSync(filePath, 'utf-8');
+
+// Good: Normalize paths in test assertions
+import { normalize } from 'node:path';
+expect(actualPath).toBe(normalize('expected/path'));
+
+// Bad: Hardcoded path separators
+const path = 'src/lib/util.ts'; // Breaks on Windows if used with fs operations
+const windowsPath = 'src\\lib\\util.ts'; // Breaks on Unix
+```
+
 ## File Inventory Cheat Sheet
 
 - **Repo root:** `.editorconfig`, `.eslintrc.json`, `.eslintignore`, `.prettierrc`, `.prettierignore`, `.node-version`, `.verdaccio/`, `.github/workflows/ci.yml`, `jest.config.ts`, `jest.preset.js`, `nx.json`, `package.json`, `package-lock.json`, `project.json`, `README.md`, `tsconfig.base.json`, `tools/`, `packages/`.

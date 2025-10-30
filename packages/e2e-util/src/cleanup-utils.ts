@@ -111,7 +111,7 @@ export async function clearNxCache(): Promise<void> {
     rmSync(nxCacheDir, { recursive: true, force: true });
     logger.verbose('Nx cache cleared successfully');
   } catch (err) {
-    logger.error('Failed to clear Nx cache:', err);
+    logger.error(`Failed to clear Nx cache: ${err}`);
     throw err;
   }
 }

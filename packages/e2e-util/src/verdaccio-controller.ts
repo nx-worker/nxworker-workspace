@@ -147,7 +147,7 @@ export async function startLocalRegistry(
   });
 
   // Register cleanup handlers
-  const cleanupHandlers: Array<() => void> = [];
+  const cleanupHandlers: Array<string> = [];
 
   const cleanup = () => {
     logger.verbose('Cleaning up Verdaccio registry...');
@@ -155,12 +155,8 @@ export async function startLocalRegistry(
       stopRegistry();
     }
     // Remove cleanup handlers to prevent duplicate calls
-    cleanupHandlers.forEach((handler) => {
-      process.removeListener('exit', handler);
-      process.removeListener('SIGINT', handler);
-      process.removeListener('SIGTERM', handler);
-      process.removeListener('uncaughtException', handler);
-      process.removeListener('unhandledRejection', handler);
+    cleanupHandlers.forEach((event) => {
+      process.removeAllListeners(event);
     });
   };
 
@@ -169,18 +165,18 @@ export async function startLocalRegistry(
     cleanup();
     process.exit(0);
   };
-  cleanupHandlers.push(exitHandler);
+  cleanupHandlers.push('exit', 'SIGINT', 'SIGTERM');
   process.once('exit', exitHandler);
   process.once('SIGINT', exitHandler);
   process.once('SIGTERM', exitHandler);
 
   // Setup cleanup on unhandled errors
-  const errorHandler = (err: Error) => {
-    logger.error('Unhandled error, cleaning up registry:', err);
+  const errorHandler = (err: unknown) => {
+    logger.error(`Unhandled error, cleaning up registry: ${err}`);
     cleanup();
     process.exit(1);
   };
-  cleanupHandlers.push(errorHandler);
+  cleanupHandlers.push('uncaughtException', 'unhandledRejection');
   process.once('uncaughtException', errorHandler);
   process.once('unhandledRejection', errorHandler);
 
