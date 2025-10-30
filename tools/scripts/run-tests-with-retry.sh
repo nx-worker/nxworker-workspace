@@ -25,12 +25,13 @@ is_cache_enoent_error() {
 # Function to run the test command
 run_test_command() {
   local attempt=$1
+  shift  # Remove attempt number from arguments
   local temp_output=$(mktemp)
 
   echo "==> Attempt $attempt of $MAX_RETRIES"
 
   # Run the test command and capture both stdout and stderr
-  # Pass all script arguments to the test command
+  # Pass remaining arguments to the test command
   "$@" 2>&1 | tee "$temp_output"
   local test_exit_code=${PIPESTATUS[0]}
 
@@ -66,7 +67,7 @@ run_test_command() {
 
 # Main retry loop
 for attempt in $(seq 1 $MAX_RETRIES); do
-  run_test_command "$@"
+  run_test_command "$attempt" "$@"
   EXIT_CODE=$?
 
   if [ $EXIT_CODE -eq 0 ]; then
