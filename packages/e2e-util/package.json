@@ -2,13 +2,7 @@
   "name": "@internal/e2e-util",
   "version": "0.0.1",
   "dependencies": {
-    "@swc/helpers": "~0.5.11",
-    "@internal/test-util": "*"
-  },
-  "peerDependencies": {
-    "@nx/devkit": ">=19.8.5 <22.0.0",
-    "@nx/js": ">=19.8.5 <22.0.0",
-    "nx": ">=19.8.5 <22.0.0"
+    "@swc/helpers": "~0.5.11"
   },
   "type": "commonjs",
   "main": "./src/index.js",

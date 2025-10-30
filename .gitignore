@@ -48,5 +48,3 @@ benchmark.json
 # Agents
 .claude/settings.local.json
 
-# Test libraries created during e2e runs
-packages/lib*-*/

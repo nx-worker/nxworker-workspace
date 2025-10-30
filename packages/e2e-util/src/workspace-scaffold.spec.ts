@@ -84,7 +84,7 @@ describe('workspace-scaffold utilities', () => {
       });
       createdWorkspaces.push(workspace.path);
 
-      expect(workspace.app).toBe('app-main');
+      expect(workspace.app).toBe('node-app');
 
       // Verify application exists
       if (!workspace.app) {

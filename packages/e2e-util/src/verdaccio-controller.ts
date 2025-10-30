@@ -64,8 +64,14 @@ function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
 
-    server.once('error', () => {
-      resolve(false);
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      // EADDRINUSE means port is already in use
+      if (err.code === 'EADDRINUSE') {
+        resolve(false);
+      } else {
+        // For other errors, also consider port unavailable
+        resolve(false);
+      }
     });
 
     server.once('listening', () => {

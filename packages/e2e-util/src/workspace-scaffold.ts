@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { join, dirname } from 'node:path';
+import { join, dirname } from 'node:path/posix';
 import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { logger } from '@nx/devkit';
 import { uniqueId } from '@internal/test-util';
@@ -215,7 +215,7 @@ export async function createWorkspace(
   // Generate application if requested
   let appName: string | undefined;
   if (includeApp) {
-    appName = 'app-main';
+    appName = 'node-app';
     logger.verbose(`Generating application: ${appName}`);
     execSync(
       `npx nx generate @nx/node:application ${appName} --unitTestRunner=none --bundler=esbuild --no-interactive`,

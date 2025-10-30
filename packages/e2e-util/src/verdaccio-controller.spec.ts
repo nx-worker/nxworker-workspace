@@ -49,11 +49,9 @@ describe('verdaccio-controller utilities', () => {
     });
   });
 
-  // Integration test - only runs when CI environment variable is set
-  // This actually starts the registry which requires Verdaccio to be available
-  const describeIntegration = process.env['CI'] ? describe : describe.skip;
-
-  describeIntegration('startRegistry (integration)', () => {
+  // Integration tests that actually start the registry
+  // These require Verdaccio to be available
+  describe('startRegistry (integration)', () => {
     it('should start the registry and return registry info', async () => {
       const registry = await startRegistry({
         portPreferred: 4873,

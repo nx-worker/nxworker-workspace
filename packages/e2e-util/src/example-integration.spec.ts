@@ -18,13 +18,8 @@ import {
 } from './index';
 
 describe('harness utilities integration example', () => {
-  // Skip by default - only run when explicitly requested or in CI
-  const describeIntegration =
-    process.env['RUN_HARNESS_EXAMPLE'] || process.env['CI']
-      ? describe
-      : describe.skip;
-
-  describeIntegration('end-to-end workflow', () => {
+  // Integration tests that create real workspaces
+  describe('end-to-end workflow', () => {
     let workspacePath: string;
 
     afterAll(async () => {
