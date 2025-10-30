@@ -101,21 +101,20 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Create .nx/cache/terminalOutputs directory
+        run: mkdir -p .nx/cache/terminalOutputs
+
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       # Exclude benchmark tests (*.bench.spec.ts and performance-benchmark.spec.ts) from regular test runs
       # Run with coverage on ubuntu-24.04-arm with Node 22 to enforce coverage thresholds
       - name: Run tests
         shell: bash
         run: |
-          # Create terminalOutputs directory to workaround Nx 19.8.14 bug where
-          # the forked-process-task-runner doesn't create the directory before writing cache files
-          mkdir -p .nx/cache/terminalOutputs
-
           COVERAGE_FLAG=""
           if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
             COVERAGE_FLAG="--coverage"
           fi
-          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=stream --parallel=1 -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static --parallel=1 --skip-nx-cache -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
 
   # Summary check that aggregates all test matrix results for branch protection
   check-test:
