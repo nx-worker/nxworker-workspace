@@ -1,0 +1,9 @@
+{
+  "name": "libtest-435d28ae691c3133",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/libtest-435d28ae691c3133/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project libtest-435d28ae691c3133 --web",
+  "targets": {}
+}

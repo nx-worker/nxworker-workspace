@@ -60,6 +60,7 @@ registry.stop();
 Starts the local Verdaccio registry with port fallback logic.
 
 **Options:**
+
 - `portPreferred` (number, default: 4873) - Preferred port for the registry
 - `maxFallbackAttempts` (number, default: 2) - Maximum number of port fallback attempts
 - `localRegistryTarget` (string, default: '@nxworker/source:local-registry') - Local registry target
@@ -67,11 +68,13 @@ Starts the local Verdaccio registry with port fallback logic.
 - `verbose` (boolean, default: false) - Enable verbose logging
 
 **Returns:** `Promise<RegistryInfo>`
+
 - `port` - Port on which the registry is running
 - `url` - URL of the registry
 - `stop` - Function to stop the registry
 
 **Example:**
+
 ```typescript
 const registry = await startRegistry({ portPreferred: 4873 });
 console.log(`Registry running on ${registry.url}`);
@@ -82,6 +85,7 @@ console.log(`Registry running on ${registry.url}`);
 Stops the local Verdaccio registry.
 
 **Example:**
+
 ```typescript
 stopRegistry();
 ```
@@ -111,6 +115,7 @@ Gets the current registry URL.
 Creates a minimal Nx workspace with configurable libraries and optional application.
 
 **Options:**
+
 - `name` (string, default: auto-generated) - Name of the workspace
 - `libs` (number, default: 2) - Number of libraries to generate
 - `includeApp` (boolean, default: false) - Whether to include an application
@@ -118,12 +123,14 @@ Creates a minimal Nx workspace with configurable libraries and optional applicat
 - `baseDir` (string, default: 'process.cwd()/tmp') - Base directory for temporary workspaces
 
 **Returns:** `Promise<WorkspaceInfo>`
+
 - `name` - Name of the workspace
 - `path` - Absolute path to the workspace directory
 - `libs` - Array of generated library names (e.g., ['lib-a', 'lib-b'])
 - `app` - Name of the generated application (if `includeApp` was true)
 
 **Example:**
+
 ```typescript
 const workspace = await createWorkspace({
   libs: 3,
@@ -139,12 +146,14 @@ console.log(`Application: ${workspace.app}`);
 Adds a source file to a project in the workspace.
 
 **Options:**
+
 - `workspacePath` (string, required) - Absolute path to the workspace directory
 - `project` (string, required) - Name of the project
 - `relativePath` (string, required) - Relative path within the project
 - `contents` (string, required) - File contents
 
 **Example:**
+
 ```typescript
 await addSourceFile({
   workspacePath: workspace.path,
@@ -159,12 +168,14 @@ await addSourceFile({
 Gets the import alias for a project from tsconfig.base.json.
 
 **Parameters:**
+
 - `workspacePath` (string) - Absolute path to the workspace
 - `projectName` (string) - Name of the project
 
 **Returns:** `string` - The import alias (e.g., '@my-workspace/lib-a')
 
 **Example:**
+
 ```typescript
 const alias = getProjectImportAlias(workspace.path, 'lib-a');
 // => '@test-workspace-abc123/lib-a'
@@ -177,11 +188,13 @@ const alias = getProjectImportAlias(workspace.path, 'lib-a');
 Removes a temporary workspace directory with retry logic for Windows file locking.
 
 **Options:**
+
 - `workspacePath` (string, required) - Absolute path to the workspace directory
 - `maxRetries` (number, default: 5) - Maximum retry attempts
 - `retryDelay` (number, default: 200) - Delay in milliseconds between retries
 
 **Example:**
+
 ```typescript
 await cleanupWorkspace({
   workspacePath: '/tmp/test-workspace-abc123',
@@ -193,10 +206,12 @@ await cleanupWorkspace({
 Clears the Nx cache for a workspace.
 
 **Options:**
+
 - `workspacePath` (string, required) - Absolute path to the workspace directory
 - `stopDaemon` (boolean, default: true) - Whether to stop the Nx daemon
 
 **Example:**
+
 ```typescript
 await clearNxCache({
   workspacePath: workspace.path,
@@ -209,10 +224,12 @@ await clearNxCache({
 Cleans up multiple workspaces in parallel.
 
 **Parameters:**
+
 - `workspacePaths` (string[]) - Array of workspace paths to clean up
 - `options` (optional) - Cleanup options to apply to all workspaces
 
 **Example:**
+
 ```typescript
 await cleanupWorkspaces([
   '/tmp/workspace1',
@@ -226,6 +243,7 @@ await cleanupWorkspaces([
 ### Logging Policy
 
 All harness utilities follow the repository's logging policy:
+
 - Use `logger.verbose()` for operational logs by default
 - Only use `logger.info()` or higher levels when explicitly instructed
 - Keeps test output clean while still providing visibility when needed with `--verbose`
@@ -257,6 +275,7 @@ The harness utilities include comprehensive unit and integration tests:
 - `verdaccio-controller.spec.ts` - Tests for registry controller
 
 Run tests with:
+
 ```bash
 npx nx test workspace-e2e
 ```
@@ -268,6 +287,7 @@ Integration tests that actually start Verdaccio are skipped by default and only 
 ### File Organization
 
 The harness follows the one-function-per-file pattern established in the move-file generator refactoring:
+
 - Each module exports focused functionality
 - Co-located tests verify each module independently
 - Index file provides convenient barrel export
@@ -275,6 +295,7 @@ The harness follows the one-function-per-file pattern established in the move-fi
 ### Windows Compatibility
 
 Special handling for Windows platform:
+
 - Retry logic for EBUSY and ENOTEMPTY errors
 - File handle cleanup before directory removal
 - Process exit handlers to ensure cleanup

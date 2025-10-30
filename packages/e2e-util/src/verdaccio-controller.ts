@@ -1,7 +1,7 @@
 import { startLocalRegistry } from '@nx/js/plugins/jest/local-registry';
 import { releasePublish, releaseVersion } from 'nx/release';
 import { logger } from '@nx/devkit';
-import net from 'node:net';
+import * as net from 'node:net';
 
 /**
  * Global handle for stopping the local Verdaccio registry
@@ -132,7 +132,9 @@ export async function startRegistry(
 
   // Check if registry is already running
   if (registryStopFn) {
-    logger.verbose('Local registry is already running, reusing existing instance');
+    logger.verbose(
+      'Local registry is already running, reusing existing instance',
+    );
     if (!registryPort) {
       throw new Error('Registry is running but port is unknown');
     }

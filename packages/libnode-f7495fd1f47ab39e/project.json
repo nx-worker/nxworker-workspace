@@ -1,0 +1,9 @@
+{
+  "name": "libnode-f7495fd1f47ab39e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/libnode-f7495fd1f47ab39e/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project libnode-f7495fd1f47ab39e --web",
+  "targets": {}
+}

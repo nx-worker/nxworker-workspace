@@ -47,9 +47,7 @@ describe('cleanup utilities', () => {
 
       expect(existsSync(workspacePath)).toBe(false);
 
-      await expect(
-        cleanupWorkspace({ workspacePath }),
-      ).resolves.not.toThrow();
+      await expect(cleanupWorkspace({ workspacePath })).resolves.not.toThrow();
     });
 
     it('should retry on EBUSY errors (simulated)', async () => {

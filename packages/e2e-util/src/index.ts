@@ -58,12 +58,5 @@ export type {
 } from './workspace-scaffold';
 
 // Cleanup utilities
-export {
-  cleanupWorkspace,
-  clearNxCache,
-  cleanupWorkspaces,
-} from './cleanup';
-export type {
-  CleanupWorkspaceOptions,
-  ClearNxCacheOptions,
-} from './cleanup';
+export { cleanupWorkspace, clearNxCache, cleanupWorkspaces } from './cleanup';
+export type { CleanupWorkspaceOptions, ClearNxCacheOptions } from './cleanup';
