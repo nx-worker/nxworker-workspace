@@ -11,12 +11,13 @@
 import { logger } from '@nx/devkit';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path/posix';
-import { writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import {
   createWorkspace,
   cleanupWorkspace,
   type WorkspaceInfo,
 } from '@internal/e2e-util';
+import { uniqueId } from '@internal/test-util';
 import type { InfrastructureScenarioContext } from './types';
 
 /**
@@ -40,24 +41,13 @@ export async function run(
   try {
     logger.verbose('[INSTALL] Creating test workspace...');
 
-    // Clean up any existing workspace from previous failed runs
-    const workspacePath = join(process.cwd(), 'tmp', 'install-test');
-    if (existsSync(workspacePath)) {
-      logger.verbose(
-        '[INSTALL] Cleaning up existing workspace from previous run...',
-      );
-      try {
-        rmSync(workspacePath, { recursive: true, force: true });
-      } catch (error) {
-        logger.warn(
-          `[INSTALL] Failed to cleanup existing workspace (non-critical): ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
+    // Use unique workspace name to avoid conflicts from previous failed runs
+    // This prevents Windows file locking issues from affecting subsequent test runs
+    const workspaceName = `install-test-${uniqueId('ws')}`;
 
     // Create minimal workspace with 2 libraries
     workspace = await createWorkspace({
-      name: 'install-test',
+      name: workspaceName,
       libs: 2,
       includeApp: false,
     });
