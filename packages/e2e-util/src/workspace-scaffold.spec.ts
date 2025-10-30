@@ -229,8 +229,9 @@ describe('Workspace Scaffold Helper', () => {
         expect.stringContaining('lib-a'),
         expect.objectContaining({ recursive: true }),
       );
+      // Implementation uses posix paths, so we expect forward slashes in absolute paths
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining(normalize('lib-a/src/lib/util.ts')),
+        expect.stringMatching(/lib-a\/src\/lib\/util\.ts$/),
         'export const util = () => 42;',
         'utf-8',
       );
@@ -244,8 +245,9 @@ describe('Workspace Scaffold Helper', () => {
         'export const test = true;',
       );
 
+      // Implementation uses posix paths, so we expect forward slashes
       expect(mockMkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining(normalize('deep/nested')),
+        expect.stringMatching(/deep\/nested$/),
         expect.objectContaining({ recursive: true }),
       );
     });
@@ -304,8 +306,9 @@ describe('Workspace Scaffold Helper', () => {
         'console.log("Hello");',
       );
 
+      // Implementation uses posix paths, so we expect forward slashes
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining(normalize('app-main/src/main.ts')),
+        expect.stringMatching(/app-main\/src\/main\.ts$/),
         'console.log("Hello");',
         'utf-8',
       );

@@ -36,6 +36,11 @@ export interface VerdaccioConfig {
    * Enable verbose logging (default: false)
    */
   verbose?: boolean;
+
+  /**
+   * Startup timeout in milliseconds (default: 30000ms / 30s)
+   */
+  startupTimeoutMs?: number;
 }
 
 /**
@@ -123,6 +128,7 @@ export async function startLocalRegistry(
     storage = './tmp/local-registry/storage',
     localRegistryTarget = '@nxworker/source:local-registry',
     verbose = false,
+    startupTimeoutMs = 30000,
   } = config;
 
   logger.verbose('Starting local Verdaccio registry...');
@@ -139,12 +145,28 @@ export async function startLocalRegistry(
     );
   }
 
-  // Start the registry using Nx's built-in function
-  const stopRegistry = await nxStartLocalRegistry({
+  // Start the registry with timeout protection
+  const startRegistryPromise = nxStartLocalRegistry({
     localRegistryTarget,
     storage,
     verbose,
   });
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(
+        new Error(
+          `Verdaccio startup timed out after ${startupTimeoutMs}ms. Port ${availablePort} may be blocked or the registry target '${localRegistryTarget}' may be misconfigured.`,
+        ),
+      );
+    }, startupTimeoutMs);
+  });
+
+  // Race between startup and timeout
+  const stopRegistry = await Promise.race([
+    startRegistryPromise,
+    timeoutPromise,
+  ]);
 
   // Register cleanup handlers
   const cleanupHandlers: Array<string> = [];

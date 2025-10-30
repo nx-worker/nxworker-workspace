@@ -203,8 +203,9 @@ describe('Cleanup Utilities', () => {
 
       await clearNxCache();
 
+      // Verify the path ends with .nx/cache (implementation uses absolute paths)
       expect(mockRmSync).toHaveBeenCalledWith(
-        expect.stringContaining(normalize('.nx/cache')),
+        expect.stringMatching(/\.nx\/cache$/),
         {
           recursive: true,
           force: true,
@@ -240,8 +241,9 @@ describe('Cleanup Utilities', () => {
 
         await clearNxCache();
 
+        // Implementation uses posix paths, so we expect forward slashes
         expect(mockRmSync).toHaveBeenCalledWith(
-          normalize('/test/project/.nx/cache'),
+          '/test/project/.nx/cache',
           {
             recursive: true,
             force: true,
