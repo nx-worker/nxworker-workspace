@@ -128,8 +128,8 @@ describe('Cleanup Utilities', () => {
       });
 
       // Mock setTimeout to capture delays
-      const originalSetTimeout = global.setTimeout;
-      global.setTimeout = jest.fn((callback, delay) => {
+      const originalSetTimeout = globalThis.setTimeout;
+      globalThis.setTimeout = jest.fn((callback, delay) => {
         delays.push(delay as number);
         return originalSetTimeout(callback as () => void, 0);
       }) as unknown as typeof setTimeout;
@@ -147,7 +147,7 @@ describe('Cleanup Utilities', () => {
           expect(delays[2]).toBe(400);
         }
       } finally {
-        global.setTimeout = originalSetTimeout;
+        globalThis.setTimeout = originalSetTimeout;
       }
     });
 
@@ -180,8 +180,8 @@ describe('Cleanup Utilities', () => {
       });
 
       const delays: number[] = [];
-      const originalSetTimeout = global.setTimeout;
-      global.setTimeout = jest.fn((callback, delay) => {
+      const originalSetTimeout = globalThis.setTimeout;
+      globalThis.setTimeout = jest.fn((callback, delay) => {
         delays.push(delay as number);
         return originalSetTimeout(callback as () => void, 0);
       }) as unknown as typeof setTimeout;
@@ -191,7 +191,7 @@ describe('Cleanup Utilities', () => {
 
         expect(delays[0]).toBe(50);
       } finally {
-        global.setTimeout = originalSetTimeout;
+        globalThis.setTimeout = originalSetTimeout;
       }
     });
   });
@@ -233,7 +233,7 @@ describe('Cleanup Utilities', () => {
 
     it('should use correct cache path relative to cwd', async () => {
       mockExistsSync.mockReturnValue(true);
-      const originalCwd = process.cwd();
+      const originalCwd = process.cwd;
 
       try {
         // Mock process.cwd to verify path construction
@@ -242,15 +242,12 @@ describe('Cleanup Utilities', () => {
         await clearNxCache();
 
         // Implementation uses posix paths, so we expect forward slashes
-        expect(mockRmSync).toHaveBeenCalledWith(
-          '/test/project/.nx/cache',
-          {
-            recursive: true,
-            force: true,
-          },
-        );
+        expect(mockRmSync).toHaveBeenCalledWith('/test/project/.nx/cache', {
+          recursive: true,
+          force: true,
+        });
       } finally {
-        process.cwd = originalCwd as () => string;
+        process.cwd = originalCwd;
       }
     });
   });
@@ -272,8 +269,8 @@ describe('Cleanup Utilities', () => {
       });
 
       const timeoutCalls: number[] = [];
-      const originalSetTimeout = global.setTimeout;
-      global.setTimeout = jest.fn((callback, delay) => {
+      const originalSetTimeout = globalThis.setTimeout;
+      globalThis.setTimeout = jest.fn((callback, delay) => {
         timeoutCalls.push(delay as number);
         return originalSetTimeout(callback as () => void, 0);
       }) as unknown as typeof setTimeout;
@@ -284,7 +281,7 @@ describe('Cleanup Utilities', () => {
         expect(timeoutCalls.length).toBeGreaterThan(0);
         expect(timeoutCalls[0]).toBe(100);
       } finally {
-        global.setTimeout = originalSetTimeout;
+        globalThis.setTimeout = originalSetTimeout;
       }
     });
   });
