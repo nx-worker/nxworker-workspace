@@ -111,11 +111,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "ubuntu-24.04-arm" && "${{ matrix.node-version }}" == "22" ]]; then
             COVERAGE_FLAG="--coverage"
           fi
-
-          # Create Nx cache directory to workaround Nx 19.8.14 bug where terminalOutputs directory isn't created
-          mkdir -p .nx/cache/terminalOutputs
-
-          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=static -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
+          npx nx affected -t test --configuration=ci $COVERAGE_FLAG --output-style=stream -- --testPathIgnorePatterns='benchmarks|performance-benchmark'
 
   # Summary check that aggregates all test matrix results for branch protection
   check-test:
