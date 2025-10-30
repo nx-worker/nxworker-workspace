@@ -4,7 +4,6 @@
 
 import { cleanupWorkspace, clearNxCache } from './cleanup-utils';
 import { rmSync, existsSync } from 'node:fs';
-import { normalize } from 'node:path';
 
 // Mock node:fs
 jest.mock('node:fs');

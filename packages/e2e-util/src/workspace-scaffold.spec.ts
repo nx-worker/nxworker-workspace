@@ -5,7 +5,6 @@
 import { createWorkspace, addSourceFile } from './workspace-scaffold';
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { normalize } from 'node:path';
 import { uniqueId } from '@internal/test-util';
 
 // Mock node modules
