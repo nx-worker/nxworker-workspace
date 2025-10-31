@@ -10,6 +10,7 @@ This library provides shared test harness utilities to support the consolidated 
 2. **Workspace Scaffold Helper**: Creates minimal Nx workspaces with configurable libraries and optional applications
 3. **Cleanup Utilities**: Manages temporary directories and Nx cache
 4. **Network Utilities**: HTTP request helpers for registry and workspace validation
+5. **Retry Utilities**: Automatic retry logic with exponential backoff for transient failures
 
 ## Features
 
@@ -85,6 +86,38 @@ const response = await httpGet('http://localhost:4873/@nxworker/workspace', {
   retryDelay: 2000,
 });
 const packageData = JSON.parse(response.body);
+```
+
+### Retry Utilities
+
+```typescript
+import { withRetry } from '@internal/e2e-util';
+
+// Retry a network operation with exponential backoff
+const data = await withRetry(
+  async () => {
+    const response = await httpGet('http://localhost:4873/-/ping');
+    return response.body;
+  },
+  {
+    maxAttempts: 3,
+    delayMs: 1000,
+    exponentialBackoff: true,
+    operationName: 'registry health check',
+  },
+);
+
+// Retry an exec operation
+await withRetry(
+  async () => {
+    execSync('npm install package', { stdio: 'pipe' });
+  },
+  {
+    maxAttempts: 5,
+    delayMs: 2000,
+    operationName: 'npm install',
+  },
+);
 ```
 
 ## Building

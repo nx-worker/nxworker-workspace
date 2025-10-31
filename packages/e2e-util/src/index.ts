@@ -8,3 +8,6 @@ export { cleanupWorkspace, clearNxCache } from './cleanup-utils';
 
 export { httpGet } from './network-utils';
 export type { HttpGetOptions, HttpGetResponse } from './network-utils';
+
+export { withRetry } from './retry-utils';
+export type { RetryOptions } from './retry-utils';

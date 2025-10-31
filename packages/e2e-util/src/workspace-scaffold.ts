@@ -10,6 +10,7 @@ import { join, dirname } from 'node:path/posix';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { uniqueId } from '@internal/test-util';
 import { logger } from '@nx/devkit';
+import { withRetry } from './retry-utils';
 
 export interface WorkspaceConfig {
   /**
@@ -127,14 +128,23 @@ export async function createWorkspace(
     logger.verbose(`Using workspace Nx version: ${versionSpec}`);
   }
 
-  // Create workspace using create-nx-workspace
+  // Create workspace using create-nx-workspace with retry logic
   logger.verbose(`Running create-nx-workspace@${versionSpec}...`);
-  execSync(
-    `npx --yes create-nx-workspace@${versionSpec} ${name} --preset apps --nxCloud=skip --no-interactive`,
+  await withRetry(
+    async () => {
+      execSync(
+        `npx --yes create-nx-workspace@${versionSpec} ${name} --preset apps --nxCloud=skip --no-interactive`,
+        {
+          cwd: workspaceParentDir,
+          stdio: 'inherit',
+          env: process.env,
+        },
+      );
+    },
     {
-      cwd: workspaceParentDir,
-      stdio: 'inherit',
-      env: process.env,
+      maxAttempts: 3,
+      delayMs: 2000,
+      operationName: `create workspace "${name}"`,
     },
   );
 

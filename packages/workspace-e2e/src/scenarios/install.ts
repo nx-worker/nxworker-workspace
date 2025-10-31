@@ -15,6 +15,7 @@ import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import {
   createWorkspace,
   cleanupWorkspace,
+  withRetry,
   type WorkspaceInfo,
 } from '@internal/e2e-util';
 import { uniqueId } from '@internal/test-util';
@@ -64,18 +65,21 @@ export async function run(
       `[INSTALL] Installing ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}...`,
     );
 
-    // Install plugin from local registry
-    try {
-      execSync(`npm install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}`, {
-        cwd: workspace.path,
-        stdio: 'pipe',
-        encoding: 'utf-8',
-      });
-    } catch (error) {
-      throw new Error(
-        `Failed to install plugin: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+    // Install plugin from local registry with retry logic
+    await withRetry(
+      async () => {
+        execSync(`npm install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}`, {
+          cwd: workspace.path,
+          stdio: 'pipe',
+          encoding: 'utf-8',
+        });
+      },
+      {
+        maxAttempts: 3,
+        delayMs: 2000,
+        operationName: `install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}`,
+      },
+    );
 
     logger.verbose('[INSTALL] Verifying package installation...');
 
