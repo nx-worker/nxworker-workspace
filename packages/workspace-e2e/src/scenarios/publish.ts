@@ -10,7 +10,7 @@
 
 import { logger } from '@nx/devkit';
 import { execSync } from 'node:child_process';
-import { get } from 'node:http';
+import { httpGet } from '@internal/e2e-util';
 import type { InfrastructureScenarioContext } from './types';
 
 /**
@@ -52,9 +52,9 @@ export async function run(
 
   // Verify the package published in global setup
   const packageUrl = `${registryUrl}/@nxworker/workspace`;
-  const responseData = await httpGet(packageUrl);
+  const response = await httpGet(packageUrl);
 
-  const packageData = JSON.parse(responseData) as {
+  const packageData = JSON.parse(response.body) as {
     name: string;
     'dist-tags': Record<string, string>;
     versions: Record<string, { version: string; name: string }>;
@@ -91,30 +91,4 @@ export async function run(
   logger.verbose(
     `[PUBLISH] Package '@nxworker/workspace@0.0.0-e2e' is correctly published with 'e2e' tag`,
   );
-}
-
-/**
- * Make HTTP GET request
- */
-function httpGet(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    get(url, (res) => {
-      if (res.statusCode !== 200) {
-        reject(
-          new Error(`HTTP request failed: ${url} returned ${res.statusCode}`),
-        );
-        return;
-      }
-
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        resolve(data);
-      });
-    }).on('error', (err) => {
-      reject(new Error(`HTTP request failed: ${err.message}`));
-    });
-  });
 }

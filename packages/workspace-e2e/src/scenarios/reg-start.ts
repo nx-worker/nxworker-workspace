@@ -9,7 +9,7 @@
  */
 
 import { logger } from '@nx/devkit';
-import { get } from 'node:http';
+import { httpGet } from '@internal/e2e-util';
 import type { InfrastructureScenarioContext } from './types';
 
 /**
@@ -37,10 +37,10 @@ export async function run(
 
   // Verify package availability
   const packageUrl = `${registryUrl}/@nxworker/workspace`;
-  const packageData = await httpGet(packageUrl);
+  const response = await httpGet(packageUrl);
 
   // Parse package metadata
-  const parsedData = JSON.parse(packageData) as {
+  const parsedData = JSON.parse(response.body) as {
     name: string;
     versions?: Record<string, unknown>;
   };
@@ -58,30 +58,4 @@ export async function run(
   logger.verbose(
     `[REG-START] Package '@nxworker/workspace' is available with ${Object.keys(parsedData.versions).length} version(s)`,
   );
-}
-
-/**
- * Make HTTP GET request
- */
-function httpGet(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    get(url, (res) => {
-      if (res.statusCode !== 200) {
-        reject(
-          new Error(`HTTP request failed: ${url} returned ${res.statusCode}`),
-        );
-        return;
-      }
-
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        resolve(data);
-      });
-    }).on('error', (err) => {
-      reject(new Error(`HTTP request failed: ${err.message}`));
-    });
-  });
 }
