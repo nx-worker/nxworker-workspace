@@ -17,6 +17,7 @@ import { run as runRegStart } from './scenarios/reg-start';
 import { run as runPublish } from './scenarios/publish';
 import { run as runInstall } from './scenarios/install';
 import { run as runMoveSmall } from './scenarios/move-small';
+import { run as runAppToLib } from './scenarios/app-to-lib';
 import type { InfrastructureScenarioContext } from './scenarios/types';
 
 /**
@@ -246,9 +247,13 @@ describe('E2E Test Suite (Orchestrator)', () => {
 
   it('APP-TO-LIB: Move file from application to library', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    const context: InfrastructureScenarioContext = {
+      verdaccioConfig,
+      registryUrl,
+    };
+    await runAppToLib(context);
+  }, 120000);
 
   // ============================================================================
   // EXPLICIT DIRECTORY
