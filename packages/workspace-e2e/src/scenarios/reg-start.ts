@@ -30,15 +30,16 @@ export async function run(
 
   logger.verbose('[REG-START] Checking registry connectivity...');
 
-  // Verify registry health endpoint
+  // Verify registry health endpoint and package availability in parallel
   const pingUrl = `${registryUrl}/-/ping`;
-  await httpGet(pingUrl);
+  const packageUrl = `${registryUrl}/${E2E_PACKAGE_NAME}`;
+
+  const [, response] = await Promise.all([
+    httpGet(pingUrl),
+    httpGet(packageUrl),
+  ]);
 
   logger.verbose('[REG-START] Registry is responding to health checks');
-
-  // Verify package availability
-  const packageUrl = `${registryUrl}/${E2E_PACKAGE_NAME}`;
-  const response = await httpGet(packageUrl);
 
   // Parse package metadata
   const parsedData = JSON.parse(response.body) as {
