@@ -106,6 +106,17 @@ describe('E2E Test Suite (Orchestrator)', () => {
 
     registryUrl = `http://localhost:${verdaccioConfig.port}`;
 
+    // Security: Validate that registry URL is localhost to prevent accidental remote registry use
+    const parsedUrl = new URL(registryUrl);
+    if (
+      parsedUrl.hostname !== 'localhost' &&
+      parsedUrl.hostname !== '127.0.0.1'
+    ) {
+      throw new Error(
+        `Security: Registry URL must use localhost or 127.0.0.1, got: ${parsedUrl.hostname}`,
+      );
+    }
+
     // Validate registry is accessible
     try {
       await httpGet(`${registryUrl}/-/ping`);
