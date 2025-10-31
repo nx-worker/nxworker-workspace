@@ -16,6 +16,7 @@ import { httpGet } from '@internal/e2e-util';
 import { run as runRegStart } from './scenarios/reg-start';
 import { run as runPublish } from './scenarios/publish';
 import { run as runInstall } from './scenarios/install';
+import { run as runMoveSmall } from './scenarios/move-small';
 import type { InfrastructureScenarioContext } from './scenarios/types';
 
 /**
@@ -232,11 +233,12 @@ describe('E2E Test Suite (Orchestrator)', () => {
       return;
     }
 
-    // TODO: Implement in #322
-    // Purpose: Verify basic move-file generator functionality
-    // Expected: File moved, imports updated, source file removed
-    expect(true).toBe(true);
-  });
+    const context: InfrastructureScenarioContext = {
+      verdaccioConfig,
+      registryUrl,
+    };
+    await runMoveSmall(context);
+  }, 120000);
 
   // ============================================================================
   // APP TO LIB MOVE
