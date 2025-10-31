@@ -95,6 +95,9 @@ describe('E2E Test Suite (Orchestrator)', () => {
    * 4. Jest global teardown stops Verdaccio
    */
   beforeAll(async () => {
+    // Reset infrastructure failure flag for new test run
+    infrastructureFailed = false;
+
     // Reference the registry started by Jest global setup
     verdaccioConfig = {
       port: 4873,
