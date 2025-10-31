@@ -6,6 +6,7 @@ import { httpGet } from './network-utils';
 import * as http from 'node:http';
 import type { IncomingMessage } from 'node:http';
 import { EventEmitter } from 'node:events';
+import { logger } from '@nx/devkit';
 
 // Mock the http module
 jest.mock('node:http');
@@ -135,6 +136,21 @@ describe('network-utils', () => {
       );
     });
 
+    it('should reject on 3xx redirect status code', async () => {
+      mockResponse.statusCode = 302;
+
+      const promise = httpGet('http://localhost:4873/redirect');
+
+      setImmediate(() => {
+        (mockResponse as EventEmitter).emit('data', 'Found');
+        (mockResponse as EventEmitter).emit('end');
+      });
+
+      await expect(promise).rejects.toThrow(
+        'HTTP request failed: http://localhost:4873/redirect returned 302',
+      );
+    });
+
     it('should reject on network/connection error', async () => {
       const promise = httpGet('http://localhost:4873/fail');
 
@@ -218,6 +234,94 @@ describe('network-utils', () => {
         'content-type': 'application/json',
         'x-custom-header': 'test-value',
       });
+    });
+
+    it('should validate content-type when expectedContentType is provided', async () => {
+      mockResponse.statusCode = 200;
+      mockResponse.headers = {
+        'content-type': 'application/json; charset=utf-8',
+      };
+
+      const promise = httpGet('http://localhost:4873/json-endpoint', {
+        expectedContentType: 'application/json',
+      });
+
+      setImmediate(() => {
+        (mockResponse as EventEmitter).emit('data', '{"test":true}');
+        (mockResponse as EventEmitter).emit('end');
+      });
+
+      const result = await promise;
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body).toBe('{"test":true}');
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should log warning when content-type does not match expected', async () => {
+      mockResponse.statusCode = 200;
+      mockResponse.headers = {
+        'content-type': 'text/html',
+      };
+
+      const promise = httpGet('http://localhost:4873/html-endpoint', {
+        expectedContentType: 'application/json',
+      });
+
+      setImmediate(() => {
+        (mockResponse as EventEmitter).emit('data', '<html></html>');
+        (mockResponse as EventEmitter).emit('end');
+      });
+
+      const result = await promise;
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body).toBe('<html></html>');
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Unexpected content-type for http://localhost:4873/html-endpoint: expected 'application/json', got 'text/html'",
+      );
+    });
+
+    it('should log warning when content-type is missing but expected', async () => {
+      mockResponse.statusCode = 200;
+      mockResponse.headers = {};
+
+      const promise = httpGet('http://localhost:4873/no-content-type', {
+        expectedContentType: 'application/json',
+      });
+
+      setImmediate(() => {
+        (mockResponse as EventEmitter).emit('data', '{}');
+        (mockResponse as EventEmitter).emit('end');
+      });
+
+      const result = await promise;
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body).toBe('{}');
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Unexpected content-type for http://localhost:4873/no-content-type: expected 'application/json', got 'none'",
+      );
+    });
+
+    it('should not validate content-type when expectedContentType is not provided', async () => {
+      mockResponse.statusCode = 200;
+      mockResponse.headers = {
+        'content-type': 'text/html',
+      };
+
+      const promise = httpGet('http://localhost:4873/any-type');
+
+      setImmediate(() => {
+        (mockResponse as EventEmitter).emit('data', 'content');
+        (mockResponse as EventEmitter).emit('end');
+      });
+
+      const result = await promise;
+
+      expect(result.statusCode).toBe(200);
+      expect(result.body).toBe('content');
+      expect(logger.warn).not.toHaveBeenCalled();
     });
   });
 });

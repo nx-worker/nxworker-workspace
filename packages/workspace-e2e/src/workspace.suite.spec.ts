@@ -12,6 +12,7 @@
  */
 
 import type { VerdaccioConfig } from '@internal/e2e-util';
+import { httpGet } from '@internal/e2e-util';
 import { run as runRegStart } from './scenarios/reg-start';
 import { run as runPublish } from './scenarios/publish';
 import { run as runInstall } from './scenarios/install';
@@ -101,6 +102,15 @@ describe('E2E Test Suite (Orchestrator)', () => {
     };
 
     registryUrl = `http://localhost:${verdaccioConfig.port}`;
+
+    // Validate registry is accessible
+    try {
+      await httpGet(`${registryUrl}/-/ping`);
+    } catch (error) {
+      throw new Error(
+        `Registry not accessible at ${registryUrl}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }, 120000); // 2 minute timeout for setup
 
   /**

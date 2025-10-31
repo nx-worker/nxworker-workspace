@@ -29,13 +29,15 @@ export interface HttpGetOptions {
   retries?: number;
   /** Delay between retries in milliseconds (default: 1000) */
   retryDelay?: number;
+  /** Expected content-type header value (logs warning if mismatch) */
+  expectedContentType?: string;
 }
 
 /**
  * Makes an HTTP GET request
  *
  * Performs an HTTP GET request to the specified URL and returns the response.
- * Supports timeout, retry logic, and comprehensive error handling.
+ * Supports timeout, retry logic, content-type validation, and comprehensive error handling.
  *
  * @param url - The URL to request
  * @param options - Optional configuration for the request
@@ -55,20 +57,31 @@ export interface HttpGetOptions {
  *   { timeout: 10000, retries: 3, retryDelay: 2000 }
  * );
  * const packageData = JSON.parse(response.body);
+ *
+ * // With content-type validation (logs warning if mismatch)
+ * const response = await httpGet(
+ *   'http://localhost:4873/@nxworker/workspace',
+ *   { expectedContentType: 'application/json' }
+ * );
  * ```
  */
 export async function httpGet(
   url: string,
   options: HttpGetOptions = {},
 ): Promise<HttpGetResponse> {
-  const { timeout = 5000, retries = 0, retryDelay = 1000 } = options;
+  const {
+    timeout = 5000,
+    retries = 0,
+    retryDelay = 1000,
+    expectedContentType,
+  } = options;
 
   let lastError: Error | null = null;
   let attempts = 0;
 
   while (attempts <= retries) {
     try {
-      return await executeHttpGet(url, timeout);
+      return await executeHttpGet(url, timeout, expectedContentType);
     } catch (error) {
       lastError = error as Error;
       attempts++;
@@ -91,11 +104,13 @@ export async function httpGet(
  * Executes a single HTTP GET request
  * @param url - The URL to request
  * @param timeout - Request timeout in milliseconds
+ * @param expectedContentType - Optional expected content-type header value
  * @returns Promise resolving to the HTTP response
  */
 function executeHttpGet(
   url: string,
   timeout: number,
+  expectedContentType?: string,
 ): Promise<HttpGetResponse> {
   return new Promise((resolve, reject) => {
     const request = get(url, (res) => {
@@ -107,6 +122,19 @@ function executeHttpGet(
           ),
         );
         return;
+      }
+
+      // Validate content-type if expected value is provided
+      if (expectedContentType) {
+        const contentType = res.headers['content-type'];
+        const contentTypeStr = Array.isArray(contentType)
+          ? contentType[0]
+          : contentType;
+        if (!contentTypeStr || !contentTypeStr.includes(expectedContentType)) {
+          logger.warn(
+            `Unexpected content-type for ${url}: expected '${expectedContentType}', got '${contentTypeStr || 'none'}'`,
+          );
+        }
       }
 
       let data = '';
