@@ -1,0 +1,173 @@
+/**
+ * Network Utilities
+ *
+ * HTTP request utilities for e2e test scenarios.
+ */
+
+import { get } from 'node:http';
+import { logger } from '@nx/devkit';
+
+/**
+ * HTTP GET response
+ */
+export interface HttpGetResponse {
+  /** HTTP status code */
+  statusCode: number;
+  /** Response body as string */
+  body: string;
+  /** Response headers */
+  headers: Record<string, string | string[] | undefined>;
+}
+
+/**
+ * Options for HTTP GET requests
+ */
+export interface HttpGetOptions {
+  /** Timeout in milliseconds (default: 5000) */
+  timeout?: number;
+  /** Number of retry attempts on failure (default: 0) */
+  retries?: number;
+  /** Delay between retries in milliseconds (default: 1000) */
+  retryDelay?: number;
+  /** Expected content-type header value (logs warning if mismatch) */
+  expectedContentType?: string;
+}
+
+/**
+ * Makes an HTTP GET request
+ *
+ * Performs an HTTP GET request to the specified URL and returns the response.
+ * Supports timeout, retry logic, content-type validation, and comprehensive error handling.
+ *
+ * @param url - The URL to request
+ * @param options - Optional configuration for the request
+ * @returns Promise resolving to the HTTP response
+ * @throws Error if the request fails or returns a non-2xx status code
+ *
+ * @example
+ * ```typescript
+ * // Simple GET request
+ * const response = await httpGet('http://localhost:4873/-/ping');
+ * console.log(response.statusCode); // 200
+ * console.log(response.body); // Response body
+ *
+ * // With timeout and retries
+ * const response = await httpGet(
+ *   'http://localhost:4873/@nxworker/workspace',
+ *   { timeout: 10000, retries: 3, retryDelay: 2000 }
+ * );
+ * const packageData = JSON.parse(response.body);
+ *
+ * // With content-type validation (logs warning if mismatch)
+ * const response = await httpGet(
+ *   'http://localhost:4873/@nxworker/workspace',
+ *   { expectedContentType: 'application/json' }
+ * );
+ * ```
+ */
+export async function httpGet(
+  url: string,
+  options: HttpGetOptions = {},
+): Promise<HttpGetResponse> {
+  const {
+    timeout = 5000,
+    retries = 0,
+    retryDelay = 1000,
+    expectedContentType,
+  } = options;
+
+  let lastError: Error | null = null;
+  let attempts = 0;
+
+  while (attempts <= retries) {
+    try {
+      return await executeHttpGet(url, timeout, expectedContentType);
+    } catch (error) {
+      lastError = error as Error;
+      attempts++;
+
+      if (attempts <= retries) {
+        logger.verbose(
+          `HTTP GET failed (attempt ${attempts}/${retries + 1}): ${url}. Retrying after ${retryDelay}ms...`,
+        );
+        await sleep(retryDelay);
+      }
+    }
+  }
+
+  throw new Error(
+    `HTTP GET failed after ${attempts} attempt(s): ${lastError?.message}`,
+  );
+}
+
+/**
+ * Executes a single HTTP GET request
+ * @param url - The URL to request
+ * @param timeout - Request timeout in milliseconds
+ * @param expectedContentType - Optional expected content-type header value
+ * @returns Promise resolving to the HTTP response
+ */
+function executeHttpGet(
+  url: string,
+  timeout: number,
+  expectedContentType?: string,
+): Promise<HttpGetResponse> {
+  return new Promise((resolve, reject) => {
+    const request = get(url, (res) => {
+      // Validate status code is in 2xx range
+      if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+        reject(
+          new Error(
+            `HTTP request failed: ${url} returned ${res.statusCode || 'unknown status'}`,
+          ),
+        );
+        return;
+      }
+
+      // Validate content-type if expected value is provided
+      if (expectedContentType) {
+        const contentType = res.headers['content-type'];
+        const contentTypeStr = Array.isArray(contentType)
+          ? contentType[0]
+          : contentType;
+        if (!contentTypeStr || !contentTypeStr.includes(expectedContentType)) {
+          logger.warn(
+            `Unexpected content-type for ${url}: expected '${expectedContentType}', got '${contentTypeStr || 'none'}'`,
+          );
+        }
+      }
+
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        resolve({
+          statusCode: res.statusCode || 0,
+          body: data,
+          headers: res.headers as Record<string, string | string[] | undefined>,
+        });
+      });
+    });
+
+    // Set timeout
+    request.setTimeout(timeout, () => {
+      request.destroy();
+      reject(new Error(`HTTP request timed out after ${timeout}ms: ${url}`));
+    });
+
+    // Handle network errors
+    request.on('error', (err) => {
+      reject(new Error(`HTTP request failed: ${err.message}`));
+    });
+  });
+}
+
+/**
+ * Helper function to sleep for a specified duration
+ * @param ms Milliseconds to sleep
+ * @returns Promise that resolves after the specified duration
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
