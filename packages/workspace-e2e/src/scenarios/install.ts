@@ -19,6 +19,7 @@ import {
 } from '@internal/e2e-util';
 import { uniqueId } from '@internal/test-util';
 import type { InfrastructureScenarioContext } from './types';
+import { E2E_PACKAGE_NAME, E2E_PACKAGE_VERSION } from './constants';
 
 /**
  * INSTALL: Create new workspace, install plugin, import check
@@ -59,11 +60,13 @@ export async function run(
     const npmrcContent = `registry=${registryUrl}\n`;
     writeFileSync(npmrcPath, npmrcContent, 'utf-8');
 
-    logger.verbose('[INSTALL] Installing @nxworker/workspace@0.0.0-e2e...');
+    logger.verbose(
+      `[INSTALL] Installing ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}...`,
+    );
 
     // Install plugin from local registry
     try {
-      execSync('npm install @nxworker/workspace@0.0.0-e2e', {
+      execSync(`npm install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}`, {
         cwd: workspace.path,
         stdio: 'pipe',
         encoding: 'utf-8',
@@ -95,9 +98,9 @@ export async function run(
       version: string;
     };
 
-    if (packageJson.version !== '0.0.0-e2e') {
+    if (packageJson.version !== E2E_PACKAGE_VERSION) {
       throw new Error(
-        `Unexpected package version: expected '0.0.0-e2e', got '${packageJson.version}'`,
+        `Unexpected package version: expected '${E2E_PACKAGE_VERSION}', got '${packageJson.version}'`,
       );
     }
 
@@ -106,7 +109,7 @@ export async function run(
     // Verify generator is listed in Nx
     let listOutput: string;
     try {
-      listOutput = execSync('npx nx list @nxworker/workspace', {
+      listOutput = execSync(`npx nx list ${E2E_PACKAGE_NAME}`, {
         cwd: workspace.path,
         stdio: 'pipe',
         encoding: 'utf-8',

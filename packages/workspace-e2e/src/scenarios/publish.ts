@@ -12,14 +12,19 @@ import { logger } from '@nx/devkit';
 import { execSync } from 'node:child_process';
 import { httpGet } from '@internal/e2e-util';
 import type { InfrastructureScenarioContext } from './types';
+import {
+  E2E_PACKAGE_NAME,
+  E2E_PACKAGE_VERSION,
+  E2E_DIST_TAG,
+} from './constants';
 
 /**
  * PUBLISH: Local publish of plugin (dry + actual)
  *
  * Validates:
  * 1. Dry-run publish mode works without errors
- * 2. Package published to registry has correct version (0.0.0-e2e)
- * 3. Package has correct tag (e2e)
+ * 2. Package published to registry has correct version
+ * 3. Package has correct dist-tag
  *
  * @param context - Infrastructure scenario context with registry configuration
  * @throws Error if dry-run fails or package metadata is incorrect
@@ -77,7 +82,7 @@ export async function run(
   logger.verbose('[PUBLISH] Verifying published package metadata...');
 
   // Verify the package published in global setup
-  const packageUrl = `${registryUrl}/@nxworker/workspace`;
+  const packageUrl = `${registryUrl}/${E2E_PACKAGE_NAME}`;
   const response = await httpGet(packageUrl);
 
   const packageData = JSON.parse(response.body) as {
@@ -87,34 +92,34 @@ export async function run(
   };
 
   // Verify package name
-  if (packageData.name !== '@nxworker/workspace') {
+  if (packageData.name !== E2E_PACKAGE_NAME) {
     throw new Error(
-      `Unexpected package name: expected '@nxworker/workspace', got '${packageData.name}'`,
+      `Unexpected package name: expected '${E2E_PACKAGE_NAME}', got '${packageData.name}'`,
     );
   }
 
   // Verify e2e tag points to correct version
-  if (!packageData['dist-tags']?.['e2e']) {
+  if (!packageData['dist-tags']?.[E2E_DIST_TAG]) {
     throw new Error(
-      `Package is missing 'e2e' dist-tag. Available tags: ${Object.keys(packageData['dist-tags'] || {}).join(', ')}`,
+      `Package is missing '${E2E_DIST_TAG}' dist-tag. Available tags: ${Object.keys(packageData['dist-tags'] || {}).join(', ')}`,
     );
   }
 
-  const e2eVersion = packageData['dist-tags']['e2e'];
-  if (e2eVersion !== '0.0.0-e2e') {
+  const e2eVersion = packageData['dist-tags'][E2E_DIST_TAG];
+  if (e2eVersion !== E2E_PACKAGE_VERSION) {
     throw new Error(
-      `Expected 'e2e' tag to point to '0.0.0-e2e', got '${e2eVersion}'`,
+      `Expected '${E2E_DIST_TAG}' tag to point to '${E2E_PACKAGE_VERSION}', got '${e2eVersion}'`,
     );
   }
 
   // Verify version exists in versions object
-  if (!packageData.versions?.['0.0.0-e2e']) {
+  if (!packageData.versions?.[E2E_PACKAGE_VERSION]) {
     throw new Error(
-      `Version '0.0.0-e2e' not found in published versions. Available: ${Object.keys(packageData.versions || {}).join(', ')}`,
+      `Version '${E2E_PACKAGE_VERSION}' not found in published versions. Available: ${Object.keys(packageData.versions || {}).join(', ')}`,
     );
   }
 
   logger.verbose(
-    `[PUBLISH] Package '@nxworker/workspace@0.0.0-e2e' is correctly published with 'e2e' tag`,
+    `[PUBLISH] Package '${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}' is correctly published with '${E2E_DIST_TAG}' tag`,
   );
 }

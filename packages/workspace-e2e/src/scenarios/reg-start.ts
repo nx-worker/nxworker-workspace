@@ -11,6 +11,7 @@
 import { logger } from '@nx/devkit';
 import { httpGet } from '@internal/e2e-util';
 import type { InfrastructureScenarioContext } from './types';
+import { E2E_PACKAGE_NAME } from './constants';
 
 /**
  * REG-START: Start Verdaccio and confirm package availability
@@ -36,7 +37,7 @@ export async function run(
   logger.verbose('[REG-START] Registry is responding to health checks');
 
   // Verify package availability
-  const packageUrl = `${registryUrl}/@nxworker/workspace`;
+  const packageUrl = `${registryUrl}/${E2E_PACKAGE_NAME}`;
   const response = await httpGet(packageUrl);
 
   // Parse package metadata
@@ -45,9 +46,9 @@ export async function run(
     versions?: Record<string, unknown>;
   };
 
-  if (parsedData.name !== '@nxworker/workspace') {
+  if (parsedData.name !== E2E_PACKAGE_NAME) {
     throw new Error(
-      `Unexpected package name: expected '@nxworker/workspace', got '${parsedData.name}'`,
+      `Unexpected package name: expected '${E2E_PACKAGE_NAME}', got '${parsedData.name}'`,
     );
   }
 
@@ -56,6 +57,6 @@ export async function run(
   }
 
   logger.verbose(
-    `[REG-START] Package '@nxworker/workspace' is available with ${Object.keys(parsedData.versions).length} version(s)`,
+    `[REG-START] Package '${E2E_PACKAGE_NAME}' is available with ${Object.keys(parsedData.versions).length} version(s)`,
   );
 }
