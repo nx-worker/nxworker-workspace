@@ -41,11 +41,37 @@ export async function run(
     });
     logger.verbose('[PUBLISH] Dry-run completed successfully');
   } catch (error) {
-    // Dry-run can fail for benign reasons (e.g., version already published, git state)
-    // This is not critical since the actual publishing already happened in setup
-    logger.verbose(
-      `[PUBLISH] Dry-run encountered expected issues (non-critical): ${error instanceof Error ? error.message : String(error)}`,
+    // Dry-run can fail for benign reasons - distinguish expected vs unexpected errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Expected error patterns (non-critical, safe to ignore)
+    const expectedPatterns = [
+      // Git state issues
+      'nothing to commit',
+      'not a git repository',
+      'detached HEAD',
+      // Registry issues
+      'version already exists',
+      'Cannot publish',
+      // Deprecation warnings
+      'fs.Stats',
+    ];
+
+    const isExpectedError = expectedPatterns.some((pattern) =>
+      errorMessage.includes(pattern),
     );
+
+    if (isExpectedError) {
+      logger.verbose(
+        `[PUBLISH] Dry-run encountered expected issue (non-critical): ${errorMessage}`,
+      );
+    } else {
+      logger.warn(
+        `[PUBLISH] Dry-run encountered unexpected error (non-critical): ${errorMessage}`,
+      );
+    }
+
+    // This is not critical since the actual publishing already happened in setup
   }
 
   logger.verbose('[PUBLISH] Verifying published package metadata...');
