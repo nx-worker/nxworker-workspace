@@ -64,6 +64,31 @@ expect.extend({
 });
 
 /**
+ * Custom TypeScript assertion function to validate that a value is defined.
+ * Throws an error with a helpful message if the value is undefined or null.
+ *
+ * This function provides both runtime validation and TypeScript type narrowing,
+ * eliminating the need for separate `expect().toBeDefined()` and `if (!value) return;` patterns.
+ *
+ * @param value - The value to check
+ * @param name - The name of the value (used in error messages)
+ * @throws {Error} If the value is undefined or null
+ *
+ * @example
+ * assertDefined(sharedWorkspace, 'sharedWorkspace');
+ * // TypeScript now knows sharedWorkspace is not undefined
+ * console.log(sharedWorkspace.path);
+ */
+function assertDefined<T>(
+  value: T,
+  name: string,
+): asserts value is NonNullable<T> {
+  if (value === undefined || value === null) {
+    throw new Error(`Expected ${name} to be defined, but it was ${value}`);
+  }
+}
+
+/**
  * Orchestrator State
  *
  * Shared state across all scenarios:
@@ -352,8 +377,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       return;
     }
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log('[MOVE-SMALL] Using shared workspace with allocated libraries');
 
@@ -433,8 +457,7 @@ export function useCalculator() {
   it('APP-TO-LIB: Move file from application to library', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log('[APP-TO-LIB] Using shared workspace with allocated library');
 
@@ -442,8 +465,7 @@ export function useCalculator() {
     const appName = sharedWorkspace.app;
     const workspaceName = sharedWorkspace.name;
 
-    expect(appName).toBeDefined();
-    if (!appName) return;
+    assertDefined(appName, 'appName');
 
     // Add helper.ts to app with exported function
     const helperContent = `export function formatMessage(message: string): string {
@@ -514,8 +536,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-PROJECT-DIR: Move with projectDirectory specified', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log(
       '[MOVE-PROJECT-DIR] Using shared workspace with allocated libraries',
@@ -583,8 +604,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-DERIVE-DIR: Move with deriveProjectDirectory=true', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log(
       '[MOVE-DERIVE-DIR] Using shared workspace with allocated libraries',
@@ -651,8 +671,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-SKIP-EXPORT: Move exported file with skipExport flag', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log(
       '[MOVE-SKIP-EXPORT] Using shared workspace with allocated libraries',
@@ -712,8 +731,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-SKIP-FORMAT: Move file with skipFormat=true', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log(
       '[MOVE-SKIP-FORMAT] Using shared workspace with allocated libraries',
@@ -759,8 +777,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-UNICODE: Move file with Unicode characters in path', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log(
       '[MOVE-UNICODE] Using shared workspace with allocated libraries',
@@ -842,8 +859,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-REMOVE-EMPTY: Move last source files triggering project removal', async () => {
     if (infrastructureFailed) return;
 
-    expect(sharedWorkspace).toBeDefined();
-    if (!sharedWorkspace) return; // Type guard for TypeScript
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log(
       '[MOVE-REMOVE-EMPTY] Using shared workspace with allocated libraries',
