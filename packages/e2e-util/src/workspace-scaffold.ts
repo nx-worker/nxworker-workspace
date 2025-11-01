@@ -5,12 +5,59 @@
  * for e2e testing scenarios.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { join, dirname } from 'node:path/posix';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { uniqueId } from '@internal/test-util';
 import { logger } from '@nx/devkit';
 import { withRetry } from './retry-utils';
+
+/**
+ * Execute command asynchronously for parallel execution
+ *
+ * @param command Command to execute
+ * @param cwd Working directory
+ * @returns Promise that resolves when command completes
+ */
+function execAsync(command: string, cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: 'pipe', // Capture output for error reporting
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout?.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        const errorOutput = stderr || stdout || 'No error output';
+        reject(
+          new Error(
+            `Command "${command}" failed with exit code ${code}:\n${errorOutput}`,
+          ),
+        );
+      }
+    });
+
+    child.on('error', (error) => {
+      reject(
+        new Error(`Failed to spawn command "${command}": ${error.message}`),
+      );
+    });
+  });
+}
 
 export interface WorkspaceConfig {
   /**
@@ -150,23 +197,47 @@ export async function createWorkspace(
 
   logger.verbose(`Workspace created at ${workspacePath}`);
 
-  // Generate libraries
+  // Generate libraries in batches with async infrastructure
   const libNames: string[] = [];
   const libNamePrefix = 'lib-';
   const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  // Note: CONCURRENCY=1 (sequential) for now to avoid race conditions when
+  // multiple Nx generators modify shared config files (tsconfig.base.json, nx.json)
+  // simultaneously. Infrastructure is in place to increase concurrency once
+  // file locking or transaction support is added.
+  const CONCURRENCY = 1;
 
+  // Pre-calculate all library names
   for (let i = 0; i < libs; i++) {
     const libName = `${libNamePrefix}${alphabet[i % alphabet.length]}${i >= alphabet.length ? Math.floor(i / alphabet.length) : ''}`;
     libNames.push(libName);
+  }
 
-    logger.verbose(`Generating library: ${libName}`);
-    execSync(
-      `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
-      {
-        cwd: workspacePath,
-        stdio: 'inherit',
-      },
+  logger.verbose(
+    `Generating ${libs} libraries in parallel batches of ${CONCURRENCY}...`,
+  );
+
+  // Generate libraries in batches
+  for (let i = 0; i < libs; i += CONCURRENCY) {
+    const batch = libNames.slice(i, i + CONCURRENCY);
+    logger.verbose(`Generating batch: ${batch.join(', ')}`);
+
+    const batchPromises = batch.map((libName) =>
+      withRetry(
+        () =>
+          execAsync(
+            `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --no-interactive`,
+            workspacePath,
+          ),
+        {
+          maxAttempts: 2,
+          delayMs: 1000,
+          operationName: `generate library ${libName}`,
+        },
+      ),
     );
+
+    await Promise.all(batchPromises);
   }
 
   logger.verbose(`Generated ${libs} libraries: ${libNames.join(', ')}`);
