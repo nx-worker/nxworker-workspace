@@ -208,6 +208,10 @@ describe('Workspace Scaffold Helper', () => {
         expect.any(Object),
       );
       expect(mockSpawn).toHaveBeenCalledWith(
+        expect.stringContaining('--linter=none'),
+        expect.any(Object),
+      );
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--skipFormat'),
         expect.any(Object),
       );
