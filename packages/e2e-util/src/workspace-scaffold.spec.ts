@@ -3,9 +3,10 @@
  */
 
 import { createWorkspace, addSourceFile } from './workspace-scaffold';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { uniqueId } from '@internal/test-util';
+import { EventEmitter } from 'node:events';
 
 // Mock node modules
 jest.mock('node:child_process');
@@ -20,6 +21,7 @@ jest.mock('@nx/devkit', () => ({
 }));
 
 const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 const mockMkdirSync = mkdirSync as jest.MockedFunction<typeof mkdirSync>;
 const mockWriteFileSync = writeFileSync as jest.MockedFunction<
   typeof writeFileSync
@@ -40,6 +42,20 @@ describe('Workspace Scaffold Helper', () => {
         },
       }),
     );
+
+    // Mock spawn to return a mock child process that immediately succeeds
+    mockSpawn.mockImplementation(() => {
+      const mockChild = new EventEmitter() as any;
+      mockChild.stdout = new EventEmitter();
+      mockChild.stderr = new EventEmitter();
+
+      // Simulate successful command execution
+      process.nextTick(() => {
+        mockChild.emit('close', 0);
+      });
+
+      return mockChild;
+    });
   });
 
   describe('createWorkspace', () => {
@@ -173,19 +189,23 @@ describe('Workspace Scaffold Helper', () => {
     it('should pass correct options to library generator', async () => {
       await createWorkspace({ libs: 1 });
 
-      expect(mockExecSync).toHaveBeenCalledWith(
+      // Library generation now uses spawn (via execAsync) instead of execSync
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('nx generate @nx/js:library lib-a'),
-        expect.any(Object),
+        expect.objectContaining({
+          shell: true,
+          stdio: 'pipe',
+        }),
       );
-      expect(mockExecSync).toHaveBeenCalledWith(
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--unitTestRunner=none'),
         expect.any(Object),
       );
-      expect(mockExecSync).toHaveBeenCalledWith(
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--bundler=none'),
         expect.any(Object),
       );
-      expect(mockExecSync).toHaveBeenCalledWith(
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--no-interactive'),
         expect.any(Object),
       );
