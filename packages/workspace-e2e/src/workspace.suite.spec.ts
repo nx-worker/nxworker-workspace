@@ -219,7 +219,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       infrastructureFailed = true;
       throw error;
     }
-  }, 120000); // 2 minute timeout for workspace creation + install
+  }, 120000); // 2 min: workspace creation (~30s) + npm install (~30s) + plugin import verification (~10s) + cleanup (~50s)
 
   // ============================================================================
   // BASIC GENERATOR
@@ -239,7 +239,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       registryUrl,
     };
     await runMoveSmall(context);
-  }, 120000);
+  }, 120000); // 2 min: workspace creation (~30s) + npm install (~20s) + generator execution (~40s) + assertions + cleanup (~30s)
 
   // ============================================================================
   // APP TO LIB MOVE
@@ -253,7 +253,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       registryUrl,
     };
     await runAppToLib(context);
-  }, 120000);
+  }, 120000); // 2 min: workspace creation (~30s) + npm install (~20s) + generator execution (~40s) + assertions + cleanup (~30s)
 
   // ============================================================================
   // EXPLICIT DIRECTORY

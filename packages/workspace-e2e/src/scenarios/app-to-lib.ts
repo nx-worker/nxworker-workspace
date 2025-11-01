@@ -20,6 +20,7 @@ import {
 import { uniqueId } from '@internal/test-util';
 import type { InfrastructureScenarioContext } from './types';
 import { E2E_PACKAGE_NAME, E2E_PACKAGE_VERSION } from './constants';
+import { verifyExportInIndex } from './helpers/verify-exports';
 
 /**
  * APP-TO-LIB: Move file from application to library
@@ -144,11 +145,7 @@ console.log(formatMessage('Application started'));
     logger.verbose('[APP-TO-LIB] ✓ Import in main.ts updated to library alias');
 
     // Verify library index exports the moved file
-    const libIndexPath = join(workspace.path, libName, 'src', 'index.ts');
-    const libIndex = readFileSync(libIndexPath, 'utf-8');
-    if (!libIndex.includes('helper')) {
-      throw new Error(`Library index.ts does not export helper: ${libIndex}`);
-    }
+    verifyExportInIndex(workspace.path, libName, 'helper');
     logger.verbose('[APP-TO-LIB] ✓ Library index.ts exports the moved file');
 
     logger.verbose(
