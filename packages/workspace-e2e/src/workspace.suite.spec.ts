@@ -353,6 +353,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     }
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log('[MOVE-SMALL] Using shared workspace with allocated libraries');
 
@@ -433,6 +434,7 @@ export function useCalculator() {
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log('[APP-TO-LIB] Using shared workspace with allocated library');
 
@@ -512,6 +514,7 @@ console.log(formatMessage('Application started'));
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log(
       '[MOVE-PROJECT-DIR] Using shared workspace with allocated libraries',
@@ -580,6 +583,7 @@ console.log(formatMessage('Application started'));
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log(
       '[MOVE-DERIVE-DIR] Using shared workspace with allocated libraries',
@@ -647,6 +651,7 @@ console.log(formatMessage('Application started'));
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log(
       '[MOVE-SKIP-EXPORT] Using shared workspace with allocated libraries',
@@ -707,6 +712,7 @@ console.log(formatMessage('Application started'));
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log(
       '[MOVE-SKIP-FORMAT] Using shared workspace with allocated libraries',
@@ -753,6 +759,7 @@ console.log(formatMessage('Application started'));
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log(
       '[MOVE-UNICODE] Using shared workspace with allocated libraries',
@@ -835,6 +842,7 @@ console.log(formatMessage('Application started'));
     if (infrastructureFailed) return;
 
     expect(sharedWorkspace).toBeDefined();
+    if (!sharedWorkspace) return; // Type guard for TypeScript
 
     console.log(
       '[MOVE-REMOVE-EMPTY] Using shared workspace with allocated libraries',
