@@ -1,7 +1,8 @@
 import { uniqueId } from '@internal/test-util';
+import { cleanupWorkspace } from '@internal/e2e-util';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const itSkipWindows = process.platform === 'win32' ? it.skip : it;
 const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
@@ -120,27 +121,7 @@ describe('workspace', () => {
   afterAll(async () => {
     // Cleanup the test project (Windows: handle EBUSY)
     if (projectDirectory) {
-      let attempts = 0;
-      const maxAttempts = 5;
-      const delay = 200;
-      while (attempts < maxAttempts) {
-        try {
-          rmSync(projectDirectory, { recursive: true, force: true });
-          break;
-        } catch (err) {
-          if (
-            err &&
-            typeof err === 'object' &&
-            'code' in err &&
-            (err.code === 'EBUSY' || err.code === 'ENOTEMPTY')
-          ) {
-            attempts++;
-            await sleep(delay);
-          } else {
-            throw err;
-          }
-        }
-      }
+      await cleanupWorkspace(projectDirectory);
     }
   });
 
@@ -1423,27 +1404,7 @@ describe('Nx version compatibility (basic happy paths)', () => {
       afterAll(async () => {
         // Cleanup the test project (Windows: handle EBUSY)
         if (projectDirectory) {
-          let attempts = 0;
-          const maxAttempts = 5;
-          const delay = 200;
-          while (attempts < maxAttempts) {
-            try {
-              rmSync(projectDirectory, { recursive: true, force: true });
-              break;
-            } catch (err) {
-              if (
-                err &&
-                typeof err === 'object' &&
-                'code' in err &&
-                (err.code === 'EBUSY' || err.code === 'ENOTEMPTY')
-              ) {
-                attempts++;
-                await sleep(delay);
-              } else {
-                throw err;
-              }
-            }
-          }
+          await cleanupWorkspace(projectDirectory);
         }
       });
 
@@ -1648,10 +1609,6 @@ function getProjectImportAlias(
   );
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * Creates a test project with create-nx-workspace and installs the plugin
  * @param nxVersion - Optional Nx major version to install (e.g., 19, 20, 21). If not provided, uses the workspace version.
@@ -1662,30 +1619,7 @@ async function createTestProject(nxVersion?: number) {
   const projectDirectory = join(process.cwd(), 'tmp', projectName);
 
   // Ensure projectDirectory is empty (Windows: handle EBUSY)
-  let attempts = 0;
-  const maxAttempts = 5;
-  const delay = 200;
-  while (attempts < maxAttempts) {
-    try {
-      rmSync(projectDirectory, { recursive: true, force: true });
-      break;
-    } catch (err) {
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        (err.code === 'EBUSY' || err.code === 'ENOTEMPTY')
-      ) {
-        attempts++;
-        // Use an async sleep instead of Atomics.wait which is not intended for this use
-        // and can be unreliable across environments.
-        // This is safe because the surrounding callers (beforeAll/afterAll) are async.
-        await sleep(delay);
-      } else {
-        throw err;
-      }
-    }
-  }
+  await cleanupWorkspace(projectDirectory);
   mkdirSync(dirname(projectDirectory), {
     recursive: true,
   });
