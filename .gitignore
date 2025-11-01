@@ -38,6 +38,9 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Windows reserved device names (cannot be checked out on Windows)
+nul
+
 .nx/cache
 .nx/workspace-data
 

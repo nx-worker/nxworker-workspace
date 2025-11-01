@@ -3,9 +3,10 @@
  */
 
 import { createWorkspace, addSourceFile } from './workspace-scaffold';
-import { execSync } from 'node:child_process';
+import { execSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { uniqueId } from '@internal/test-util';
+import { EventEmitter } from 'node:events';
 
 // Mock node modules
 jest.mock('node:child_process');
@@ -20,6 +21,7 @@ jest.mock('@nx/devkit', () => ({
 }));
 
 const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 const mockMkdirSync = mkdirSync as jest.MockedFunction<typeof mkdirSync>;
 const mockWriteFileSync = writeFileSync as jest.MockedFunction<
   typeof writeFileSync
@@ -40,6 +42,22 @@ describe('Workspace Scaffold Helper', () => {
         },
       }),
     );
+
+    // Mock spawn to return a mock child process that immediately succeeds
+    mockSpawn.mockImplementation(() => {
+      const mockChild = new EventEmitter() as unknown as ChildProcess;
+      mockChild.stdout =
+        new EventEmitter() as unknown as ChildProcess['stdout'];
+      mockChild.stderr =
+        new EventEmitter() as unknown as ChildProcess['stderr'];
+
+      // Simulate successful command execution
+      process.nextTick(() => {
+        mockChild.emit('close', 0);
+      });
+
+      return mockChild;
+    });
   });
 
   describe('createWorkspace', () => {
@@ -173,19 +191,31 @@ describe('Workspace Scaffold Helper', () => {
     it('should pass correct options to library generator', async () => {
       await createWorkspace({ libs: 1 });
 
-      expect(mockExecSync).toHaveBeenCalledWith(
+      // Library generation now uses spawn (via execAsync) instead of execSync
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('nx generate @nx/js:library lib-a'),
-        expect.any(Object),
+        expect.objectContaining({
+          shell: true,
+          stdio: 'pipe',
+        }),
       );
-      expect(mockExecSync).toHaveBeenCalledWith(
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--unitTestRunner=none'),
         expect.any(Object),
       );
-      expect(mockExecSync).toHaveBeenCalledWith(
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--bundler=none'),
         expect.any(Object),
       );
-      expect(mockExecSync).toHaveBeenCalledWith(
+      expect(mockSpawn).toHaveBeenCalledWith(
+        expect.stringContaining('--linter=none'),
+        expect.any(Object),
+      );
+      expect(mockSpawn).toHaveBeenCalledWith(
+        expect.stringContaining('--skipFormat'),
+        expect.any(Object),
+      );
+      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--no-interactive'),
         expect.any(Object),
       );
@@ -206,6 +236,129 @@ describe('Workspace Scaffold Helper', () => {
         expect.stringContaining('--bundler=esbuild'),
         expect.any(Object),
       );
+    });
+
+    it('should use default libPrefix "lib" when not specified', async () => {
+      const workspace = await createWorkspace({ libs: 3 });
+
+      expect(workspace.libs).toEqual(['lib-a', 'lib-b', 'lib-c']);
+    });
+
+    it('should use custom libPrefix when specified', async () => {
+      const workspace = await createWorkspace({
+        libs: 3,
+        libPrefix: 'scenario',
+      });
+
+      expect(workspace.libs).toEqual([
+        'scenario-a',
+        'scenario-b',
+        'scenario-c',
+      ]);
+    });
+
+    it('should generate library names with custom prefix and numeric suffixes', async () => {
+      const workspace = await createWorkspace({ libs: 28, libPrefix: 'test' });
+
+      expect(workspace.libs).toHaveLength(28);
+      expect(workspace.libs[0]).toBe('test-a');
+      expect(workspace.libs[25]).toBe('test-z');
+      expect(workspace.libs[26]).toBe('test-a1'); // 27th library
+      expect(workspace.libs[27]).toBe('test-b1'); // 28th library
+    });
+
+    it('should pass custom libPrefix to library generator command', async () => {
+      await createWorkspace({ libs: 1, libPrefix: 'custom' });
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        expect.stringContaining('nx generate @nx/js:library custom-a'),
+        expect.any(Object),
+      );
+    });
+
+    it('should rebuild tsconfig paths after library generation', async () => {
+      // Mock tsconfig.base.json read for path rebuild
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          devDependencies: { nx: '^19.0.0' },
+        }),
+      );
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          compilerOptions: {
+            paths: {
+              // Simulated corrupted paths from race condition
+              '@test-workspace-test-id-12345/lib-a': ['lib-a/src/index.ts'],
+            },
+          },
+        }),
+      );
+
+      await createWorkspace({ libs: 3 });
+
+      // Verify tsconfig.base.json was read
+      expect(mockReadFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        'utf-8',
+      );
+
+      // Verify tsconfig.base.json was written with correct paths
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        expect.stringContaining('@test-workspace-test-id-12345/lib-a'),
+        'utf-8',
+      );
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        expect.stringContaining('@test-workspace-test-id-12345/lib-b'),
+        'utf-8',
+      );
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        expect.stringContaining('@test-workspace-test-id-12345/lib-c'),
+        'utf-8',
+      );
+    });
+
+    it('should rebuild tsconfig paths including app when includeApp is true', async () => {
+      // Mock tsconfig.base.json read for initial path rebuild (after libs)
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          devDependencies: { nx: '^19.0.0' },
+        }),
+      );
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          compilerOptions: { paths: {} },
+        }),
+      );
+      // Mock tsconfig.base.json read for final path rebuild (after app)
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          compilerOptions: {
+            paths: {
+              '@test-workspace-test-id-12345/lib-a': ['lib-a/src/index.ts'],
+              '@test-workspace-test-id-12345/lib-b': ['lib-b/src/index.ts'],
+            },
+          },
+        }),
+      );
+
+      await createWorkspace({ libs: 2, includeApp: true });
+
+      // Verify final tsconfig write includes app path
+      const finalWriteCall = (mockWriteFileSync.mock.calls as unknown[][]).find(
+        (call) =>
+          typeof call[1] === 'string' &&
+          call[1].includes('app-main') &&
+          call[1].includes('main.ts'),
+      );
+
+      expect(finalWriteCall).toBeDefined();
+      expect(finalWriteCall?.[1]).toContain(
+        '@test-workspace-test-id-12345/app-main',
+      );
+      expect(finalWriteCall?.[1]).toContain('app-main/src/main.ts');
     });
   });
 
