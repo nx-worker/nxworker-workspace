@@ -133,7 +133,7 @@ export async function createWorkspace(
   await withRetry(
     async () => {
       execSync(
-        `npx --yes create-nx-workspace@${versionSpec} ${name} --preset apps --nxCloud=skip --no-interactive`,
+        `npx --prefer-offline create-nx-workspace@${versionSpec} ${name} --preset apps --nxCloud=skip --no-interactive`,
         {
           cwd: workspaceParentDir,
           stdio: 'inherit',
