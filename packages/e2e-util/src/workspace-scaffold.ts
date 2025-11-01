@@ -17,9 +17,14 @@ import { withRetry } from './retry-utils';
  *
  * @param command Command to execute
  * @param cwd Working directory
+ * @param timeoutMs Timeout in milliseconds (default: 120000ms = 2 minutes)
  * @returns Promise that resolves when command completes
  */
-function execAsync(command: string, cwd: string): Promise<void> {
+function execAsync(
+  command: string,
+  cwd: string,
+  timeoutMs = 120000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, {
       cwd,
@@ -29,6 +34,28 @@ function execAsync(command: string, cwd: string): Promise<void> {
 
     let stdout = '';
     let stderr = '';
+    let isResolved = false;
+
+    // Set up timeout to kill process if it exceeds the time limit
+    const timeout = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        child.kill('SIGTERM');
+
+        // Give process a moment to terminate gracefully, then force kill
+        setTimeout(() => {
+          if (!child.killed) {
+            child.kill('SIGKILL');
+          }
+        }, 5000);
+
+        reject(
+          new Error(
+            `Command "${command}" timed out after ${timeoutMs}ms\nPartial output:\n${stdout || stderr || 'No output captured'}`,
+          ),
+        );
+      }
+    }, timeoutMs);
 
     child.stdout?.on('data', (data) => {
       stdout += data.toString();
@@ -39,22 +66,31 @@ function execAsync(command: string, cwd: string): Promise<void> {
     });
 
     child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        const errorOutput = stderr || stdout || 'No error output';
-        reject(
-          new Error(
-            `Command "${command}" failed with exit code ${code}:\n${errorOutput}`,
-          ),
-        );
+      if (!isResolved) {
+        isResolved = true;
+        clearTimeout(timeout);
+
+        if (code === 0) {
+          resolve();
+        } else {
+          const errorOutput = stderr || stdout || 'No error output';
+          reject(
+            new Error(
+              `Command "${command}" failed with exit code ${code}:\n${errorOutput}`,
+            ),
+          );
+        }
       }
     });
 
     child.on('error', (error) => {
-      reject(
-        new Error(`Failed to spawn command "${command}": ${error.message}`),
-      );
+      if (!isResolved) {
+        isResolved = true;
+        clearTimeout(timeout);
+        reject(
+          new Error(`Failed to spawn command "${command}": ${error.message}`),
+        );
+      }
     });
   });
 }

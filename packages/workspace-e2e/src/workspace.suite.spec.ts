@@ -191,7 +191,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
     );
 
     console.log('[SUITE] Shared workspace setup complete');
-  }, 300000); // 5 minute timeout for full setup (workspace creation + library generation + plugin install)
+  }, 180000); // 3 minute timeout for full setup (workspace creation + library generation + plugin install)
 
   /**
    * Global Teardown
