@@ -16,12 +16,77 @@ import { httpGet, createWorkspace, cleanupWorkspace } from '@internal/e2e-util';
 import { uniqueId } from '@internal/test-util';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path/posix';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { run as runRegStart } from './scenarios/reg-start';
 import { run as runPublish } from './scenarios/publish';
 import { run as runInstall } from './scenarios/install';
 import type { InfrastructureScenarioContext } from './scenarios/types';
 import { E2E_PACKAGE_NAME, E2E_PACKAGE_VERSION } from './scenarios/constants';
+
+/**
+ * Custom Jest Matchers
+ */
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace jest {
+    interface Matchers<R> {
+      /**
+       * Assert that a file or directory exists on the filesystem.
+       *
+       * @example
+       * expect('/path/to/file.ts').toExistOnFilesystem();
+       * expect('/path/to/missing').not.toExistOnFilesystem();
+       */
+      toExistOnFilesystem(): R;
+    }
+  }
+}
+
+expect.extend({
+  toExistOnFilesystem(received: string) {
+    const exists = existsSync(received);
+    const pass = exists;
+
+    if (pass) {
+      return {
+        message: () =>
+          `expected path ${this.utils.printReceived(received)} not to exist on filesystem, but it does`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () =>
+          `expected path ${this.utils.printReceived(received)} to exist on filesystem, but it does not`,
+        pass: false,
+      };
+    }
+  },
+});
+
+/**
+ * Custom TypeScript assertion function to validate that a value is defined.
+ * Throws an error with a helpful message if the value is undefined or null.
+ *
+ * This function provides both runtime validation and TypeScript type narrowing,
+ * eliminating the need for separate `expect().toBeDefined()` and `if (!value) return;` patterns.
+ *
+ * @param value - The value to check
+ * @param name - The name of the value (used in error messages)
+ * @throws {Error} If the value is undefined or null
+ *
+ * @example
+ * assertDefined(sharedWorkspace, 'sharedWorkspace');
+ * // TypeScript now knows sharedWorkspace is not undefined
+ * console.log(sharedWorkspace.path);
+ */
+function assertDefined<T>(
+  value: T,
+  name: string,
+): asserts value is NonNullable<T> {
+  if (value === undefined || value === null) {
+    throw new Error(`Expected ${name} to be defined, but it was ${value}`);
+  }
+}
 
 /**
  * Orchestrator State
@@ -312,9 +377,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       return;
     }
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log('[MOVE-SMALL] Using shared workspace with allocated libraries');
 
@@ -369,34 +432,17 @@ export function useCalculator() {
       'lib',
       'util.ts',
     );
-    const { existsSync, readFileSync } = await import('node:fs');
-    if (!existsSync(targetPath)) {
-      throw new Error(
-        `File not found at target location: ${libB}/src/lib/util.ts`,
-      );
-    }
+    expect(targetPath).toExistOnFilesystem();
     console.log(`[MOVE-SMALL] ✓ File exists at ${libB}/src/lib/util.ts`);
 
     // Verify file removed from lib-a
-    if (existsSync(utilPath)) {
-      throw new Error(
-        `File still exists at source location: ${libA}/src/lib/util.ts`,
-      );
-    }
+    expect(utilPath).not.toExistOnFilesystem();
     console.log(`[MOVE-SMALL] ✓ File removed from ${libA}/src/lib/util.ts`);
 
     // Verify import in consumer.ts updated
     const updatedConsumer = readFileSync(consumerPath, 'utf-8');
-    if (updatedConsumer.includes(`@${workspaceName}/${libA}`)) {
-      throw new Error(
-        `Import in consumer.ts still references old location: @${workspaceName}/${libA}`,
-      );
-    }
-    if (!updatedConsumer.includes('./util')) {
-      throw new Error(
-        'Import in consumer.ts not updated to relative path: ./util',
-      );
-    }
+    expect(updatedConsumer).not.toContain(`@${workspaceName}/${libA}`);
+    expect(updatedConsumer).toContain('./util');
     console.log(
       '[MOVE-SMALL] ✓ Import in consumer.ts updated to relative path',
     );
@@ -411,9 +457,7 @@ export function useCalculator() {
   it('APP-TO-LIB: Move file from application to library', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
     console.log('[APP-TO-LIB] Using shared workspace with allocated library');
 
@@ -421,9 +465,7 @@ export function useCalculator() {
     const appName = sharedWorkspace.app;
     const workspaceName = sharedWorkspace.name;
 
-    if (!appName) {
-      throw new Error('Shared workspace was not created with an application');
-    }
+    assertDefined(appName, 'appName');
 
     // Add helper.ts to app with exported function
     const helperContent = `export function formatMessage(message: string): string {
@@ -465,42 +507,23 @@ console.log(formatMessage('Application started'));
       'lib',
       'helper.ts',
     );
-    const { existsSync, readFileSync } = await import('node:fs');
-    if (!existsSync(targetPath)) {
-      throw new Error(
-        `File not found at target location: ${libName}/src/lib/helper.ts`,
-      );
-    }
+    expect(targetPath).toExistOnFilesystem();
     console.log(`[APP-TO-LIB] ✓ File exists at ${libName}/src/lib/helper.ts`);
 
     // Verify file removed from app
-    if (existsSync(helperPath)) {
-      throw new Error(
-        `File still exists at source location: ${appName}/src/helper.ts`,
-      );
-    }
+    expect(helperPath).not.toExistOnFilesystem();
     console.log(`[APP-TO-LIB] ✓ File removed from ${appName}/src/helper.ts`);
 
     // Verify import in main.ts updated to use library alias
     const updatedMain = readFileSync(mainPath, 'utf-8');
-    if (updatedMain.includes('./helper')) {
-      throw new Error(`Import in main.ts still uses relative path: ./helper`);
-    }
-    if (!updatedMain.includes(`@${workspaceName}/${libName}`)) {
-      throw new Error(
-        `Import in main.ts not updated to library alias: @${workspaceName}/${libName}`,
-      );
-    }
+    expect(updatedMain).not.toContain('./helper');
+    expect(updatedMain).toContain(`@${workspaceName}/${libName}`);
     console.log('[APP-TO-LIB] ✓ Import in main.ts updated to library alias');
 
     // Verify library index exports the moved file
     const indexPath = join(sharedWorkspace.path, libName, 'src', 'index.ts');
     const indexContent = readFileSync(indexPath, 'utf-8');
-    if (!indexContent.includes("export * from './lib/helper'")) {
-      throw new Error(
-        `Library index.ts does not export helper: ${indexContent}`,
-      );
-    }
+    expect(indexContent).toContain("export * from './lib/helper'");
     console.log('[APP-TO-LIB] ✓ Library index.ts exports the moved file');
 
     console.log('[APP-TO-LIB] All assertions passed ✓');
@@ -512,9 +535,67 @@ console.log(formatMessage('Application started'));
 
   it('MOVE-PROJECT-DIR: Move with projectDirectory specified', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[MOVE-PROJECT-DIR] Using shared workspace with allocated libraries',
+    );
+
+    const [libD, libE] = LIBRARY_ALLOCATION.MOVE_PROJECT_DIR;
+
+    // Create and export a utility file in lib-d
+    const utilContent = 'export function util() { return 42; }\n';
+    const utilPath = join(sharedWorkspace.path, libD, 'src', 'lib', 'util.ts');
+    writeFileSync(utilPath, utilContent, 'utf-8');
+    console.log(`[MOVE-PROJECT-DIR] Created ${libD}/src/lib/util.ts`);
+
+    // Export from lib-d index
+    const libDIndexPath = join(sharedWorkspace.path, libD, 'src', 'index.ts');
+    writeFileSync(libDIndexPath, "export * from './lib/util';\n", 'utf-8');
+
+    console.log('[MOVE-PROJECT-DIR] Running move-file generator...');
+
+    // Move to explicit subdirectory
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libD}/src/lib/util.ts --project ${libE} --project-directory features/utils --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[MOVE-PROJECT-DIR] Generator completed, verifying results...');
+
+    // Assert: File exists at specified path
+    const movedPath = join(
+      sharedWorkspace.path,
+      libE,
+      'src',
+      'lib',
+      'features',
+      'utils',
+      'util.ts',
+    );
+    const movedContent = readFileSync(movedPath, 'utf-8');
+    expect(movedContent).toContain('export function util');
+    console.log(
+      `[MOVE-PROJECT-DIR] ✓ File exists at ${libE}/src/lib/features/utils/util.ts`,
+    );
+
+    // Assert: Target project index exports the file
+    const libEIndexPath = join(sharedWorkspace.path, libE, 'src', 'index.ts');
+    const libEIndexContent = readFileSync(libEIndexPath, 'utf-8');
+    expect(libEIndexContent).toContain('./lib/features/utils/util');
+    console.log('[MOVE-PROJECT-DIR] ✓ Target index exports the file');
+
+    // Assert: Source project index no longer exports it
+    const libDIndexContent = readFileSync(libDIndexPath, 'utf-8');
+    expect(libDIndexContent).not.toContain('util');
+    console.log('[MOVE-PROJECT-DIR] ✓ Source index updated');
+
+    console.log('[MOVE-PROJECT-DIR] All assertions passed ✓');
+  }, 60000);
 
   // ============================================================================
   // DERIVE DIRECTORY
@@ -522,9 +603,66 @@ console.log(formatMessage('Application started'));
 
   it('MOVE-DERIVE-DIR: Move with deriveProjectDirectory=true', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[MOVE-DERIVE-DIR] Using shared workspace with allocated libraries',
+    );
+
+    const [libF, libG] = LIBRARY_ALLOCATION.MOVE_DERIVE_DIR;
+
+    // Create file in nested structure
+    const utilDir = join(
+      sharedWorkspace.path,
+      libF,
+      'src',
+      'lib',
+      'features',
+      'auth',
+    );
+    mkdirSync(utilDir, { recursive: true });
+    const utilPath = join(utilDir, 'auth-util.ts');
+    writeFileSync(
+      utilPath,
+      'export function authUtil() { return true; }\n',
+      'utf-8',
+    );
+    console.log(
+      `[MOVE-DERIVE-DIR] Created ${libF}/src/lib/features/auth/auth-util.ts`,
+    );
+
+    console.log('[MOVE-DERIVE-DIR] Running move-file generator...');
+
+    // Move with derived directory
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libF}/src/lib/features/auth/auth-util.ts --project ${libG} --derive-project-directory --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[MOVE-DERIVE-DIR] Generator completed, verifying results...');
+
+    // Assert: Derived path matches source structure
+    const movedPath = join(
+      sharedWorkspace.path,
+      libG,
+      'src',
+      'lib',
+      'features',
+      'auth',
+      'auth-util.ts',
+    );
+    const movedContent = readFileSync(movedPath, 'utf-8');
+    expect(movedContent).toContain('authUtil');
+    console.log(
+      `[MOVE-DERIVE-DIR] ✓ File exists at derived path ${libG}/src/lib/features/auth/auth-util.ts`,
+    );
+
+    console.log('[MOVE-DERIVE-DIR] All assertions passed ✓');
+  }, 60000);
 
   // ============================================================================
   // SKIP EXPORT
@@ -532,9 +670,59 @@ console.log(formatMessage('Application started'));
 
   it('MOVE-SKIP-EXPORT: Move exported file with skipExport flag', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[MOVE-SKIP-EXPORT] Using shared workspace with allocated libraries',
+    );
+
+    const [libH, libI] = LIBRARY_ALLOCATION.MOVE_SKIP_EXPORT;
+
+    // Create and export a file
+    const utilPath = join(sharedWorkspace.path, libH, 'src', 'lib', 'util.ts');
+    writeFileSync(utilPath, 'export function util() { return 1; }\n', 'utf-8');
+    console.log(`[MOVE-SKIP-EXPORT] Created ${libH}/src/lib/util.ts`);
+
+    const libHIndexPath = join(sharedWorkspace.path, libH, 'src', 'index.ts');
+    writeFileSync(libHIndexPath, "export * from './lib/util';\n", 'utf-8');
+
+    // Read original lib-i index
+    const libIIndexPath = join(sharedWorkspace.path, libI, 'src', 'index.ts');
+    const originalLibIIndex = readFileSync(libIIndexPath, 'utf-8');
+
+    console.log('[MOVE-SKIP-EXPORT] Running move-file generator...');
+
+    // Move with skipExport
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libH}/src/lib/util.ts --project ${libI} --skip-export --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[MOVE-SKIP-EXPORT] Generator completed, verifying results...');
+
+    // Assert: File moved
+    const movedPath = join(sharedWorkspace.path, libI, 'src', 'lib', 'util.ts');
+    const movedContent = readFileSync(movedPath, 'utf-8');
+    expect(movedContent).toContain('util');
+    console.log(`[MOVE-SKIP-EXPORT] ✓ File moved to ${libI}/src/lib/util.ts`);
+
+    // Assert: Target index unchanged (no export added)
+    const newLibIIndex = readFileSync(libIIndexPath, 'utf-8');
+    expect(newLibIIndex).toBe(originalLibIIndex);
+    expect(newLibIIndex).not.toContain('util');
+    console.log('[MOVE-SKIP-EXPORT] ✓ Target index unchanged');
+
+    // Assert: Source index still updated (export removed)
+    const libHIndexContent = readFileSync(libHIndexPath, 'utf-8');
+    expect(libHIndexContent).not.toContain('util');
+    console.log('[MOVE-SKIP-EXPORT] ✓ Source index updated');
+
+    console.log('[MOVE-SKIP-EXPORT] All assertions passed ✓');
+  }, 60000);
 
   // ============================================================================
   // SKIP FORMAT
@@ -542,9 +730,45 @@ console.log(formatMessage('Application started'));
 
   it('MOVE-SKIP-FORMAT: Move file with skipFormat=true', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[MOVE-SKIP-FORMAT] Using shared workspace with allocated libraries',
+    );
+
+    const [libJ, libK] = LIBRARY_ALLOCATION.MOVE_SKIP_FORMAT;
+
+    // Create file with intentional formatting inconsistencies
+    const utilPath = join(sharedWorkspace.path, libJ, 'src', 'lib', 'util.ts');
+    const unformattedContent =
+      'export   function   util()   {    return    42;    }\n';
+    writeFileSync(utilPath, unformattedContent, 'utf-8');
+    console.log(`[MOVE-SKIP-FORMAT] Created ${libJ}/src/lib/util.ts`);
+
+    console.log('[MOVE-SKIP-FORMAT] Running move-file generator...');
+
+    // Move with skipFormat
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libJ}/src/lib/util.ts --project ${libK} --skip-format --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[MOVE-SKIP-FORMAT] Generator completed, verifying results...');
+
+    // Assert: File content preserved (multiple spaces intact)
+    const movedPath = join(sharedWorkspace.path, libK, 'src', 'lib', 'util.ts');
+    const movedContent = readFileSync(movedPath, 'utf-8');
+    expect(movedContent).toBe(unformattedContent);
+    // Verify multiple spaces remain (not formatted to single space)
+    expect(movedContent).toContain('   ');
+    console.log('[MOVE-SKIP-FORMAT] ✓ File content preserved unformatted');
+
+    console.log('[MOVE-SKIP-FORMAT] All assertions passed ✓');
+  }, 60000);
 
   // ============================================================================
   // ALLOW UNICODE
@@ -552,9 +776,81 @@ console.log(formatMessage('Application started'));
 
   it('MOVE-UNICODE: Move file with Unicode characters in path', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[MOVE-UNICODE] Using shared workspace with allocated libraries',
+    );
+
+    const [libL, libM] = LIBRARY_ALLOCATION.MOVE_UNICODE;
+    const workspaceName = sharedWorkspace.name;
+
+    // Create file with Unicode characters
+    const unicodeFileName = 'util-émoji-日本語.ts';
+    const unicodePath = join(
+      sharedWorkspace.path,
+      libL,
+      'src',
+      'lib',
+      unicodeFileName,
+    );
+    writeFileSync(
+      unicodePath,
+      'export function unicodeUtil() { return "🚀"; }\n',
+      'utf-8',
+    );
+    console.log(`[MOVE-UNICODE] Created ${libL}/src/lib/${unicodeFileName}`);
+
+    // Create a consumer to verify import updates
+    const consumerPath = join(
+      sharedWorkspace.path,
+      libL,
+      'src',
+      'lib',
+      'consumer.ts',
+    );
+    writeFileSync(
+      consumerPath,
+      `import { unicodeUtil } from './util-émoji-日本語';\nexport const value = unicodeUtil();\n`,
+      'utf-8',
+    );
+    console.log(`[MOVE-UNICODE] Created ${libL}/src/lib/consumer.ts`);
+
+    console.log('[MOVE-UNICODE] Running move-file generator...');
+
+    // Move with allowUnicode
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file "${libL}/src/lib/${unicodeFileName}" --project ${libM} --allow-unicode --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[MOVE-UNICODE] Generator completed, verifying results...');
+
+    // Assert: File moved with Unicode name preserved
+    const movedPath = join(
+      sharedWorkspace.path,
+      libM,
+      'src',
+      'lib',
+      unicodeFileName,
+    );
+    const movedContent = readFileSync(movedPath, 'utf-8');
+    expect(movedContent).toContain('unicodeUtil');
+    console.log(
+      `[MOVE-UNICODE] ✓ File moved with Unicode name preserved: ${libM}/src/lib/${unicodeFileName}`,
+    );
+
+    // Assert: Imports updated in consumer (now cross-project)
+    const consumerContent = readFileSync(consumerPath, 'utf-8');
+    expect(consumerContent).toContain(`@${workspaceName}/${libM}`);
+    console.log('[MOVE-UNICODE] ✓ Consumer imports updated to library alias');
+
+    console.log('[MOVE-UNICODE] All assertions passed ✓');
+  }, 60000);
 
   // ============================================================================
   // REMOVE EMPTY PROJECT
@@ -562,9 +858,69 @@ console.log(formatMessage('Application started'));
 
   it('MOVE-REMOVE-EMPTY: Move last source files triggering project removal', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[MOVE-REMOVE-EMPTY] Using shared workspace with allocated libraries',
+    );
+
+    const [libN, libO] = LIBRARY_ALLOCATION.MOVE_REMOVE_EMPTY;
+
+    // Create a single file (beyond the default index)
+    const utilPath = join(sharedWorkspace.path, libN, 'src', 'lib', 'util.ts');
+    writeFileSync(utilPath, 'export function util() { return 1; }\n', 'utf-8');
+    console.log(`[MOVE-REMOVE-EMPTY] Created ${libN}/src/lib/util.ts`);
+
+    // Delete the default generated file to ensure only our file remains
+    const defaultFilePath = join(
+      sharedWorkspace.path,
+      libN,
+      'src',
+      'lib',
+      `${libN}.ts`,
+    );
+    try {
+      const { rmSync } = await import('node:fs');
+      rmSync(defaultFilePath, { force: true });
+      console.log(
+        `[MOVE-REMOVE-EMPTY] Removed default file ${libN}/src/lib/${libN}.ts`,
+      );
+    } catch {
+      // File might not exist, that's ok
+      console.log(
+        `[MOVE-REMOVE-EMPTY] Default file ${libN}/src/lib/${libN}.ts not found (ok)`,
+      );
+    }
+
+    console.log('[MOVE-REMOVE-EMPTY] Running move-file generator...');
+
+    // Move the only remaining source file with removeEmptyProject
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libN}/src/lib/util.ts --project ${libO} --remove-empty-project --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log(
+      '[MOVE-REMOVE-EMPTY] Generator completed, verifying results...',
+    );
+
+    // Assert: File moved
+    const movedPath = join(sharedWorkspace.path, libO, 'src', 'lib', 'util.ts');
+    const movedContent = readFileSync(movedPath, 'utf-8');
+    expect(movedContent).toContain('util');
+    console.log(`[MOVE-REMOVE-EMPTY] ✓ File moved to ${libO}/src/lib/util.ts`);
+
+    // Assert: Source project removed (project.json deleted)
+    const projectJsonPath = join(sharedWorkspace.path, libN, 'project.json');
+    expect(projectJsonPath).not.toExistOnFilesystem();
+    console.log('[MOVE-REMOVE-EMPTY] ✓ Source project removed');
+
+    console.log('[MOVE-REMOVE-EMPTY] All assertions passed ✓');
+  }, 60000);
 
   // ============================================================================
   // PATH ALIASES
