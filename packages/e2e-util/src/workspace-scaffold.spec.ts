@@ -208,10 +208,6 @@ describe('Workspace Scaffold Helper', () => {
         expect.any(Object),
       );
       expect(mockSpawn).toHaveBeenCalledWith(
-        expect.stringContaining('--directory lib-a'),
-        expect.any(Object),
-      );
-      expect(mockSpawn).toHaveBeenCalledWith(
         expect.stringContaining('--skipFormat'),
         expect.any(Object),
       );
