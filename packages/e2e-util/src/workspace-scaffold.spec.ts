@@ -271,6 +271,91 @@ describe('Workspace Scaffold Helper', () => {
         expect.any(Object),
       );
     });
+
+    it('should rebuild tsconfig paths after library generation', async () => {
+      // Mock tsconfig.base.json read for path rebuild
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          devDependencies: { nx: '^19.0.0' },
+        }),
+      );
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          compilerOptions: {
+            paths: {
+              // Simulated corrupted paths from race condition
+              '@test-workspace-test-id-12345/lib-a': ['lib-a/src/index.ts'],
+            },
+          },
+        }),
+      );
+
+      await createWorkspace({ libs: 3 });
+
+      // Verify tsconfig.base.json was read
+      expect(mockReadFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        'utf-8',
+      );
+
+      // Verify tsconfig.base.json was written with correct paths
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        expect.stringContaining('@test-workspace-test-id-12345/lib-a'),
+        'utf-8',
+      );
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        expect.stringContaining('@test-workspace-test-id-12345/lib-b'),
+        'utf-8',
+      );
+      expect(mockWriteFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/tsconfig\.base\.json$/),
+        expect.stringContaining('@test-workspace-test-id-12345/lib-c'),
+        'utf-8',
+      );
+    });
+
+    it('should rebuild tsconfig paths including app when includeApp is true', async () => {
+      // Mock tsconfig.base.json read for initial path rebuild (after libs)
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          devDependencies: { nx: '^19.0.0' },
+        }),
+      );
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          compilerOptions: { paths: {} },
+        }),
+      );
+      // Mock tsconfig.base.json read for final path rebuild (after app)
+      mockReadFileSync.mockReturnValueOnce(
+        JSON.stringify({
+          compilerOptions: {
+            paths: {
+              '@test-workspace-test-id-12345/lib-a': ['lib-a/src/index.ts'],
+              '@test-workspace-test-id-12345/lib-b': ['lib-b/src/index.ts'],
+            },
+          },
+        }),
+      );
+
+      await createWorkspace({ libs: 2, includeApp: true });
+
+      // Verify final tsconfig write includes app path
+      const finalWriteCall = (mockWriteFileSync.mock.calls as unknown[][]).find(
+        (call) =>
+          typeof call[1] === 'string' &&
+          call[1].includes('app-main') &&
+          call[1].includes('main.ts'),
+      );
+
+      expect(finalWriteCall).toBeDefined();
+      expect(finalWriteCall?.[1]).toContain(
+        '@test-workspace-test-id-12345/app-main',
+      );
+      expect(finalWriteCall?.[1]).toContain('app-main/src/main.ts');
+    });
   });
 
   describe('addSourceFile', () => {
