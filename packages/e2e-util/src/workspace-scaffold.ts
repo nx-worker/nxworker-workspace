@@ -268,7 +268,7 @@ export async function createWorkspace(
       withRetry(
         () =>
           execAsync(
-            `npx nx generate @nx/js:library ${libName} --directory ${libName} --unitTestRunner=none --bundler=none --skipFormat --no-interactive`,
+            `npx nx generate @nx/js:library ${libName} --unitTestRunner=none --bundler=none --skipFormat --no-interactive`,
             workspacePath,
           ),
         {
