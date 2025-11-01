@@ -443,6 +443,7 @@ export function useCalculator() {
     const workspaceName = sharedWorkspace.name;
 
     expect(appName).toBeDefined();
+    if (!appName) return;
 
     // Add helper.ts to app with exported function
     const helperContent = `export function formatMessage(message: string): string {
