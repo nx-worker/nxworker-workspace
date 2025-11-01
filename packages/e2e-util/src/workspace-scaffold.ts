@@ -84,6 +84,12 @@ export interface WorkspaceConfig {
    * Base directory for temp workspaces (default: './tmp')
    */
   baseDir?: string;
+
+  /**
+   * Prefix for generated library names (default: 'lib')
+   * Example: libPrefix 'scenario' generates: scenario-a, scenario-b, etc.
+   */
+  libPrefix?: string;
 }
 
 export interface WorkspaceInfo {
@@ -140,6 +146,7 @@ export async function createWorkspace(
     includeApp = false,
     nxVersion,
     baseDir = './tmp',
+    libPrefix = 'lib',
   } = config;
 
   logger.verbose(
@@ -199,7 +206,6 @@ export async function createWorkspace(
 
   // Generate libraries in batches with async infrastructure
   const libNames: string[] = [];
-  const libNamePrefix = 'lib-';
   const alphabet = 'abcdefghijklmnopqrstuvwxyz';
   // Note: CONCURRENCY=1 (sequential) for now to avoid race conditions when
   // multiple Nx generators modify shared config files (tsconfig.base.json, nx.json)
@@ -207,9 +213,9 @@ export async function createWorkspace(
   // file locking or transaction support is added.
   const CONCURRENCY = 1;
 
-  // Pre-calculate all library names
+  // Pre-calculate all library names using the configured prefix
   for (let i = 0; i < libs; i++) {
-    const libName = `${libNamePrefix}${alphabet[i % alphabet.length]}${i >= alphabet.length ? Math.floor(i / alphabet.length) : ''}`;
+    const libName = `${libPrefix}-${alphabet[i % alphabet.length]}${i >= alphabet.length ? Math.floor(i / alphabet.length) : ''}`;
     libNames.push(libName);
   }
 

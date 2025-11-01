@@ -229,6 +229,44 @@ describe('Workspace Scaffold Helper', () => {
         expect.any(Object),
       );
     });
+
+    it('should use default libPrefix "lib" when not specified', async () => {
+      const workspace = await createWorkspace({ libs: 3 });
+
+      expect(workspace.libs).toEqual(['lib-a', 'lib-b', 'lib-c']);
+    });
+
+    it('should use custom libPrefix when specified', async () => {
+      const workspace = await createWorkspace({
+        libs: 3,
+        libPrefix: 'scenario',
+      });
+
+      expect(workspace.libs).toEqual([
+        'scenario-a',
+        'scenario-b',
+        'scenario-c',
+      ]);
+    });
+
+    it('should generate library names with custom prefix and numeric suffixes', async () => {
+      const workspace = await createWorkspace({ libs: 28, libPrefix: 'test' });
+
+      expect(workspace.libs).toHaveLength(28);
+      expect(workspace.libs[0]).toBe('test-a');
+      expect(workspace.libs[25]).toBe('test-z');
+      expect(workspace.libs[26]).toBe('test-a1'); // 27th library
+      expect(workspace.libs[27]).toBe('test-b1'); // 28th library
+    });
+
+    it('should pass custom libPrefix to library generator command', async () => {
+      await createWorkspace({ libs: 1, libPrefix: 'custom' });
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        expect.stringContaining('nx generate @nx/js:library custom-a'),
+        expect.any(Object),
+      );
+    });
   });
 
   describe('addSourceFile', () => {
