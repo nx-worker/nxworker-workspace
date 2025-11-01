@@ -24,6 +24,46 @@ import type { InfrastructureScenarioContext } from './scenarios/types';
 import { E2E_PACKAGE_NAME, E2E_PACKAGE_VERSION } from './scenarios/constants';
 
 /**
+ * Custom Jest Matchers
+ */
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace jest {
+    interface Matchers<R> {
+      /**
+       * Assert that a file or directory exists on the filesystem.
+       *
+       * @example
+       * expect('/path/to/file.ts').toExistOnFilesystem();
+       * expect('/path/to/missing').not.toExistOnFilesystem();
+       */
+      toExistOnFilesystem(): R;
+    }
+  }
+}
+
+expect.extend({
+  toExistOnFilesystem(received: string) {
+    const exists = existsSync(received);
+    const pass = exists;
+
+    if (pass) {
+      return {
+        message: () =>
+          `expected path ${this.utils.printReceived(received)} not to exist on filesystem, but it does`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () =>
+          `expected path ${this.utils.printReceived(received)} to exist on filesystem, but it does not`,
+        pass: false,
+      };
+    }
+  },
+});
+
+/**
  * Orchestrator State
  *
  * Shared state across all scenarios:
@@ -367,11 +407,11 @@ export function useCalculator() {
       'lib',
       'util.ts',
     );
-    expect(existsSync(targetPath)).toBe(true);
+    expect(targetPath).toExistOnFilesystem();
     console.log(`[MOVE-SMALL] ✓ File exists at ${libB}/src/lib/util.ts`);
 
     // Verify file removed from lib-a
-    expect(existsSync(utilPath)).toBe(false);
+    expect(utilPath).not.toExistOnFilesystem();
     console.log(`[MOVE-SMALL] ✓ File removed from ${libA}/src/lib/util.ts`);
 
     // Verify import in consumer.ts updated
@@ -442,11 +482,11 @@ console.log(formatMessage('Application started'));
       'lib',
       'helper.ts',
     );
-    expect(existsSync(targetPath)).toBe(true);
+    expect(targetPath).toExistOnFilesystem();
     console.log(`[APP-TO-LIB] ✓ File exists at ${libName}/src/lib/helper.ts`);
 
     // Verify file removed from app
-    expect(existsSync(helperPath)).toBe(false);
+    expect(helperPath).not.toExistOnFilesystem();
     console.log(`[APP-TO-LIB] ✓ File removed from ${appName}/src/helper.ts`);
 
     // Verify import in main.ts updated to use library alias
@@ -851,7 +891,7 @@ console.log(formatMessage('Application started'));
 
     // Assert: Source project removed (project.json deleted)
     const projectJsonPath = join(sharedWorkspace.path, libN, 'project.json');
-    expect(existsSync(projectJsonPath)).toBe(false);
+    expect(projectJsonPath).not.toExistOnFilesystem();
     console.log('[MOVE-REMOVE-EMPTY] ✓ Source project removed');
 
     console.log('[MOVE-REMOVE-EMPTY] All assertions passed ✓');
