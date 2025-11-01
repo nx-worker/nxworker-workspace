@@ -3,7 +3,7 @@
  */
 
 import { createWorkspace, addSourceFile } from './workspace-scaffold';
-import { execSync, spawn } from 'node:child_process';
+import { execSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { uniqueId } from '@internal/test-util';
 import { EventEmitter } from 'node:events';
@@ -45,9 +45,11 @@ describe('Workspace Scaffold Helper', () => {
 
     // Mock spawn to return a mock child process that immediately succeeds
     mockSpawn.mockImplementation(() => {
-      const mockChild = new EventEmitter() as any;
-      mockChild.stdout = new EventEmitter();
-      mockChild.stderr = new EventEmitter();
+      const mockChild = new EventEmitter() as unknown as ChildProcess;
+      mockChild.stdout =
+        new EventEmitter() as unknown as ChildProcess['stdout'];
+      mockChild.stderr =
+        new EventEmitter() as unknown as ChildProcess['stderr'];
 
       // Simulate successful command execution
       process.nextTick(() => {
