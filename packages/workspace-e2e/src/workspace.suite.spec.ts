@@ -16,6 +16,8 @@ import { httpGet } from '@internal/e2e-util';
 import { run as runRegStart } from './scenarios/reg-start';
 import { run as runPublish } from './scenarios/publish';
 import { run as runInstall } from './scenarios/install';
+import { run as runMoveSmall } from './scenarios/move-small';
+import { run as runAppToLib } from './scenarios/app-to-lib';
 import type { InfrastructureScenarioContext } from './scenarios/types';
 
 /**
@@ -217,7 +219,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       infrastructureFailed = true;
       throw error;
     }
-  }, 120000); // 2 minute timeout for workspace creation + install
+  }, 120000); // 2 min: workspace creation (~30s) + npm install (~30s) + plugin import verification (~10s) + cleanup (~50s)
 
   // ============================================================================
   // BASIC GENERATOR
@@ -232,11 +234,12 @@ describe('E2E Test Suite (Orchestrator)', () => {
       return;
     }
 
-    // TODO: Implement in #322
-    // Purpose: Verify basic move-file generator functionality
-    // Expected: File moved, imports updated, source file removed
-    expect(true).toBe(true);
-  });
+    const context: InfrastructureScenarioContext = {
+      verdaccioConfig,
+      registryUrl,
+    };
+    await runMoveSmall(context);
+  }, 120000); // 2 min: workspace creation (~30s) + npm install (~20s) + generator execution (~40s) + assertions + cleanup (~30s)
 
   // ============================================================================
   // APP TO LIB MOVE
@@ -244,9 +247,13 @@ describe('E2E Test Suite (Orchestrator)', () => {
 
   it('APP-TO-LIB: Move file from application to library', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    const context: InfrastructureScenarioContext = {
+      verdaccioConfig,
+      registryUrl,
+    };
+    await runAppToLib(context);
+  }, 120000); // 2 min: workspace creation (~30s) + npm install (~20s) + generator execution (~40s) + assertions + cleanup (~30s)
 
   // ============================================================================
   // EXPLICIT DIRECTORY

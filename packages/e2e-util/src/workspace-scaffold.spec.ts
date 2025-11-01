@@ -195,7 +195,7 @@ describe('Workspace Scaffold Helper', () => {
       await createWorkspace({ includeApp: true, libs: 0 });
 
       expect(mockExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('nx generate @nx/js:app app-main'),
+        expect.stringContaining('nx generate @nx/node:application app-main'),
         expect.any(Object),
       );
       expect(mockExecSync).toHaveBeenCalledWith(
@@ -203,7 +203,7 @@ describe('Workspace Scaffold Helper', () => {
         expect.any(Object),
       );
       expect(mockExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('--bundler=none'),
+        expect.stringContaining('--bundler=esbuild'),
         expect.any(Object),
       );
     });

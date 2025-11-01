@@ -68,6 +68,9 @@ export async function run(
     // Install plugin from local registry with retry logic
     await withRetry(
       async () => {
+        if (!workspace) {
+          throw new Error('Workspace not initialized');
+        }
         execSync(`npm install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}`, {
           cwd: workspace.path,
           stdio: 'pipe',

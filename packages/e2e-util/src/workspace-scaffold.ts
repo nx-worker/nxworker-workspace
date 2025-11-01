@@ -177,7 +177,7 @@ export async function createWorkspace(
     appName = 'app-main';
     logger.verbose(`Generating application: ${appName}`);
     execSync(
-      `npx nx generate @nx/js:app ${appName} --unitTestRunner=none --bundler=none --no-interactive`,
+      `npx nx generate @nx/node:application ${appName} --unitTestRunner=none --bundler=esbuild --no-interactive`,
       {
         cwd: workspacePath,
         stdio: 'inherit',
