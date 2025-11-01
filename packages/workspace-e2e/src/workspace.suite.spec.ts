@@ -312,9 +312,7 @@ describe('E2E Test Suite (Orchestrator)', () => {
       return;
     }
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log('[MOVE-SMALL] Using shared workspace with allocated libraries');
 
@@ -369,33 +367,17 @@ export function useCalculator() {
       'lib',
       'util.ts',
     );
-    if (!existsSync(targetPath)) {
-      throw new Error(
-        `File not found at target location: ${libB}/src/lib/util.ts`,
-      );
-    }
+    expect(existsSync(targetPath)).toBe(true);
     console.log(`[MOVE-SMALL] ✓ File exists at ${libB}/src/lib/util.ts`);
 
     // Verify file removed from lib-a
-    if (existsSync(utilPath)) {
-      throw new Error(
-        `File still exists at source location: ${libA}/src/lib/util.ts`,
-      );
-    }
+    expect(existsSync(utilPath)).toBe(false);
     console.log(`[MOVE-SMALL] ✓ File removed from ${libA}/src/lib/util.ts`);
 
     // Verify import in consumer.ts updated
     const updatedConsumer = readFileSync(consumerPath, 'utf-8');
-    if (updatedConsumer.includes(`@${workspaceName}/${libA}`)) {
-      throw new Error(
-        `Import in consumer.ts still references old location: @${workspaceName}/${libA}`,
-      );
-    }
-    if (!updatedConsumer.includes('./util')) {
-      throw new Error(
-        'Import in consumer.ts not updated to relative path: ./util',
-      );
-    }
+    expect(updatedConsumer).not.toContain(`@${workspaceName}/${libA}`);
+    expect(updatedConsumer).toContain('./util');
     console.log(
       '[MOVE-SMALL] ✓ Import in consumer.ts updated to relative path',
     );
@@ -410,9 +392,7 @@ export function useCalculator() {
   it('APP-TO-LIB: Move file from application to library', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log('[APP-TO-LIB] Using shared workspace with allocated library');
 
@@ -420,9 +400,7 @@ export function useCalculator() {
     const appName = sharedWorkspace.app;
     const workspaceName = sharedWorkspace.name;
 
-    if (!appName) {
-      throw new Error('Shared workspace was not created with an application');
-    }
+    expect(appName).toBeDefined();
 
     // Add helper.ts to app with exported function
     const helperContent = `export function formatMessage(message: string): string {
@@ -464,41 +442,23 @@ console.log(formatMessage('Application started'));
       'lib',
       'helper.ts',
     );
-    if (!existsSync(targetPath)) {
-      throw new Error(
-        `File not found at target location: ${libName}/src/lib/helper.ts`,
-      );
-    }
+    expect(existsSync(targetPath)).toBe(true);
     console.log(`[APP-TO-LIB] ✓ File exists at ${libName}/src/lib/helper.ts`);
 
     // Verify file removed from app
-    if (existsSync(helperPath)) {
-      throw new Error(
-        `File still exists at source location: ${appName}/src/helper.ts`,
-      );
-    }
+    expect(existsSync(helperPath)).toBe(false);
     console.log(`[APP-TO-LIB] ✓ File removed from ${appName}/src/helper.ts`);
 
     // Verify import in main.ts updated to use library alias
     const updatedMain = readFileSync(mainPath, 'utf-8');
-    if (updatedMain.includes('./helper')) {
-      throw new Error(`Import in main.ts still uses relative path: ./helper`);
-    }
-    if (!updatedMain.includes(`@${workspaceName}/${libName}`)) {
-      throw new Error(
-        `Import in main.ts not updated to library alias: @${workspaceName}/${libName}`,
-      );
-    }
+    expect(updatedMain).not.toContain('./helper');
+    expect(updatedMain).toContain(`@${workspaceName}/${libName}`);
     console.log('[APP-TO-LIB] ✓ Import in main.ts updated to library alias');
 
     // Verify library index exports the moved file
     const indexPath = join(sharedWorkspace.path, libName, 'src', 'index.ts');
     const indexContent = readFileSync(indexPath, 'utf-8');
-    if (!indexContent.includes("export * from './lib/helper'")) {
-      throw new Error(
-        `Library index.ts does not export helper: ${indexContent}`,
-      );
-    }
+    expect(indexContent).toContain("export * from './lib/helper'");
     console.log('[APP-TO-LIB] ✓ Library index.ts exports the moved file');
 
     console.log('[APP-TO-LIB] All assertions passed ✓');
@@ -511,9 +471,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-PROJECT-DIR: Move with projectDirectory specified', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log(
       '[MOVE-PROJECT-DIR] Using shared workspace with allocated libraries',
@@ -555,11 +513,7 @@ console.log(formatMessage('Application started'));
       'util.ts',
     );
     const movedContent = readFileSync(movedPath, 'utf-8');
-    if (!movedContent.includes('export function util')) {
-      throw new Error(
-        `File content incorrect at ${libE}/src/lib/features/utils/util.ts`,
-      );
-    }
+    expect(movedContent).toContain('export function util');
     console.log(
       `[MOVE-PROJECT-DIR] ✓ File exists at ${libE}/src/lib/features/utils/util.ts`,
     );
@@ -567,18 +521,12 @@ console.log(formatMessage('Application started'));
     // Assert: Target project index exports the file
     const libEIndexPath = join(sharedWorkspace.path, libE, 'src', 'index.ts');
     const libEIndexContent = readFileSync(libEIndexPath, 'utf-8');
-    if (!libEIndexContent.includes('./lib/features/utils/util')) {
-      throw new Error(
-        `Target index does not export correct path: ${libEIndexContent}`,
-      );
-    }
+    expect(libEIndexContent).toContain('./lib/features/utils/util');
     console.log('[MOVE-PROJECT-DIR] ✓ Target index exports the file');
 
     // Assert: Source project index no longer exports it
     const libDIndexContent = readFileSync(libDIndexPath, 'utf-8');
-    if (libDIndexContent.includes('util')) {
-      throw new Error(`Source index still exports util: ${libDIndexContent}`);
-    }
+    expect(libDIndexContent).not.toContain('util');
     console.log('[MOVE-PROJECT-DIR] ✓ Source index updated');
 
     console.log('[MOVE-PROJECT-DIR] All assertions passed ✓');
@@ -591,9 +539,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-DERIVE-DIR: Move with deriveProjectDirectory=true', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log(
       '[MOVE-DERIVE-DIR] Using shared workspace with allocated libraries',
@@ -645,9 +591,7 @@ console.log(formatMessage('Application started'));
       'auth-util.ts',
     );
     const movedContent = readFileSync(movedPath, 'utf-8');
-    if (!movedContent.includes('authUtil')) {
-      throw new Error('File content incorrect at derived path');
-    }
+    expect(movedContent).toContain('authUtil');
     console.log(
       `[MOVE-DERIVE-DIR] ✓ File exists at derived path ${libG}/src/lib/features/auth/auth-util.ts`,
     );
@@ -662,9 +606,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-SKIP-EXPORT: Move exported file with skipExport flag', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log(
       '[MOVE-SKIP-EXPORT] Using shared workspace with allocated libraries',
@@ -700,28 +642,18 @@ console.log(formatMessage('Application started'));
     // Assert: File moved
     const movedPath = join(sharedWorkspace.path, libI, 'src', 'lib', 'util.ts');
     const movedContent = readFileSync(movedPath, 'utf-8');
-    if (!movedContent.includes('util')) {
-      throw new Error('File not found at target location');
-    }
+    expect(movedContent).toContain('util');
     console.log(`[MOVE-SKIP-EXPORT] ✓ File moved to ${libI}/src/lib/util.ts`);
 
     // Assert: Target index unchanged (no export added)
     const newLibIIndex = readFileSync(libIIndexPath, 'utf-8');
-    if (newLibIIndex !== originalLibIIndex) {
-      throw new Error(
-        `Target index was modified: expected "${originalLibIIndex}", got "${newLibIIndex}"`,
-      );
-    }
-    if (newLibIIndex.includes('util')) {
-      throw new Error('Target index incorrectly exports util');
-    }
+    expect(newLibIIndex).toBe(originalLibIIndex);
+    expect(newLibIIndex).not.toContain('util');
     console.log('[MOVE-SKIP-EXPORT] ✓ Target index unchanged');
 
     // Assert: Source index still updated (export removed)
     const libHIndexContent = readFileSync(libHIndexPath, 'utf-8');
-    if (libHIndexContent.includes('util')) {
-      throw new Error('Source index still exports util');
-    }
+    expect(libHIndexContent).not.toContain('util');
     console.log('[MOVE-SKIP-EXPORT] ✓ Source index updated');
 
     console.log('[MOVE-SKIP-EXPORT] All assertions passed ✓');
@@ -734,9 +666,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-SKIP-FORMAT: Move file with skipFormat=true', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log(
       '[MOVE-SKIP-FORMAT] Using shared workspace with allocated libraries',
@@ -767,15 +697,9 @@ console.log(formatMessage('Application started'));
     // Assert: File content preserved (multiple spaces intact)
     const movedPath = join(sharedWorkspace.path, libK, 'src', 'lib', 'util.ts');
     const movedContent = readFileSync(movedPath, 'utf-8');
-    if (movedContent !== unformattedContent) {
-      throw new Error(
-        `File content was formatted. Expected "${unformattedContent}", got "${movedContent}"`,
-      );
-    }
+    expect(movedContent).toBe(unformattedContent);
     // Verify multiple spaces remain (not formatted to single space)
-    if (!movedContent.includes('   ')) {
-      throw new Error('Multiple spaces were removed (file was formatted)');
-    }
+    expect(movedContent).toContain('   ');
     console.log('[MOVE-SKIP-FORMAT] ✓ File content preserved unformatted');
 
     console.log('[MOVE-SKIP-FORMAT] All assertions passed ✓');
@@ -788,9 +712,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-UNICODE: Move file with Unicode characters in path', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log(
       '[MOVE-UNICODE] Using shared workspace with allocated libraries',
@@ -852,20 +774,14 @@ console.log(formatMessage('Application started'));
       unicodeFileName,
     );
     const movedContent = readFileSync(movedPath, 'utf-8');
-    if (!movedContent.includes('unicodeUtil')) {
-      throw new Error('File not found at target location with Unicode name');
-    }
+    expect(movedContent).toContain('unicodeUtil');
     console.log(
       `[MOVE-UNICODE] ✓ File moved with Unicode name preserved: ${libM}/src/lib/${unicodeFileName}`,
     );
 
     // Assert: Imports updated in consumer (now cross-project)
     const consumerContent = readFileSync(consumerPath, 'utf-8');
-    if (!consumerContent.includes(`@${workspaceName}/${libM}`)) {
-      throw new Error(
-        `Consumer import not updated to library alias: ${consumerContent}`,
-      );
-    }
+    expect(consumerContent).toContain(`@${workspaceName}/${libM}`);
     console.log('[MOVE-UNICODE] ✓ Consumer imports updated to library alias');
 
     console.log('[MOVE-UNICODE] All assertions passed ✓');
@@ -878,9 +794,7 @@ console.log(formatMessage('Application started'));
   it('MOVE-REMOVE-EMPTY: Move last source files triggering project removal', async () => {
     if (infrastructureFailed) return;
 
-    if (!sharedWorkspace) {
-      throw new Error('Shared workspace not initialized');
-    }
+    expect(sharedWorkspace).toBeDefined();
 
     console.log(
       '[MOVE-REMOVE-EMPTY] Using shared workspace with allocated libraries',
@@ -932,16 +846,12 @@ console.log(formatMessage('Application started'));
     // Assert: File moved
     const movedPath = join(sharedWorkspace.path, libO, 'src', 'lib', 'util.ts');
     const movedContent = readFileSync(movedPath, 'utf-8');
-    if (!movedContent.includes('util')) {
-      throw new Error('File not found at target location');
-    }
+    expect(movedContent).toContain('util');
     console.log(`[MOVE-REMOVE-EMPTY] ✓ File moved to ${libO}/src/lib/util.ts`);
 
     // Assert: Source project removed (project.json deleted)
     const projectJsonPath = join(sharedWorkspace.path, libN, 'project.json');
-    if (existsSync(projectJsonPath)) {
-      throw new Error('Source project was not removed (project.json exists)');
-    }
+    expect(existsSync(projectJsonPath)).toBe(false);
     console.log('[MOVE-REMOVE-EMPTY] ✓ Source project removed');
 
     console.log('[MOVE-REMOVE-EMPTY] All assertions passed ✓');
