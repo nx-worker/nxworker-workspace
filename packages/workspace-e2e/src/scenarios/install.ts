@@ -6,6 +6,7 @@
  *
  * Parent Issue: #319 - Adopt new end-to-end test plan
  * This Issue: #332 - Implement infrastructure scenarios
+ * Optimization: #339 Phase 4 - Benefits from async workspace creation infrastructure
  */
 
 import { logger } from '@nx/devkit';
@@ -48,6 +49,7 @@ export async function run(
     const workspaceName = `install-test-${uniqueId('ws')}`;
 
     // Create minimal workspace with 2 libraries
+    // Phase 4: Benefits from async batched generation infrastructure (Phase 3)
     workspace = await createWorkspace({
       name: workspaceName,
       libs: 2,
@@ -66,16 +68,20 @@ export async function run(
     );
 
     // Install plugin from local registry with retry logic
+    // Phase 4: Use --prefer-offline to speed up npm install (Phase 1 optimization)
     await withRetry(
       async () => {
         if (!workspace) {
           throw new Error('Workspace not initialized');
         }
-        execSync(`npm install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION}`, {
-          cwd: workspace.path,
-          stdio: 'pipe',
-          encoding: 'utf-8',
-        });
+        execSync(
+          `npm install ${E2E_PACKAGE_NAME}@${E2E_PACKAGE_VERSION} --prefer-offline`,
+          {
+            cwd: workspace.path,
+            stdio: 'pipe',
+            encoding: 'utf-8',
+          },
+        );
       },
       {
         maxAttempts: 3,
