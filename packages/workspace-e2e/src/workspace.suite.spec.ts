@@ -16,7 +16,13 @@ import { httpGet, createWorkspace, cleanupWorkspace } from '@internal/e2e-util';
 import { uniqueId } from '@internal/test-util';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path/posix';
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
+import {
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+} from 'node:fs';
 import { run as runRegStart } from './scenarios/reg-start';
 import { run as runPublish } from './scenarios/publish';
 import { run as runInstall } from './scenarios/install';
@@ -127,8 +133,8 @@ const LIBRARY_ALLOCATION = {
 
   // Multi-library scenarios
   PATH_ALIASES: ['lib-p', 'lib-q', 'lib-r'],
-  EXPORTS: ['lib-s', 'lib-t'],
-  REPEAT_MOVE: ['lib-u', 'lib-v'],
+  EXPORTS: ['lib-s', 'lib-t', 'lib-u'], // lib-u for external consumer
+  // REPEAT_MOVE removed: not supported per agent instructions (idempotence not guaranteed)
   GRAPH_REACTION: ['lib-w', 'lib-x'],
 
   // Scale scenario (requires many libraries)
@@ -928,9 +934,182 @@ console.log(formatMessage('Application started'));
 
   it('PATH-ALIASES: Workspace with 3 libs; multiple alias moves', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[PATH-ALIASES] Using shared workspace with allocated libraries',
+    );
+
+    const [libP, libQ, libR] = LIBRARY_ALLOCATION.PATH_ALIASES;
+    const workspaceName = sharedWorkspace.name;
+
+    // Create util.ts in lib-p that will be used by lib-r
+    const utilPContent = `export function utilFromP(): string {
+  return 'Hello from lib-p';
+}
+`;
+    const utilPPath = join(sharedWorkspace.path, libP, 'src', 'lib', 'util.ts');
+    writeFileSync(utilPPath, utilPContent, 'utf-8');
+    console.log(`[PATH-ALIASES] Created ${libP}/src/lib/util.ts`);
+
+    // Export from lib-p index
+    const libPIndexPath = join(sharedWorkspace.path, libP, 'src', 'index.ts');
+    writeFileSync(libPIndexPath, "export * from './lib/util';\n", 'utf-8');
+
+    // Create helper.ts in lib-q that will be used by lib-p
+    const helperQContent = `export function helperFromQ(): number {
+  return 42;
+}
+`;
+    const helperQPath = join(
+      sharedWorkspace.path,
+      libQ,
+      'src',
+      'lib',
+      'helper.ts',
+    );
+    writeFileSync(helperQPath, helperQContent, 'utf-8');
+    console.log(`[PATH-ALIASES] Created ${libQ}/src/lib/helper.ts`);
+
+    // Export from lib-q index
+    const libQIndexPath = join(sharedWorkspace.path, libQ, 'src', 'index.ts');
+    writeFileSync(libQIndexPath, "export * from './lib/helper';\n", 'utf-8');
+
+    // Create consumer.ts in lib-r that imports from lib-p
+    const consumerRContent = `import { utilFromP } from '@${workspaceName}/${libP}';
+
+export function consumerInR(): string {
+  return utilFromP();
+}
+`;
+    const consumerRPath = join(
+      sharedWorkspace.path,
+      libR,
+      'src',
+      'lib',
+      'consumer.ts',
+    );
+    writeFileSync(consumerRPath, consumerRContent, 'utf-8');
+    console.log(`[PATH-ALIASES] Created ${libR}/src/lib/consumer.ts`);
+
+    // Create consumer.ts in lib-p that imports from lib-q
+    const consumerPContent = `import { helperFromQ } from '@${workspaceName}/${libQ}';
+
+export function consumerInP(): number {
+  return helperFromQ();
+}
+`;
+    const consumerPPath = join(
+      sharedWorkspace.path,
+      libP,
+      'src',
+      'lib',
+      'consumer.ts',
+    );
+    writeFileSync(consumerPPath, consumerPContent, 'utf-8');
+    console.log(`[PATH-ALIASES] Created ${libP}/src/lib/consumer.ts`);
+
+    console.log('[PATH-ALIASES] Performing first move: lib-p/util.ts → lib-q');
+
+    // Move 1: util.ts from lib-p to lib-q (used by lib-r)
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libP}/src/lib/util.ts --project=${libQ} --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[PATH-ALIASES] First move completed, verifying...');
+
+    // Verify util.ts moved to lib-q
+    const utilMovedPath = join(
+      sharedWorkspace.path,
+      libQ,
+      'src',
+      'lib',
+      'util.ts',
+    );
+    expect(utilMovedPath).toExistOnFilesystem();
+    expect(utilPPath).not.toExistOnFilesystem();
+    console.log(`[PATH-ALIASES] ✓ util.ts moved from ${libP} to ${libQ}`);
+
+    // Verify lib-r's import updated from lib-p to lib-q
+    const updatedConsumerR = readFileSync(consumerRPath, 'utf-8');
+    expect(updatedConsumerR).not.toContain(`@${workspaceName}/${libP}`);
+    expect(updatedConsumerR).toContain(`@${workspaceName}/${libQ}`);
+    console.log('[PATH-ALIASES] ✓ lib-r import updated to reference lib-q');
+
+    // Verify lib-q index exports util
+    const libQIndexContent = readFileSync(libQIndexPath, 'utf-8');
+    expect(libQIndexContent).toContain('./lib/util');
+    console.log('[PATH-ALIASES] ✓ lib-q index exports util');
+
+    console.log(
+      '[PATH-ALIASES] Performing second move: lib-q/helper.ts → lib-r',
+    );
+
+    // Move 2: helper.ts from lib-q to lib-r (used by lib-p)
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libQ}/src/lib/helper.ts --project=${libR} --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[PATH-ALIASES] Second move completed, verifying...');
+
+    // Verify helper.ts moved to lib-r
+    const helperMovedPath = join(
+      sharedWorkspace.path,
+      libR,
+      'src',
+      'lib',
+      'helper.ts',
+    );
+    expect(helperMovedPath).toExistOnFilesystem();
+    expect(helperQPath).not.toExistOnFilesystem();
+    console.log(`[PATH-ALIASES] ✓ helper.ts moved from ${libQ} to ${libR}`);
+
+    // Verify lib-p's import updated from lib-q to lib-r
+    const updatedConsumerP = readFileSync(consumerPPath, 'utf-8');
+    expect(updatedConsumerP).not.toContain(`@${workspaceName}/${libQ}`);
+    expect(updatedConsumerP).toContain(`@${workspaceName}/${libR}`);
+    console.log('[PATH-ALIASES] ✓ lib-p import updated to reference lib-r');
+
+    // Verify lib-r index exports helper
+    const libRIndexPath = join(sharedWorkspace.path, libR, 'src', 'index.ts');
+    const libRIndexContent = readFileSync(libRIndexPath, 'utf-8');
+    expect(libRIndexContent).toContain('./lib/helper');
+    console.log('[PATH-ALIASES] ✓ lib-r index exports helper');
+
+    // Verify tsconfig.base.json paths are valid (no broken aliases)
+    const tsconfigPath = join(sharedWorkspace.path, 'tsconfig.base.json');
+    const tsconfigContent = readFileSync(tsconfigPath, 'utf-8');
+    let tsconfig;
+    try {
+      tsconfig = JSON.parse(tsconfigContent);
+    } catch (error) {
+      throw new Error(
+        `Failed to parse tsconfig.base.json: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    expect(tsconfig.compilerOptions.paths).toBeDefined();
+    expect(
+      tsconfig.compilerOptions.paths[`@${workspaceName}/${libP}`],
+    ).toBeDefined();
+    expect(
+      tsconfig.compilerOptions.paths[`@${workspaceName}/${libQ}`],
+    ).toBeDefined();
+    expect(
+      tsconfig.compilerOptions.paths[`@${workspaceName}/${libR}`],
+    ).toBeDefined();
+    console.log('[PATH-ALIASES] ✓ tsconfig.base.json paths remain valid');
+
+    console.log('[PATH-ALIASES] All assertions passed ✓');
+  }, 120000); // 2 min: two generator executions + assertions
 
   // ============================================================================
   // EXPORT UPDATES
@@ -938,19 +1117,115 @@ console.log(formatMessage('Application started'));
 
   it('EXPORTS: Move exported file and verify index updated', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
 
-  // ============================================================================
-  // REPEAT/IDEMPOTENCE
-  // ============================================================================
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
 
-  it('REPEAT-MOVE: Re-run MOVE-PROJECT-DIR ensuring no duplicates', async () => {
-    if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+    console.log('[EXPORTS] Using shared workspace with allocated libraries');
+
+    const [libS, libT, libU] = LIBRARY_ALLOCATION.EXPORTS;
+    const workspaceName = sharedWorkspace.name;
+
+    // Create multiple files in lib-s with exports
+    const exportedUtilContent = `export function exportedUtil(): string {
+  return 'exported utility';
+}
+`;
+    const exportedUtilPath = join(
+      sharedWorkspace.path,
+      libS,
+      'src',
+      'lib',
+      'exported-util.ts',
+    );
+    writeFileSync(exportedUtilPath, exportedUtilContent, 'utf-8');
+    console.log(`[EXPORTS] Created ${libS}/src/lib/exported-util.ts`);
+
+    const anotherFileContent = `export function anotherFunction(): number {
+  return 123;
+}
+`;
+    const anotherFilePath = join(
+      sharedWorkspace.path,
+      libS,
+      'src',
+      'lib',
+      'another-file.ts',
+    );
+    writeFileSync(anotherFilePath, anotherFileContent, 'utf-8');
+    console.log(`[EXPORTS] Created ${libS}/src/lib/another-file.ts`);
+
+    // Update lib-s index to export both files
+    const libSIndexPath = join(sharedWorkspace.path, libS, 'src', 'index.ts');
+    const libSIndexContent = `export * from './lib/exported-util';
+export * from './lib/another-file';
+`;
+    writeFileSync(libSIndexPath, libSIndexContent, 'utf-8');
+    console.log('[EXPORTS] Updated lib-s index to export both files');
+
+    // Create external consumer in lib-u (third library) that imports from lib-s
+    const externalConsumerContent = `import { exportedUtil } from '@${workspaceName}/${libS}';
+
+export function useExportedUtil(): string {
+  return exportedUtil();
+}
+`;
+    const externalConsumerPath = join(
+      sharedWorkspace.path,
+      libU,
+      'src',
+      'lib',
+      'external-consumer.ts',
+    );
+    writeFileSync(externalConsumerPath, externalConsumerContent, 'utf-8');
+    console.log(
+      `[EXPORTS] Created ${libU}/src/lib/external-consumer.ts importing from lib-s`,
+    );
+
+    console.log('[EXPORTS] Running move-file generator...');
+
+    // Move exported-util.ts from lib-s to lib-t
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libS}/src/lib/exported-util.ts --project=${libT} --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[EXPORTS] Generator completed, verifying results...');
+
+    // Verify file moved to lib-t
+    const movedFilePath = join(
+      sharedWorkspace.path,
+      libT,
+      'src',
+      'lib',
+      'exported-util.ts',
+    );
+    expect(movedFilePath).toExistOnFilesystem();
+    expect(exportedUtilPath).not.toExistOnFilesystem();
+    console.log(`[EXPORTS] ✓ exported-util.ts moved from ${libS} to ${libT}`);
+
+    // Verify source index no longer exports the moved file
+    const updatedLibSIndex = readFileSync(libSIndexPath, 'utf-8');
+    expect(updatedLibSIndex).not.toContain('exported-util');
+    expect(updatedLibSIndex).toContain('another-file');
+    console.log('[EXPORTS] ✓ Source index export removed');
+
+    // Verify target index now exports the moved file
+    const libTIndexPath = join(sharedWorkspace.path, libT, 'src', 'index.ts');
+    const libTIndexContent = readFileSync(libTIndexPath, 'utf-8');
+    expect(libTIndexContent).toContain('./lib/exported-util');
+    console.log('[EXPORTS] ✓ Target index export added');
+
+    // Verify external imports updated from lib-s to lib-t
+    const updatedExternalConsumer = readFileSync(externalConsumerPath, 'utf-8');
+    expect(updatedExternalConsumer).not.toContain(`@${workspaceName}/${libS}`);
+    expect(updatedExternalConsumer).toContain(`@${workspaceName}/${libT}`);
+    console.log('[EXPORTS] ✓ External imports updated to target library');
+
+    console.log('[EXPORTS] All assertions passed ✓');
+  }, 60000); // 1 min: generator execution + assertions
 
   // ============================================================================
   // GRAPH REACTION
@@ -958,9 +1233,220 @@ console.log(formatMessage('Application started'));
 
   it('GRAPH-REACTION: Force project graph rebuild after moves', async () => {
     if (infrastructureFailed) return;
-    // TODO: Implement in #322
-    expect(true).toBe(true);
-  });
+
+    assertDefined(sharedWorkspace, 'sharedWorkspace');
+
+    console.log(
+      '[GRAPH-REACTION] Using shared workspace with allocated libraries',
+    );
+
+    const [libW, libX] = LIBRARY_ALLOCATION.GRAPH_REACTION;
+    const workspaceName = sharedWorkspace.name;
+
+    // Create dependency relationship: lib-w depends on lib-x
+    const utilXContent = `export function utilFromX(): string {
+  return 'from lib-x';
+}
+`;
+    const utilXPath = join(sharedWorkspace.path, libX, 'src', 'lib', 'util.ts');
+    writeFileSync(utilXPath, utilXContent, 'utf-8');
+    console.log(`[GRAPH-REACTION] Created ${libX}/src/lib/util.ts`);
+
+    // Export from lib-x index
+    const libXIndexPath = join(sharedWorkspace.path, libX, 'src', 'index.ts');
+    writeFileSync(libXIndexPath, "export * from './lib/util';\n", 'utf-8');
+
+    // Create consumer in lib-w that imports from lib-x
+    const consumerWContent = `import { utilFromX } from '@${workspaceName}/${libX}';
+
+export function consumerInW(): string {
+  return utilFromX();
+}
+`;
+    const consumerWPath = join(
+      sharedWorkspace.path,
+      libW,
+      'src',
+      'lib',
+      'consumer.ts',
+    );
+    writeFileSync(consumerWPath, consumerWContent, 'utf-8');
+    console.log(`[GRAPH-REACTION] Created ${libW}/src/lib/consumer.ts`);
+
+    // Initialize git repository for nx affected testing
+    console.log('[GRAPH-REACTION] Initializing git repository...');
+
+    // Remove .git directory if it exists to ensure clean initialization
+    const gitDirPath = join(sharedWorkspace.path, '.git');
+    if (existsSync(gitDirPath)) {
+      rmSync(gitDirPath, { recursive: true, force: true });
+      console.log('[GRAPH-REACTION] Removed existing .git directory');
+    }
+
+    execSync('git init', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git config user.email "test@example.com"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git config user.name "Test User"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git add .', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git commit -m "Initial commit"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    console.log('[GRAPH-REACTION] ✓ Git repository initialized');
+
+    console.log('[GRAPH-REACTION] Capturing initial project graph...');
+
+    // Reset Nx cache to ensure clean graph
+    execSync('npx nx reset', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+
+    // Generate initial graph
+    const initialGraphPath = join(
+      sharedWorkspace.path,
+      'tmp',
+      'graph-initial.json',
+    );
+    mkdirSync(join(sharedWorkspace.path, 'tmp'), { recursive: true });
+    execSync(`npx nx graph --file=${initialGraphPath}`, {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+
+    // Validate graph file was created
+    expect(initialGraphPath).toExistOnFilesystem();
+
+    let initialGraph;
+    try {
+      initialGraph = JSON.parse(readFileSync(initialGraphPath, 'utf-8'));
+    } catch (error) {
+      throw new Error(
+        `Failed to parse initial graph JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    console.log('[GRAPH-REACTION] ✓ Initial graph captured');
+
+    // Verify initial dependency: lib-w depends on lib-x
+    const initialLibWNode = initialGraph.graph.nodes[libW];
+    expect(initialLibWNode).toBeDefined();
+    const initialLibWDeps = initialGraph.graph.dependencies[libW] || [];
+    const hasInitialDep = initialLibWDeps.some(
+      (dep: { target: string }) => dep.target === libX,
+    );
+    expect(hasInitialDep).toBe(true);
+    console.log(
+      '[GRAPH-REACTION] ✓ Initial graph shows lib-w → lib-x dependency',
+    );
+
+    console.log('[GRAPH-REACTION] Performing move to change dependencies...');
+
+    // Move util.ts from lib-x to lib-w (changes dependency structure)
+    execSync(
+      `npx nx generate ${E2E_PACKAGE_NAME}:move-file ${libX}/src/lib/util.ts --project=${libW} --no-interactive`,
+      {
+        cwd: sharedWorkspace.path,
+        stdio: 'inherit',
+      },
+    );
+
+    console.log('[GRAPH-REACTION] Move completed, rebuilding graph...');
+
+    // Force graph rebuild
+    execSync('npx nx reset', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+
+    const updatedGraphPath = join(
+      sharedWorkspace.path,
+      'tmp',
+      'graph-updated.json',
+    );
+    execSync(`npx nx graph --file=${updatedGraphPath}`, {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+
+    // Validate graph file was created
+    expect(updatedGraphPath).toExistOnFilesystem();
+
+    let updatedGraph;
+    try {
+      updatedGraph = JSON.parse(readFileSync(updatedGraphPath, 'utf-8'));
+    } catch (error) {
+      throw new Error(
+        `Failed to parse updated graph JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    console.log('[GRAPH-REACTION] ✓ Updated graph captured');
+
+    // Verify updated graph reflects new file location
+    const updatedLibWNode = updatedGraph.graph.nodes[libW];
+    expect(updatedLibWNode).toBeDefined();
+    console.log('[GRAPH-REACTION] ✓ lib-w node still exists in graph');
+
+    // Verify dependency removed (util.ts now in same project as consumer)
+    const updatedLibWDeps = updatedGraph.graph.dependencies[libW] || [];
+    const hasUpdatedDep = updatedLibWDeps.some(
+      (dep: { target: string }) => dep.target === libX,
+    );
+    expect(hasUpdatedDep).toBe(false);
+    console.log(
+      '[GRAPH-REACTION] ✓ Dependency lib-w → lib-x removed (now same project)',
+    );
+
+    // Verify consumer import updated to relative path
+    const updatedConsumerW = readFileSync(consumerWPath, 'utf-8');
+    expect(updatedConsumerW).not.toContain(`@${workspaceName}/${libX}`);
+    expect(updatedConsumerW).toContain('./util');
+    console.log('[GRAPH-REACTION] ✓ Consumer import updated to relative path');
+
+    // Test nx affected correctly identifies affected projects
+    console.log('[GRAPH-REACTION] Testing nx affected detection...');
+
+    // Use file-based nx affected detection (avoids git SHA contamination issues)
+    // This tests that nx affected correctly identifies projects based on changed files
+    const movedFilePath = `${libW}/src/lib/util.ts`;
+    const updatedIndexPath = `${libX}/src/index.ts`;
+    const affectedOutput = execSync(
+      `npx nx show projects --affected --files=${movedFilePath},${updatedIndexPath}`,
+      {
+        cwd: sharedWorkspace.path,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      },
+    );
+
+    // Parse affected projects
+    const affectedProjects = affectedOutput
+      .trim()
+      .split('\n')
+      .filter((line) => line.trim().length > 0);
+
+    console.log('[GRAPH-REACTION] Affected projects:', affectedProjects);
+
+    // Verify that lib-w is in affected projects (since it received the moved file)
+    expect(affectedProjects).toContain(libW);
+    console.log('[GRAPH-REACTION] ✓ lib-w detected as affected (received moved file)');
+
+    // Verify that lib-x is in affected projects (since it had a file moved out)
+    expect(affectedProjects).toContain(libX);
+    console.log('[GRAPH-REACTION] ✓ lib-x detected as affected (file moved out)');
+
+    console.log('[GRAPH-REACTION] All assertions passed ✓');
+  }, 120000); // 2 min: two graph generations + generator execution + assertions
 
   // ============================================================================
   // SCALE SANITY
