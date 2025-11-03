@@ -127,7 +127,7 @@ const LIBRARY_ALLOCATION = {
 
   // Multi-library scenarios
   PATH_ALIASES: ['lib-p', 'lib-q', 'lib-r'],
-  EXPORTS: ['lib-s', 'lib-t'],
+  EXPORTS: ['lib-s', 'lib-t', 'lib-u'], // lib-u for external consumer
   // REPEAT_MOVE removed: not supported per agent instructions (idempotence not guaranteed)
   GRAPH_REACTION: ['lib-w', 'lib-x'],
 
@@ -1109,7 +1109,7 @@ export function consumerInP(): number {
 
     console.log('[EXPORTS] Using shared workspace with allocated libraries');
 
-    const [libS, libT] = LIBRARY_ALLOCATION.EXPORTS;
+    const [libS, libT, libU] = LIBRARY_ALLOCATION.EXPORTS;
     const workspaceName = sharedWorkspace.name;
 
     // Create multiple files in lib-s with exports
@@ -1149,7 +1149,7 @@ export * from './lib/another-file';
     writeFileSync(libSIndexPath, libSIndexContent, 'utf-8');
     console.log('[EXPORTS] Updated lib-s index to export both files');
 
-    // Create external consumer in lib-t that imports from lib-s
+    // Create external consumer in lib-u (third library) that imports from lib-s
     const externalConsumerContent = `import { exportedUtil } from '@${workspaceName}/${libS}';
 
 export function useExportedUtil(): string {
@@ -1158,14 +1158,14 @@ export function useExportedUtil(): string {
 `;
     const externalConsumerPath = join(
       sharedWorkspace.path,
-      libT,
+      libU,
       'src',
       'lib',
       'external-consumer.ts',
     );
     writeFileSync(externalConsumerPath, externalConsumerContent, 'utf-8');
     console.log(
-      `[EXPORTS] Created ${libT}/src/lib/external-consumer.ts importing from lib-s`,
+      `[EXPORTS] Created ${libU}/src/lib/external-consumer.ts importing from lib-s`,
     );
 
     console.log('[EXPORTS] Running move-file generator...');
@@ -1259,6 +1259,30 @@ export function consumerInW(): string {
     );
     writeFileSync(consumerWPath, consumerWContent, 'utf-8');
     console.log(`[GRAPH-REACTION] Created ${libW}/src/lib/consumer.ts`);
+
+    // Initialize git repository for nx affected testing
+    console.log('[GRAPH-REACTION] Initializing git repository...');
+    execSync('git init', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git config user.email "test@example.com"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git config user.name "Test User"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git add .', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git commit -m "Initial commit"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    console.log('[GRAPH-REACTION] ✓ Git repository initialized');
 
     console.log('[GRAPH-REACTION] Capturing initial project graph...');
 
@@ -1367,26 +1391,21 @@ export function consumerInW(): string {
     );
     writeFileSync(touchPath, 'export const touched = true;\n', 'utf-8');
 
-    // Run nx affected (may not have git history in test workspace, so we just verify command executes)
-    // In a real workspace with git history, this would show affected projects
-    try {
-      const affectedOutput = execSync('npx nx show projects --affected', {
+    // Run nx affected to detect changes
+    const affectedOutput = execSync(
+      'npx nx show projects --affected --base=HEAD~1',
+      {
         cwd: sharedWorkspace.path,
         encoding: 'utf-8',
         stdio: 'pipe',
-      });
+      },
+    );
 
-      // If we have git history, verify the output
-      const commandExecuted = affectedOutput.length > 0;
-      expect(commandExecuted).toBe(true);
-    } catch {
-      // No git history or command failed - this is acceptable in test workspaces
-      // The important part is that the graph itself was updated correctly
-      console.log(
-        '[GRAPH-REACTION] nx affected unavailable (no git history) - skipping affected check',
-      );
-    }
-    console.log('[GRAPH-REACTION] ✓ nx affected command executed successfully');
+    // Verify that lib-w is detected as affected
+    expect(affectedOutput).toContain(libW);
+    console.log(
+      `[GRAPH-REACTION] ✓ nx affected correctly identified ${libW} as affected`,
+    );
 
     console.log('[GRAPH-REACTION] All assertions passed ✓');
   }, 120000); // 2 min: two graph generations + generator execution + assertions
