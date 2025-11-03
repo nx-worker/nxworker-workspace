@@ -1096,7 +1096,7 @@ export function consumerInP(): number {
     console.log('[PATH-ALIASES] ✓ tsconfig.base.json paths remain valid');
 
     console.log('[PATH-ALIASES] All assertions passed ✓');
-  }, 120000); // 120s: two generator executions + assertions
+  }, 120000); // 2 min: two generator executions + assertions
 
   // ============================================================================
   // EXPORT UPDATES
@@ -1212,7 +1212,7 @@ export function useExportedUtil(): string {
     console.log('[EXPORTS] ✓ External imports updated to target library');
 
     console.log('[EXPORTS] All assertions passed ✓');
-  }, 60000); // 60s: generator execution + assertions
+  }, 60000); // 1 min: generator execution + assertions
 
   // ============================================================================
   // GRAPH REACTION
@@ -1389,7 +1389,7 @@ export function consumerInW(): string {
     console.log('[GRAPH-REACTION] ✓ nx affected command executed successfully');
 
     console.log('[GRAPH-REACTION] All assertions passed ✓');
-  }, 120000); // 120s: two graph generations + generator execution + assertions
+  }, 120000); // 2 min: two graph generations + generator execution + assertions
 
   // ============================================================================
   // SCALE SANITY
