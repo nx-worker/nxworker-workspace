@@ -1407,7 +1407,9 @@ export function consumerInW(): string {
       cwd: sharedWorkspace.path,
       stdio: 'pipe',
     });
-    execSync('git commit -m "Move util.ts from lib-x to lib-w"', {
+
+    // Use --allow-empty in case there are no changes to commit
+    execSync('git commit --allow-empty -m "Move util.ts from lib-x to lib-w"', {
       cwd: sharedWorkspace.path,
       stdio: 'pipe',
     });
