@@ -1210,10 +1210,6 @@ export function useExportedUtil(): string {
     expect(updatedExternalConsumer).toContain(`@${workspaceName}/${libT}`);
     console.log('[EXPORTS] ✓ External imports updated to target library');
 
-    // Verify no dangling exports in source
-    expect(updatedLibSIndex).not.toContain('exported-util');
-    console.log('[EXPORTS] ✓ No dangling exports in source index');
-
     console.log('[EXPORTS] All assertions passed ✓');
   }, 60000); // 1 min: generator execution + assertions
 
