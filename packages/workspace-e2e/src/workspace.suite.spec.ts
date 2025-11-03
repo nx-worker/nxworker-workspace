@@ -1416,52 +1416,34 @@ export function consumerInW(): string {
     // Test nx affected correctly identifies affected projects
     console.log('[GRAPH-REACTION] Testing nx affected detection...');
 
-    // Commit the file move changes so we have a second commit for HEAD~1 comparison
-    execSync('git add .', {
-      cwd: sharedWorkspace.path,
-      stdio: 'pipe',
-    });
-
-    // Check if there are changes to commit
-    const gitStatus = execSync('git status --porcelain', {
-      cwd: sharedWorkspace.path,
-      encoding: 'utf-8',
-      stdio: 'pipe',
-    });
-    console.log(
-      '[GRAPH-REACTION] Git status after add:',
-      gitStatus.trim() || '(no changes)',
+    // Use file-based nx affected detection (avoids git SHA contamination issues)
+    // This tests that nx affected correctly identifies projects based on changed files
+    const movedFilePath = `${libW}/src/lib/util.ts`;
+    const updatedIndexPath = `${libX}/src/index.ts`;
+    const affectedOutput = execSync(
+      `npx nx show projects --affected --files=${movedFilePath},${updatedIndexPath}`,
+      {
+        cwd: sharedWorkspace.path,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      },
     );
 
-    // Commit with --allow-empty only if no changes, otherwise commit normally
-    if (gitStatus.trim()) {
-      execSync('git commit -m "Move util.ts from lib-x to lib-w"', {
-        cwd: sharedWorkspace.path,
-        stdio: 'pipe',
-      });
-      console.log('[GRAPH-REACTION] ✓ File move changes committed');
-    } else {
-      execSync('git commit --allow-empty -m "Move util.ts from lib-x to lib-w"', {
-        cwd: sharedWorkspace.path,
-        stdio: 'pipe',
-      });
-      console.log('[GRAPH-REACTION] ✓ Empty commit created (no changes)');
-    }
+    // Parse affected projects
+    const affectedProjects = affectedOutput
+      .trim()
+      .split('\n')
+      .filter((line) => line.trim().length > 0);
 
-    // Verify git repository exists and has proper history
-    const gitLogOutput = execSync('git log --oneline', {
-      cwd: sharedWorkspace.path,
-      encoding: 'utf-8',
-      stdio: 'pipe',
-    });
-    const commitCount = gitLogOutput.trim().split('\n').length;
-    expect(commitCount).toBeGreaterThanOrEqual(2);
-    console.log(
-      `[GRAPH-REACTION] ✓ Git repository has ${commitCount} commits after move`,
-    );
+    console.log('[GRAPH-REACTION] Affected projects:', affectedProjects);
 
-    // Note: nx affected testing with --base is skipped due to git context contamination
-    // in e2e environment. The core functionality (move + graph update) is validated above.
+    // Verify that lib-w is in affected projects (since it received the moved file)
+    expect(affectedProjects).toContain(libW);
+    console.log('[GRAPH-REACTION] ✓ lib-w detected as affected (received moved file)');
+
+    // Verify that lib-x is in affected projects (since it had a file moved out)
+    expect(affectedProjects).toContain(libX);
+    console.log('[GRAPH-REACTION] ✓ lib-x detected as affected (file moved out)');
 
     console.log('[GRAPH-REACTION] All assertions passed ✓');
   }, 120000); // 2 min: two graph generations + generator execution + assertions
