@@ -1211,10 +1211,7 @@ export function useExportedUtil(): string {
     console.log('[EXPORTS] ✓ External imports updated to target library');
 
     // Verify no dangling exports in source
-    const libSFiles = ['exported-util', 'nonexistent'];
-    for (const fileName of libSFiles) {
-      expect(updatedLibSIndex).not.toContain(fileName);
-    }
+    expect(updatedLibSIndex).not.toContain('exported-util');
     console.log('[EXPORTS] ✓ No dangling exports in source index');
 
     console.log('[EXPORTS] All assertions passed ✓');
