@@ -1082,7 +1082,14 @@ export function consumerInP(): number {
     // Verify tsconfig.base.json paths are valid (no broken aliases)
     const tsconfigPath = join(sharedWorkspace.path, 'tsconfig.base.json');
     const tsconfigContent = readFileSync(tsconfigPath, 'utf-8');
-    const tsconfig = JSON.parse(tsconfigContent);
+    let tsconfig;
+    try {
+      tsconfig = JSON.parse(tsconfigContent);
+    } catch (error) {
+      throw new Error(
+        `Failed to parse tsconfig.base.json: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     expect(tsconfig.compilerOptions.paths).toBeDefined();
     expect(
       tsconfig.compilerOptions.paths[`@${workspaceName}/${libP}`],
@@ -1307,7 +1314,14 @@ export function consumerInW(): string {
     // Validate graph file was created
     expect(initialGraphPath).toExistOnFilesystem();
 
-    const initialGraph = JSON.parse(readFileSync(initialGraphPath, 'utf-8'));
+    let initialGraph;
+    try {
+      initialGraph = JSON.parse(readFileSync(initialGraphPath, 'utf-8'));
+    } catch (error) {
+      throw new Error(
+        `Failed to parse initial graph JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     console.log('[GRAPH-REACTION] ✓ Initial graph captured');
 
     // Verify initial dependency: lib-w depends on lib-x
@@ -1354,7 +1368,14 @@ export function consumerInW(): string {
     // Validate graph file was created
     expect(updatedGraphPath).toExistOnFilesystem();
 
-    const updatedGraph = JSON.parse(readFileSync(updatedGraphPath, 'utf-8'));
+    let updatedGraph;
+    try {
+      updatedGraph = JSON.parse(readFileSync(updatedGraphPath, 'utf-8'));
+    } catch (error) {
+      throw new Error(
+        `Failed to parse updated graph JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     console.log('[GRAPH-REACTION] ✓ Updated graph captured');
 
     // Verify updated graph reflects new file location
@@ -1380,6 +1401,17 @@ export function consumerInW(): string {
 
     // Test nx affected correctly identifies affected projects
     console.log('[GRAPH-REACTION] Testing nx affected detection...');
+
+    // Commit the file move changes so we have a second commit for HEAD~1 comparison
+    execSync('git add .', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    execSync('git commit -m "Move util.ts from lib-x to lib-w"', {
+      cwd: sharedWorkspace.path,
+      stdio: 'pipe',
+    });
+    console.log('[GRAPH-REACTION] ✓ File move changes committed');
 
     // Touch a file in lib-w to mark it as affected
     const touchPath = join(
