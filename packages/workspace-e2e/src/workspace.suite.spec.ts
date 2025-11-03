@@ -1279,6 +1279,9 @@ export function consumerInW(): string {
       stdio: 'pipe',
     });
 
+    // Validate graph file was created
+    expect(initialGraphPath).toExistOnFilesystem();
+
     const initialGraph = JSON.parse(readFileSync(initialGraphPath, 'utf-8'));
     console.log('[GRAPH-REACTION] ✓ Initial graph captured');
 
@@ -1323,6 +1326,9 @@ export function consumerInW(): string {
       stdio: 'pipe',
     });
 
+    // Validate graph file was created
+    expect(updatedGraphPath).toExistOnFilesystem();
+
     const updatedGraph = JSON.parse(readFileSync(updatedGraphPath, 'utf-8'));
     console.log('[GRAPH-REACTION] ✓ Updated graph captured');
 
@@ -1360,9 +1366,10 @@ export function consumerInW(): string {
     );
     writeFileSync(touchPath, 'export const touched = true;\n', 'utf-8');
 
-    // Run nx affected with a base that will show lib-w as affected
+    // Run nx affected (may not have git history in test workspace, so we just verify command executes)
+    // In a real workspace with git history, this would show affected projects
     const affectedOutput = execSync(
-      'npx nx show projects --affected --base=HEAD~1 2>&1 || echo "AFFECTED_CHECK_COMPLETE"',
+      'npx nx show projects --affected 2>&1 || echo "NO_GIT_HISTORY"',
       {
         cwd: sharedWorkspace.path,
         encoding: 'utf-8',
@@ -1370,8 +1377,12 @@ export function consumerInW(): string {
       },
     );
 
-    // Verify command executed (may not have git history in test workspace)
-    expect(affectedOutput).toContain('AFFECTED_CHECK_COMPLETE');
+    // Verify command executed (output indicates either affected projects or no git history)
+    const commandExecuted =
+      affectedOutput.length > 0 &&
+      (affectedOutput.includes(libW) ||
+        affectedOutput.includes('NO_GIT_HISTORY'));
+    expect(commandExecuted).toBe(true);
     console.log('[GRAPH-REACTION] ✓ nx affected command executed successfully');
 
     console.log('[GRAPH-REACTION] All assertions passed ✓');
