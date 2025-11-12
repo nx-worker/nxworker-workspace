@@ -218,9 +218,68 @@ jobs:
       # and uploaded artifacts. This prevents rebuilding dependencies in each e2e matrix job, saving time
       # and ensuring all e2e jobs use the exact same build artifacts for consistency.
       # Exclude performance-benchmark.spec.ts from regular e2e runs (run separately in benchmark job)
-      - name: Run e2e tests
+      # Temporarily running both legacy and new e2e-suite for comparison (issue #319)
+      - name: Run legacy e2e tests (workspace.spec.ts)
+        id: legacy-e2e
         shell: bash
-        run: npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark'
+        run: |
+          echo "::group::Legacy E2E Suite"
+          START_TIME=$(date +%s)
+          echo "⏱️ Starting legacy e2e tests at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+          set +e
+          npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathIgnorePatterns='performance-benchmark|workspace\.suite\.spec'
+          EXIT_CODE=$?
+          set -e
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "⏱️ Legacy e2e tests completed in ${DURATION}s"
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Legacy e2e suite failed"
+            exit $EXIT_CODE
+          fi
+
+      - name: Run new e2e-suite tests (workspace.suite.spec.ts)
+        id: new-e2e-suite
+        if: always() && steps.legacy-e2e.outcome != 'cancelled'
+        shell: bash
+        run: |
+          echo "::group::New E2E Suite"
+          START_TIME=$(date +%s)
+          echo "⏱️ Starting new e2e-suite tests at $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+          set +e
+          npx nx affected -t e2e --configuration=ci --exclude-task-dependencies --output-style=static -- --testPathPattern='workspace\.suite\.spec'
+          EXIT_CODE=$?
+          set -e
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "⏱️ New e2e-suite tests completed in ${DURATION}s"
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::New e2e-suite failed"
+            exit $EXIT_CODE
+          fi
+
+      - name: Report comparison metrics
+        if: always() && steps.legacy-e2e.outcome != 'cancelled' && steps.new-e2e-suite.outcome != 'cancelled'
+        shell: bash
+        run: |
+          echo "## E2E Suite Comparison Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Suite | Duration | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Legacy (workspace.spec.ts) | ${{ steps.legacy-e2e.outputs.duration }}s | ${{ steps.legacy-e2e.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| New (workspace.suite.spec.ts) | ${{ steps.new-e2e-suite.outputs.duration }}s | ${{ steps.new-e2e-suite.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**OS:** ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
 
   # Summary check that aggregates all e2e matrix results for branch protection
   check-e2e:

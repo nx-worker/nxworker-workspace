@@ -47,6 +47,21 @@ npx nx format:check
 npx nx affected -t lint test build e2e
 ```
 
+### Temporary Dual E2E Execution (Issue #319)
+
+**Status:** Currently running both legacy and new e2e test suites in parallel for stability validation.
+
+The CI workflow temporarily executes both test suites to gather comparison data:
+
+- **Legacy suite** (`workspace.spec.ts`): Existing comprehensive test coverage
+- **New suite** (`workspace.suite.spec.ts`): Orchestrator-based scenario modules with optimized shared workspace
+
+**Isolation:** Each suite uses distinct temporary directories (tmp/test-project* vs tmp/e2e-suite-*) and shares the same Verdaccio registry managed by Jest global setup/teardown.
+
+**Metrics tracked:** Duration and pass/fail status for each suite across all OS matrix variants.
+
+**Removal criteria:** After ≥2 consecutive green runs on all platforms with acceptable performance, the legacy suite will be removed (tracked separately).
+
 ## Local Verdaccio workflow
 
 The e2e suite starts Verdaccio automatically via `tools/scripts/start-local-registry.ts`. If you need to debug manually:
